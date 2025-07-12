@@ -8,9 +8,9 @@ import { io, Socket } from "socket.io-client";
 export class SocketIoClient extends AbstractSocketClient {
   private _socket: Socket<ServerToClientEvents, ClientToServerEvents>;
 
-  constructor() {
+  constructor(url: string) {
     super();
-    this._socket = io("http://localhost:8000", {
+    this._socket = io(url, {
       autoConnect: false,
       transports: ["websocket"],
       reconnectionAttempts: 5,

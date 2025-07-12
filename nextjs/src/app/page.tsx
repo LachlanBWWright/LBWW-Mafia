@@ -8,6 +8,8 @@ import { roles } from "~/app/info/roles";
 import ReCAPTCHA from "react-google-recaptcha";
 import type { AbstractSocketClient } from "~/socket/AbstractSocketClient";
 import { PartyKitSocketClient } from "~/socket/PartyKitClient";
+import { SocketIoClient } from "~/socket/SocketIoClient";
+import { env } from "~/env";
 
 export default function PlayPage() {
   const [playerName, setPlayerName] = useState("");
@@ -21,7 +23,21 @@ export default function PlayPage() {
   const socketClientRef = React.useRef<AbstractSocketClient | null>(null);
 
   useEffect(() => {
-    socketClientRef.current = new PartyKitSocketClient();
+    // Determine socket backend and endpoint from env
+    const backend = env.NEXT_PUBLIC_SOCKET_BACKEND;
+    if (backend === "partykit") {
+      // Use PartyKitSocketClient
+      // Room name can be dynamic, for now use a default/test value
+      socketClientRef.current = new PartyKitSocketClient(
+        env.NEXT_PUBLIC_PARTYKIT_URL,
+        "TESTROOMNAME",
+      );
+    } else {
+      // Use SocketIoClient with endpoint from env
+      socketClientRef.current = new SocketIoClient(
+        env.NEXT_PUBLIC_SOCKETIO_URL,
+      );
+    }
   }, []);
 
   useEffect(() => {

@@ -32,11 +32,11 @@ export class PartyKitSocketClient extends AbstractSocketClient {
   socket: PartySocket;
   receiveMessageListeners: ((msg: string) => void)[] = [];
 
-  constructor() {
+  constructor(host: string, room: string) {
     super();
     this.socket = new PartySocket({
-      host: "https://localhost:1999",
-      room: "TESTROOMNAME",
+      host,
+      room,
     });
     this.socket.addEventListener("open", (event) => {
       console.log(event);
