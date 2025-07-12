@@ -19,10 +19,10 @@ export class PartyKitHandler extends SocketHandler {
   }
 
   sendRoomMessage(roomId: string, message: MessageToClient): void {
-    if (this.room.id !== roomId) {
+    /*     if (this.room.id !== roomId) {
       console.error(`Room with ID ${roomId} not found.`);
       return;
-    }
+    } */
     this.room.broadcast(JSON.stringify(message));
   }
 
