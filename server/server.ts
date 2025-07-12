@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { io, addSocketListeners } from "./servers/socket";
+import { io, addSocketListeners } from "./servers/socketio";
 import { httpServer } from "./servers/httpServer";
 
 const roomSize = parseInt(process.env.ROOM_SIZE || "13", 10);

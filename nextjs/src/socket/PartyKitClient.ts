@@ -35,7 +35,7 @@ export class PartyKitSocketClient extends AbstractSocketClient {
   constructor() {
     super();
     this.socket = new PartySocket({
-      host: "https://your-partykit-server.com",
+      host: "https://localhost:1999",
       room: "TESTROOMNAME",
     });
     this.socket.addEventListener("open", (event) => {

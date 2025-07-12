@@ -6,6 +6,8 @@ import { Room } from "./play/Room";
 import { roles } from "~/app/info/roles";
 
 import ReCAPTCHA from "react-google-recaptcha";
+import type { AbstractSocketClient } from "~/socket/AbstractSocketClient";
+import { PartyKitSocketClient } from "~/socket/PartyKitClient";
 
 export default function PlayPage() {
   const [playerName, setPlayerName] = useState("");
@@ -15,6 +17,12 @@ export default function PlayPage() {
   const [captchaToken, setCaptchaToken] = useState("");
   const [captchaEntered, setCaptchaEntered] = useState(false);
   const [inGame, setInGame] = useState(false);
+
+  const socketClientRef = React.useRef<AbstractSocketClient | null>(null);
+
+  useEffect(() => {
+    socketClientRef.current = new PartyKitSocketClient();
+  }, []);
 
   useEffect(() => {
     setInGame(playerRole !== "");
@@ -52,13 +60,16 @@ export default function PlayPage() {
               </OverlayTrigger>
             )}
           </Card.Text>
-          <Room
-            captchaToken={captchaToken}
-            setFailReason={setFailReason}
-            setName={setPlayerName}
-            setRoom={setPlayerRoom}
-            setRole={setPlayerRole}
-          />
+          {socketClientRef.current && (
+            <Room
+              socketClient={socketClientRef.current}
+              captchaToken={captchaToken}
+              setFailReason={setFailReason}
+              setName={setPlayerName}
+              setRoom={setPlayerRoom}
+              setRole={setPlayerRole}
+            />
+          )}
         </Card.Body>
       </Card>
     );

@@ -1,7 +1,6 @@
 import Crypto from "crypto";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { Player } from "../player/player.js";
-import type { PlayerSocket } from "../../servers/socket.js";
 import { Confesser } from "../roles/neutral/confesser.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { BlankRole } from "../roles/blankRole.js";
@@ -44,11 +43,10 @@ export class Room {
   }
 
   //Adds a new player to the room, and makes the game start if it is full. Returns error code if the user failed to join, or their username
-  addPlayer(playerSocket: PlayerSocket) {
-    let playerSocketId = playerSocket.id;
+  addPlayer(socketId: string) {
     //Stops the user from being added if there's an existing user with the same username or socketId, or if the room is full
     for (const player of this.playerList) {
-      if (player.socketId === playerSocketId) return 1;
+      if (player.socketId === socketId) return 1;
       else if (this.playerList.length >= this.size) return 3;
     }
 
@@ -64,16 +62,16 @@ export class Room {
       }
     }
 
-    this.emitPlayerList(playerSocketId);
+    this.emitPlayerList(socketId);
 
     this.socketHandler.sendRoomMessage(this.name, {
       name: "receiveMessage",
       data: { message: playerUsername + " has joined the room!" },
     });
-    playerSocket.data.position =
-      this.playerList.push(
-        new Player(playerSocket, playerSocketId, playerUsername, this),
-      ) - 1; //Adds a player to the array
+    const newPos = this.playerList.length;
+    const newPlayer = new Player(socketId, playerUsername, newPos);
+    this.playerList.push(newPlayer);
+
     this.playerCount = this.playerList.length; //Updates the player count
     this.socketHandler.sendRoomMessage(this.name, {
       name: "receive-new-player",
@@ -115,7 +113,7 @@ export class Room {
             if (!nextPlayer) {
               continue;
             }
-            nextPlayer.socket.data.position = x; //Updates positions
+            nextPlayer.position = x;
           }
           this.playerCount = this.playerList.length;
         } else {
@@ -156,33 +154,24 @@ export class Room {
   }
 
   //Handles users sending messages to the chat
-  handleSentMessage(
-    playerSocket: PlayerSocket,
-    message: string,
-    isDay: boolean,
-  ) {
+  handleSentMessage(socketId: string, message: string, isDay: boolean) {
     try {
-      if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        playerSocket.data.position === undefined
-      )
-        return;
-
-      let foundPlayer = this.playerList[playerSocket.data.position];
-      if (foundPlayer === undefined) {
-        this.socketHandler.sendPlayerMessage(playerSocket.id, {
+      const foundPlayer = this.playerList.find((p) => p.socketId === socketId);
+      if (!foundPlayer) {
+        this.socketHandler.sendPlayerMessage(socketId, {
           name: "receiveMessage",
           data: { message: "Player object could not be found." },
         });
         return;
       }
+      if ((!isDay && this.time === "day") || (isDay && this.time === "night"))
+        return;
       if (this.started) {
         //If the game has started, handle the message with the role object
         if (foundPlayer.isAlive) foundPlayer.role.handleMessage(message);
         //Doesn't start with either - send as a regular message
         else
-          this.socketHandler.sendPlayerMessage(playerSocket.id, {
+          this.socketHandler.sendPlayerMessage(socketId, {
             name: "receiveMessage",
             data: { message: "You cannot speak, as you are dead." },
           });
@@ -192,7 +181,7 @@ export class Room {
           data: { message: foundPlayer.playerUsername + ": " + message },
         }); //If the game hasn't started, no roles have been assigned, just send the message directly
     } catch (error) {
-      this.socketHandler.sendPlayerMessage(playerSocket.id, {
+      this.socketHandler.sendPlayerMessage(socketId, {
         name: "receiveMessage",
         data: {
           message: "You cannot speak, as you are dead. Or an error occured.",
@@ -202,50 +191,53 @@ export class Room {
     }
   }
 
-  handleVote(playerSocket: PlayerSocket, recipient: number, isDay: boolean) {
+  handleVote(playerSocketId: string, recipient: number, isDay: boolean) {
     try {
-      if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === "" ||
-        playerSocket.data.position === undefined
-      )
-        return; //Cancels on client-server time mismatch, or if the time is invalid
-      let foundPlayer = this.playerList[playerSocket.data.position];
-      let foundRecipient = this.playerList[recipient];
+      const foundPlayer = this.playerList.find(
+        (p) => p.socketId === playerSocketId,
+      );
+      const foundRecipient = this.playerList[recipient];
       if (!foundPlayer || !foundRecipient) {
-        this.socketHandler.sendPlayerMessage(playerSocket.id, {
+        this.socketHandler.sendPlayerMessage(playerSocketId, {
           name: "receiveMessage",
           data: { message: "Player object could not be found." },
         });
         return;
-      } else if (foundPlayer.hasVoted)
-        this.socketHandler.sendPlayerMessage(playerSocket.id, {
+      }
+      if (
+        (!isDay && this.time === "day") ||
+        (isDay && this.time === "night") ||
+        this.time === ""
+      )
+        return;
+      if (foundPlayer.hasVoted) {
+        this.socketHandler.sendPlayerMessage(playerSocketId, {
           name: "receiveMessage",
           data: { message: "You cannot change your vote." },
         });
-      else if (foundPlayer === foundRecipient)
-        this.socketHandler.sendPlayerMessage(playerSocket.id, {
+      } else if (foundPlayer === foundRecipient) {
+        this.socketHandler.sendPlayerMessage(playerSocketId, {
           name: "receiveMessage",
           data: { message: "You cannot vote for yourself." },
         });
-      else if (this.time != "day") {
+      } else if (this.time != "day") {
         if (foundPlayer.role.nightVote) {
           foundPlayer.hasVoted = true;
           foundPlayer.role.handleNightVote(foundRecipient);
-        } else
-          this.socketHandler.sendPlayerMessage(playerSocket.id, {
+        } else {
+          this.socketHandler.sendPlayerMessage(playerSocketId, {
             name: "receiveMessage",
             data: { message: "You cannot vote at night." },
           });
-      } else if (this.confesserVotedOut)
-        this.socketHandler.sendPlayerMessage(playerSocket.id, {
+        }
+      } else if (this.confesserVotedOut) {
+        this.socketHandler.sendPlayerMessage(playerSocketId, {
           name: "receiveMessage",
           data: {
             message: "The town voted out a confessor, disabling voting.",
           },
         });
-      else if (foundRecipient.isAlive && !foundPlayer.hasVoted) {
+      } else if (foundRecipient.isAlive && !foundPlayer.hasVoted) {
         foundPlayer.hasVoted = true;
         foundRecipient.votesReceived++;
         if (foundRecipient.votesReceived > 1)
@@ -276,41 +268,44 @@ export class Room {
                 " to be killed.",
             },
           });
-      } else
-        this.socketHandler.sendPlayerMessage(playerSocket.id, {
+      } else {
+        this.socketHandler.sendPlayerMessage(playerSocketId, {
           name: "receiveMessage",
           data: { message: "Your vote was invalid." },
         });
+      }
     } catch (error) {
       console.log(error);
     }
   }
 
   handleWhisper(
-    playerSocket: PlayerSocket,
+    playerSocketId: string,
     recipient: number,
     message: string,
     isDay: boolean,
   ) {
     try {
+      const foundPlayer = this.playerList.find(
+        (p) => p.socketId === playerSocketId,
+      );
+      const foundRecipient = this.playerList[recipient];
+      if (!foundPlayer || !foundRecipient) {
+        console.error("Invalid whisper!");
+        return;
+      }
       if (
         (!isDay && this.time === "day") ||
         (isDay && this.time == "night") ||
-        this.time === "" ||
-        playerSocket.data.position === undefined
+        this.time === ""
       )
         return;
-      let foundPlayer = this.playerList[playerSocket.data.position];
-      let foundRecipient = this.playerList[recipient];
-
-      if (!foundPlayer || !foundRecipient) {
-        console.error("Invalid whisper!");
-      } else if (this.time === "night")
+      if (this.time === "night") {
         this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
           name: "receiveMessage",
           data: { message: "You cannot whisper at night." },
         });
-      else if (this.time === "day" && foundRecipient.isAlive) {
+      } else if (this.time === "day" && foundRecipient.isAlive) {
         if (0.1 > Math.random()) {
           //10% chance of the whisper being overheard by the town.
           this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
@@ -377,7 +372,7 @@ export class Room {
               },
             );
         }
-      } else
+      } else {
         this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
           name: "receiveMessage",
           data: {
@@ -385,40 +380,40 @@ export class Room {
               "You didn't whisper to a valid recipient, or they are dead.",
           },
         });
+      }
     } catch (error) {
       console.log(error);
     }
   }
 
   handleVisit(
-    playerSocket: PlayerSocket,
+    playerSocketId: string,
     recipient: number | null,
     isDay: boolean,
   ) {
     try {
-      if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === "" ||
-        playerSocket.data.position === undefined
-      )
-        return;
-      let foundPlayer = this.playerList[playerSocket.data.position];
-      let foundRecipient =
+      const foundPlayer = this.playerList.find(
+        (p) => p.socketId === playerSocketId,
+      );
+      const foundRecipient =
         recipient !== null ? this.playerList[recipient] : null;
-
       if (!foundPlayer) {
         console.error("Invalid visit!");
         return;
       }
-
+      if (
+        (!isDay && this.time === "day") ||
+        (isDay && this.time === "night") ||
+        this.time === ""
+      )
+        return;
       if (this.time === "day") {
         if (foundRecipient !== null)
           foundPlayer.role.handleDayAction(foundRecipient);
         else foundPlayer.role.cancelDayAction();
       } else if (this.time === "night") {
         if (foundPlayer.role.roleblocked)
-          this.socketHandler.sendPlayerMessage(playerSocket.id, {
+          this.socketHandler.sendPlayerMessage(playerSocketId, {
             name: "receiveMessage",
             data: { message: "You are roleblocked, and cannot call commands." },
           });
@@ -461,13 +456,13 @@ export class Room {
     //Allocates the shuffled rolelist to users
     let i = 0;
     for (const player of this.playerList) {
-      player.socket.data.position = i;
+      player.position = i;
       const role = this.roleList[i];
       if (role === undefined) {
         console.error("Invalid role instance!");
         continue;
       }
-      player.role = new role(this, player); //Assigns the role to the player (this.roleList[i] is an ES6 class)
+      player.role = new role(this, player);
 
       let playerReturned = {
         name: player.playerUsername,
@@ -794,7 +789,4 @@ export class Room {
     });
     this.socketHandler.disconnectSockets(this.name);
   }
-}
-function startFirstDaySession(sessionLength: any, number: any) {
-  throw new Error("Function not implemented.");
 }

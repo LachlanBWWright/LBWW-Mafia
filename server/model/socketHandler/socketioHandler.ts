@@ -1,6 +1,6 @@
 import { MessageToClient } from "../../../shared/socketTypes/socketTypes";
 import { SocketHandler } from "./socketHandler";
-import { io } from "../../servers/socket";
+import { io } from "../../servers/socketio";
 
 export class SocketIoHandler extends SocketHandler {
   sendPlayerMessage(playerSocketId: string, message: MessageToClient): void {
