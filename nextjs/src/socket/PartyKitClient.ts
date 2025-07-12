@@ -41,9 +41,15 @@ export class PartyKitSocketClient extends AbstractSocketClient {
     this.socket.addEventListener("open", (event) => {
       console.log(event);
     });
-    this.socket.addEventListener("message", (event) => {
+    this.socket.addEventListener("message", (event: MessageEvent<string>) => {
+      console.log("EVENT DATA:", event.data);
+
+      console.log("Typeof event.data:", typeof event.data);
       // Parse the incoming message
       try {
+        //Ignore unsafe ts cast
+        //TODO: Add zod validation
+        //eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const data: MessageToClient = JSON.parse(event.data);
         // Dispatch to the correct listeners based on event name
         switch (data.name) {
