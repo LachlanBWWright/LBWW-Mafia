@@ -1,7 +1,7 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { JUDGE_ERROR_RATE } from "../../../constants/gameConstants.js";
+import { JUDGE_ERROR_RATE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
 
 /**
  * Judge role - Investigates player alignments with a chance of error
@@ -12,8 +12,8 @@ import { JUDGE_ERROR_RATE } from "../../../constants/gameConstants.js";
 export class Judge extends Role {
   name = "Judge";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;

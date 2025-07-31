@@ -1,7 +1,7 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
+import { BASE_DEFENSE, BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
 
 /**
  * Doctor role - Heals other players to protect them from attacks
@@ -12,8 +12,8 @@ import { BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
 export class Doctor extends Role {
   name = "Doctor";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;

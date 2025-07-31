@@ -1,7 +1,7 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { JAILOR_EXECUTION_DAMAGE, BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
+import { JAILOR_EXECUTION_DAMAGE, BASIC_ATTACK_DAMAGE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
 
 /**
  * Jailor role - Can jail players during the day and choose to execute them at night
@@ -15,8 +15,8 @@ import { JAILOR_EXECUTION_DAMAGE, BASIC_ATTACK_DAMAGE } from "../../../constants
 export class Jailor extends Role {
   name = "Jailor";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = true;

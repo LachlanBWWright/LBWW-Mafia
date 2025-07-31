@@ -1,7 +1,7 @@
 import { Role } from "../abstractRole.js";
 import { Room } from "../../rooms/room.js";
 import { Player } from "../../player/player.js";
-import { VETTER_RESEARCH_SLOTS, FIFTY_FIFTY_CHANCE } from "../../../constants/gameConstants.js";
+import { VETTER_RESEARCH_SLOTS, FIFTY_FIFTY_CHANCE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
 
 /**
  * Vetter role - Researches random players to learn their alignments
@@ -15,8 +15,8 @@ export class Vetter extends Role {
 
   name = "Vetter";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;

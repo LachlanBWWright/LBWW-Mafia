@@ -1,7 +1,7 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { FIFTY_FIFTY_CHANCE } from "../../../constants/gameConstants.js";
+import { FIFTY_FIFTY_CHANCE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
 
 /**
  * Roleblocker role - Prevents other players from using their night abilities
@@ -12,8 +12,8 @@ import { FIFTY_FIFTY_CHANCE } from "../../../constants/gameConstants.js";
 export class Roleblocker extends Role {
   name = "Roleblocker";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = true;
   dayVisitSelf = false;
   dayVisitOthers = false;
