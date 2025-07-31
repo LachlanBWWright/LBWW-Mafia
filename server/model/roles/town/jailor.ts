@@ -1,7 +1,17 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { JAILOR_EXECUTION_DAMAGE, BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
 
+/**
+ * Jailor role - Can jail players during the day and choose to execute them at night
+ * 
+ * The Jailor is a powerful town role that can:
+ * - Jail a player during the day (roleblocking them)
+ * - Choose to execute the jailed player at night with enhanced damage
+ * - Provide protection to jailed players who are not executed
+ * This is a unique role (only one per game).
+ */
 export class Jailor extends Role {
   name = "Jailor";
   group = "town";
@@ -20,6 +30,10 @@ export class Jailor extends Role {
     super(room, player);
   }
 
+  /**
+   * Processes day action to jail a target player
+   * @param recipient The player to jail (cannot be self)
+   */
   handleDayAction(recipient: Player) {
     //Choose to jail a player
     if (recipient == this.player) {
@@ -86,8 +100,11 @@ export class Jailor extends Role {
     }
   }
 
+  /**
+   * Executes the jail and roleblocks the target at end of day
+   */
   dayVisit() {
-    //Tells the player that they've been jailed, and roleblocks them. dayVisiting is called at the end of a day session.
+    // Tells the player that they've been jailed, and roleblocks them. dayVisiting is called at the end of a day session.
     if (this.dayVisiting != null) {
       this.room.socketHandler.sendPlayerMessage(
         this.dayVisiting.player.socketId,
@@ -105,20 +122,26 @@ export class Jailor extends Role {
     }
   }
 
+  /**
+   * Executes the jailed player with enhanced damage
+   */
   visit() {
-    //Executes the player being jailed
+    // Executes the player being jailed
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      if (this.visiting.damage < 3) this.visiting.damage = 3; //Attacks the victim
+      if (this.visiting.damage < JAILOR_EXECUTION_DAMAGE) this.visiting.damage = JAILOR_EXECUTION_DAMAGE; // Attacks the victim with enhanced damage
       this.visiting.attackers.push(this);
     }
   }
 
+  /**
+   * Handles post-visit logic, protecting non-executed jailed players
+   */
   handleVisits() {
-    if (this.dayVisiting != null) this.dayVisiting.jailed = null; //Resets if the victim has been jailed
+    if (this.dayVisiting != null) this.dayVisiting.jailed = null; // Resets if the victim has been jailed
     if (this.dayVisiting != null) {
-      //Protect the jailee if they weren't executed
-      if (this.dayVisiting.baseDefence == 0) this.dayVisiting.defence = 1;
+      // Protect the jailee if they weren't executed
+      if (this.dayVisiting.baseDefence == 0) this.dayVisiting.defence = BASIC_ATTACK_DAMAGE;
     }
   }
 }
