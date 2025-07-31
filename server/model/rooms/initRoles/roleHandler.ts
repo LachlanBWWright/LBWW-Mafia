@@ -34,19 +34,38 @@ import { LawmanFaction } from "../../factions/lawmanFaction.js";
 
 import { Player } from "../../player/player.js";
 import { BlankRole } from "../../roles/blankRole.js";
+import {
+  TOWN_POWER_THRESHOLD,
+  MAFIA_POWER_THRESHOLD,
+  ROLE_ASSIGNMENT_VARIANCE,
+  NEUTRAL_ROLE_THRESHOLD,
+  TOWN_ROLE_POWER,
+  MAFIA_ROLE_POWER,
+  NEUTRAL_ROLE_POWER,
+} from "../../../constants/gameConstants.js";
 
-//This generates the an array of role classes to be used, and then returns it to the room.
+/**
+ * Handles role assignment and game balance for MERN-Mafia
+ * 
+ * Generates a balanced team composition based on room size and maintains
+ * game balance through power rating calculations.
+ */
 export class RoleHandler {
   roomSize: number;
+  
   constructor(roomSize: number) {
     this.roomSize = roomSize;
   }
 
+  /**
+   * Assigns roles for the game based on balance algorithm
+   * @returns Array of role classes to be instantiated for players
+   */
   assignGame(): (typeof BlankRole)[] {
-    let roleList: (typeof BlankRole)[] = []; //The array of roles to be returned to the room object roleList.push;
-    let comparativePower = 0; //The comparative power, positive is in favour of town, negative in favour of the mafia
+    let roleList: (typeof BlankRole)[] = []; // The array of roles to be returned to the room object
+    let comparativePower = 0; // The comparative power, positive is in favour of town, negative in favour of the mafia
 
-    //Role Lists
+    // Role Lists - Available roles for random selection
     let randomTownList: (typeof BlankRole)[] = [
       Doctor,
       Judge,
@@ -67,9 +86,10 @@ export class RoleHandler {
     let randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
 
     for (let i = 0; i < this.roomSize; i++) {
-      //
-      let randomiser = Math.random() * 30 - 15; //Random Integer betweek -15 and 15
-      //For testing specific roles, comment out otherwise
+      // Random variance for role selection decisions
+      let randomiser = Math.random() * (ROLE_ASSIGNMENT_VARIANCE * 2) - ROLE_ASSIGNMENT_VARIANCE; // Random Integer between -15 and 15
+      
+      // For testing specific roles, comment out otherwise
       /*             if(i == 0) {
                 roleList.push(MafiaInvestigator);
                 comparativePower += this.getPower(MafiaInvestigator);
@@ -77,9 +97,10 @@ export class RoleHandler {
                 continue;
             }  */
 
-      if (comparativePower < 15 && comparativePower > -15) {
+      if (comparativePower < TOWN_POWER_THRESHOLD && comparativePower > MAFIA_POWER_THRESHOLD) {
+        // Power is balanced - use randomizer to decide role type
         if (randomiser > comparativePower) {
-          //The weaker the town, the higher the chance of a town member being added
+          // The weaker the town, the higher the chance of a town member being added
           let index = Math.floor(Math.random() * randomTownList.length);
           let addedRole = randomTownList[index];
           if (!addedRole) {
@@ -90,9 +111,9 @@ export class RoleHandler {
           comparativePower += this.getPower(addedRole);
           if (this.uniqueRoleCheck(addedRole)) randomTownList.splice(index, 1);
         } else {
-          //Add mafia/neutral role
-          if (Math.random() > 0.3 || randomNeutralList.length == 0) {
-            //Add Mafia
+          // Add mafia/neutral role
+          if (Math.random() > NEUTRAL_ROLE_THRESHOLD || randomNeutralList.length == 0) {
+            // Add Mafia
             let index = Math.floor(Math.random() * randomMafiaList.length);
             let addedRole = randomMafiaList[index];
             if (!addedRole) {
@@ -103,7 +124,7 @@ export class RoleHandler {
             if (this.uniqueRoleCheck(addedRole))
               randomMafiaList.splice(index, 1);
           } else {
-            //Add neutral role
+            // Add neutral role
             let index = Math.floor(Math.random() * randomNeutralList.length);
             let addedRole = randomNeutralList[index];
             if (!addedRole) {
@@ -115,8 +136,8 @@ export class RoleHandler {
               randomNeutralList.splice(index, 1);
           }
         }
-      } else if (comparativePower >= 15) {
-        //Town is too powerful - Add mafia
+      } else if (comparativePower >= TOWN_POWER_THRESHOLD) {
+        // Town is too powerful - Add mafia
         let index = Math.floor(Math.random() * randomMafiaList.length);
         let addedRole = randomMafiaList[index];
         if (!addedRole) {
@@ -126,7 +147,7 @@ export class RoleHandler {
         comparativePower += this.getPower(addedRole);
         if (this.uniqueRoleCheck(addedRole)) randomMafiaList.splice(index, 1);
       } else {
-        //Mafia is too powerful - Add town
+        // Mafia is too powerful - Add town
         let index = Math.floor(Math.random() * randomTownList.length);
         let addedRole = randomTownList[index];
         if (!addedRole) {
@@ -140,6 +161,11 @@ export class RoleHandler {
     return roleList;
   }
 
+  /**
+   * Creates faction instances based on roles assigned to players
+   * @param playerList List of players with assigned roles
+   * @returns Array of faction instances for coordinated play
+   */
   assignFactionsFromPlayerList(playerList: Player[]) {
     let factionList = [];
 
@@ -160,7 +186,11 @@ export class RoleHandler {
     return factionList;
   }
 
-  //Returns true if a role is unique, so it can be removed from the propsective role list for additional players
+  /**
+   * Checks if a role should only appear once per game
+   * @param role The role class to check
+   * @returns True if the role is unique (should be removed from selection pool)
+   */
   uniqueRoleCheck(role: typeof BlankRole) {
     switch (role) {
       //Town
@@ -188,56 +218,60 @@ export class RoleHandler {
     }
   }
 
-  //Returns the extent to which a role helps the town
+  /**
+   * Returns the power rating of a role for game balance calculations
+   * @param role The role class to get power rating for
+   * @returns Power rating (positive helps town, negative helps mafia/neutrals)
+   */
   getPower(role: typeof BlankRole) {
     switch (role) {
-      //Town Roles
+      // Town Roles
       case Doctor:
-        return 5;
+        return TOWN_ROLE_POWER.DOCTOR;
       case Judge:
-        return 6;
+        return TOWN_ROLE_POWER.JUDGE;
       case Watchman:
-        return 4;
+        return TOWN_ROLE_POWER.WATCHMAN;
       case Investigator:
-        return 4;
+        return TOWN_ROLE_POWER.INVESTIGATOR;
       case Lawman:
-        return 8;
+        return TOWN_ROLE_POWER.LAWMAN;
       case Vetter:
-        return 4;
+        return TOWN_ROLE_POWER.VETTER;
       case Tapper:
-        return 3;
+        return TOWN_ROLE_POWER.TAPPER;
       case Tracker:
-        return 5;
+        return TOWN_ROLE_POWER.TRACKER;
       case Bodyguard:
-        return 6;
+        return TOWN_ROLE_POWER.BODYGUARD;
       case Nimby:
-        return 5;
+        return TOWN_ROLE_POWER.NIMBY;
       case Sacrificer:
-        return 8;
+        return TOWN_ROLE_POWER.SACRIFICER;
       case Fortifier:
-        return 8;
+        return TOWN_ROLE_POWER.FORTIFIER;
       case Roleblocker:
-        return 5;
+        return TOWN_ROLE_POWER.ROLEBLOCKER;
       case Jailor:
-        return 12;
-      //Mafia Roles
+        return TOWN_ROLE_POWER.JAILOR;
+      // Mafia Roles
       case Mafia:
-        return -13;
+        return MAFIA_ROLE_POWER.MAFIA;
       case MafiaRoleblocker:
-        return -20;
+        return MAFIA_ROLE_POWER.MAFIA_ROLEBLOCKER;
       case MafiaInvestigator:
-        return -15;
-      //Neutral Roles
+        return MAFIA_ROLE_POWER.MAFIA_INVESTIGATOR;
+      // Neutral Roles
       case Maniac:
-        return -12;
+        return NEUTRAL_ROLE_POWER.MANIAC;
       case Sniper:
-        return -10;
+        return NEUTRAL_ROLE_POWER.SNIPER;
       case Framer:
-        return -5;
+        return NEUTRAL_ROLE_POWER.FRAMER;
       case Confesser:
-        return -5;
+        return NEUTRAL_ROLE_POWER.CONFESSER;
       case Peacemaker:
-        return -2;
+        return NEUTRAL_ROLE_POWER.PEACEMAKER;
       default:
         return 0;
     }

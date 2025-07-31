@@ -8,41 +8,80 @@ import { Framer } from "../roles/neutral/framer.js";
 import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { names } from "../player/names/namesList.js";
 import type { SocketHandler } from "../socketHandler/socketHandler";
+import {
+  SESSION_LENGTH_MULTIPLIER,
+  FIRST_DAY_DURATION,
+  MINIMUM_DAY_DURATION,
+  NIGHT_DURATION,
+  WHISPER_OVERHEARD_CHANCE,
+  MAX_GAME_DAYS,
+  DEATH_EXTENSION_DAYS,
+  ABANDON_DAMAGE,
+} from "../../constants/gameConstants.js";
 
+/**
+ * Room class manages a game session of MERN-Mafia
+ * 
+ * Handles player management, game state, day/night cycles, voting, 
+ * whispers, and role interactions. Each room represents one game instance.
+ */
 export class Room {
+  /** Unique room identifier generated using crypto */
   name: string;
+  /** Maximum number of players allowed in the room */
   size: number;
+  /** Current number of players in the room */
   playerCount = 0;
+  /** Array of all players in the room */
   playerList: Player[] = [];
 
+  /** Whether the game has started */
   started = false;
+  /** Current game phase: "day", "night", "" (between phases), or "undefined" (votes locked) */
   time: "day" | "night" | "" | "undefined" = "";
+  /** Array of role classes available for this game */
   roleList: (typeof BlankRole)[] = [];
+  /** Array of faction instances for coordinated roles */
   factionList: Faction[] = [];
+  /** Base duration for day/night sessions in milliseconds */
   sessionLength: number;
+  /** Whether the game has concluded */
   gameHasEnded = false;
-  endDay = 3;
+  /** Day number when game will end if no deaths occur */
+  endDay = DEATH_EXTENSION_DAYS;
 
-  //Data for handling unique roles
-  framer: Framer | null = null; //Reference to the framer role, initialized by the roles constructor if applicable.
-  confesserVotedOut = false; //Confessor role, who wants to get voted out
-  peacemaker: Peacemaker | null = null; //Pleacemaker role, who wants to cause a tie by nobody dying for three days
+  /** Special role references for game mechanics */
+  framer: Framer | null = null; // Reference to the framer role, initialized by the roles constructor if applicable.
+  /** Whether confessor was voted out (disables voting for remainder of game) */
+  confesserVotedOut = false; // Confessor role, who wants to get voted out
+  /** Reference to peacemaker role for tie victory condition */
+  peacemaker: Peacemaker | null = null; // Peacemaker role, who wants to cause a tie by nobody dying for three days
 
   confesser?: Confesser;
 
+  /** Socket handler for communication with clients */
   socketHandler: SocketHandler;
 
+  /**
+   * Creates a new game room
+   * @param size Maximum number of players allowed
+   * @param socketHandler Handler for client communication
+   */
   constructor(size: number, socketHandler: SocketHandler) {
-    //Data relating to the players in the room
-    this.name = Crypto.randomBytes(8).toString("hex"); //Generates the room's "name"
-    this.size = size; //Capacity of the room
+    // Data relating to the players in the room
+    this.name = Crypto.randomBytes(8).toString("hex"); // Generates the room's unique identifier
+    this.size = size; // Capacity of the room
     this.socketHandler = socketHandler;
 
-    //Data relating to the state of the game.
-    this.sessionLength = this.size * 4000; //How long the days/nights initially last for. Decreases over time, with nights at half the length of days
+    // Data relating to the state of the game.
+    this.sessionLength = this.size * SESSION_LENGTH_MULTIPLIER; // How long the days/nights initially last for. Decreases over time, with nights at half the length of days
   }
 
-  //Adds a new player to the room, and makes the game start if it is full. Returns error code if the user failed to join, or their username
+  /**
+   * Adds a new player to the room and starts the game when full
+   * @param socketId Unique socket identifier for the player
+   * @returns Error code (1=duplicate socket, 3=room full) or player username on success
+   */
   addPlayer(socketId: string) {
     //Stops the user from being added if there's an existing user with the same username or socketId, or if the room is full
     for (const player of this.playerList) {
@@ -124,7 +163,7 @@ export class Room {
               message: player.playerUsername + " has abandoned the game!",
             },
           });
-          player.role.damage = 999;
+          player.role.damage = ABANDON_DAMAGE;
         }
       }
       i++;
@@ -306,8 +345,8 @@ export class Room {
           data: { message: "You cannot whisper at night." },
         });
       } else if (this.time === "day" && foundRecipient.isAlive) {
-        if (0.1 > Math.random()) {
-          //10% chance of the whisper being overheard by the town.
+        if (WHISPER_OVERHEARD_CHANCE > Math.random()) {
+          // Whisper was overheard by the town
           this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
             name: "receiveMessage",
             data: { message: "Your whispers were overheard by the town!" },
@@ -498,7 +537,10 @@ export class Room {
   //After it is over, the room executes the actions decided by the players.
   //Then, it checks the living player's factions to determine if the game is over.
 
-  //The first day session is shorter than normal.
+  /**
+   * Starts the first day session with shortened duration
+   * @param sessionLength Base session length in milliseconds
+   */
   startFirstDaySession(sessionLength: number) {
     this.time = "day";
     this.socketHandler.sendRoomMessage(this.name, {
@@ -521,9 +563,14 @@ export class Room {
         console.log(error);
       }
       this.startNightSession(1, sessionLength);
-    }, 5000); //Starts the first day quicker
+    }, FIRST_DAY_DURATION); // Starts the first day quicker than normal days
   }
 
+  /**
+   * Starts a day session where players can discuss, vote, and use day abilities
+   * @param dayNumber Current day number
+   * @param sessionLength Duration of the day session in milliseconds  
+   */
   startDaySession(dayNumber: number, sessionLength: number) {
     this.time = "day";
 
@@ -594,7 +641,7 @@ export class Room {
           for (const livingPlayer of livingPlayerList) {
             //Eliminates the player if they have a majority of the votes.
             if (livingPlayer.votesReceived >= votesRequired) {
-              this.endDay = dayNumber + 3;
+              this.endDay = dayNumber + DEATH_EXTENSION_DAYS;
 
               if (livingPlayer.role.name === "Confesser") {
                 this.socketHandler.sendRoomMessage(this.name, {
@@ -668,8 +715,8 @@ export class Room {
       }
 
       //Checks if the game is over, and ends the room, or starts the next night.
-      if (dayNumber < 25) {
-        //Starts the next session, and ends the game if there's been 25 days.
+      if (dayNumber < MAX_GAME_DAYS) {
+        //Starts the next session, and ends the game if there's been max days.
         const winningFaction = this.findWinningFaction();
         if (winningFaction !== null) {
           this.endGame(winningFaction);
@@ -679,9 +726,14 @@ export class Room {
       } else {
         this.endGame("nobody");
       }
-    }, sessionLength + 10000); //Days are a minimum of 10 seconds long
+    }, sessionLength + MINIMUM_DAY_DURATION); // Days have a minimum duration regardless of decreasing session times
   }
 
+  /**
+   * Starts a night session where players use night abilities and factions coordinate
+   * @param nightNumber Current night number
+   * @param sessionLength Base session length (nights are always fixed duration)
+   */
   startNightSession(nightNumber: number, sessionLength: number) {
     this.time = "night";
     this.socketHandler.sendRoomMessage(this.name, {
@@ -721,11 +773,11 @@ export class Room {
         //Kills players who have been attacked without an adequate defence, resets visits after night logic has been completed
         for (const player of this.playerList) {
           if (player.isAlive) {
-            if (player.role.handleDamage()) this.endDay = nightNumber + 3; //Handles the player being attacked, potentially killing them.
-            player.role.dayVisiting = null; //Resets dayvisiting
-            player.role.visiting = null; //Resets visiting.
-            player.role.roleblocked = false; //Resets roleblocked status
-            player.role.visitors = []; //Resets visitor list.
+            if (player.role.handleDamage()) this.endDay = nightNumber + DEATH_EXTENSION_DAYS; // Handles the player being attacked, potentially killing them.
+            player.role.dayVisiting = null; // Resets dayvisiting
+            player.role.visiting = null; // Resets visiting.
+            player.role.roleblocked = false; // Resets roleblocked status
+            player.role.visitors = []; // Resets visitor list.
             player.role.nightTapped = false;
           }
         }
@@ -738,9 +790,13 @@ export class Room {
       if (winningFaction !== null) {
         this.endGame(winningFaction);
       } else this.startDaySession(nightNumber + 1, sessionLength);
-    }, 15000); //Nights are 15 seconds long.
+    }, NIGHT_DURATION); // Nights are always fixed duration
   }
 
+  /**
+   * Determines which faction has won the game
+   * @returns Winning faction name or null if game continues
+   */
   findWinningFaction() {
     //Note: Roles considered to be 'neutral' in the roleHandler do NOT necessarily have the 'neutral' group attribute in their role class.
     //Only roles that can win with anyone else are will be of the 'neutral' group.
@@ -756,6 +812,10 @@ export class Room {
     return lastFaction;
   }
 
+  /**
+   * Ends the game and notifies all players of the result
+   * @param winningFactionName Name of the winning faction or "nobody" for draw
+   */
   endGame(winningFactionName: string) {
     this.gameHasEnded = true;
     if (winningFactionName == "nobody")

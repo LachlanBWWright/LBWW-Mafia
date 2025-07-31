@@ -1,13 +1,19 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { JUDGE_ERROR_RATE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
 
-//This class judges the alignment of the selected target (usually!)
+/**
+ * Judge role - Investigates player alignments with a chance of error
+ * 
+ * The Judge can inspect other players at night to learn their faction,
+ * but has a 30% chance of receiving incorrect information.
+ */
 export class Judge extends Role {
   name = "Judge";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -21,6 +27,10 @@ export class Judge extends Role {
     super(room, player);
   }
 
+  /**
+   * Processes night action to inspect a target player
+   * @param recipient The player to investigate
+   */
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
@@ -45,12 +55,16 @@ export class Judge extends Role {
     }
   }
 
+  /**
+   * Executes the investigation, potentially giving wrong information
+   */
   visit() {
-    //Visits a role, and tries to determine their alignment.
+    // Visits a role, and tries to determine their alignment.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
 
-      if (Math.random() < 0.3) {
+      if (Math.random() < JUDGE_ERROR_RATE) {
+        // Judge gets wrong information - return a random player's faction
         let livingPlayerList = [];
         for (const player of this.room.playerList) {
           if (player.isAlive) {
@@ -71,7 +85,7 @@ export class Judge extends Role {
           },
         });
       } else {
-        //Visits the right player, and returns their group (factional alignment)
+        // Judge gets correct information
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
           name: "receiveMessage",
           data: {

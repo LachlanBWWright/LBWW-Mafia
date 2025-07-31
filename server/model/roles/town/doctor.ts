@@ -1,12 +1,19 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { BASE_DEFENSE, BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
 
+/**
+ * Doctor role - Heals other players to protect them from attacks
+ * 
+ * Can visit another player at night to heal them, providing basic defense
+ * against most forms of attack. Cannot heal themselves.
+ */
 export class Doctor extends Role {
   name = "Doctor";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -20,6 +27,10 @@ export class Doctor extends Role {
     super(room, player);
   }
 
+  /**
+   * Processes night action to select a player to heal
+   * @param recipient The player to heal (cannot be self)
+   */
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
@@ -43,11 +54,14 @@ export class Doctor extends Role {
     }
   }
 
+  /**
+   * Executes the healing, providing basic defense to the target
+   */
   visit() {
-    //Visits a role, and gives their defence a minimum of one
+    // Visits a role, and gives their defence a minimum of basic attack level
     if (this.visiting != null) {
       if (this.visiting.defence == 0) {
-        this.visiting.defence = 1; //Makes the healee's defence at least 1
+        this.visiting.defence = BASIC_ATTACK_DAMAGE; // Makes the healee's defence at least 1
       }
       this.visiting.receiveVisit(this);
     }

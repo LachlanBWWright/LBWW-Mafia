@@ -1,14 +1,22 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
+import { BASE_DEFENSE, FIFTY_FIFTY_CHANCE } from "../../../constants/gameConstants.js";
 
+/**
+ * Mafia Roleblocker - Mafia member who can roleblock other players
+ * 
+ * Can roleblock players at night, preventing them from using abilities.
+ * Always successful against town members, 50% chance against others.
+ * Also participates in mafia faction attacks and coordination.
+ */
 export class MafiaRoleblocker extends RoleMafia {
   attackVote: Player | null = null;
 
   name = "Mafia Roleblocker";
   group = "mafia";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = true;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -22,6 +30,10 @@ export class MafiaRoleblocker extends RoleMafia {
     super(room, player);
   }
 
+  /**
+   * Processes night action to select a player to roleblock
+   * @param recipient The player to roleblock (cannot be self)
+   */
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
@@ -45,10 +57,14 @@ export class MafiaRoleblocker extends RoleMafia {
     }
   }
 
+  /**
+   * Executes roleblock attempt when not attacking for the faction
+   * Always successful against town, 50% chance against others
+   */
   defaultVisit() {
-    //This visits a role and attacks them. this.visiting is dictated by the faction Class.
+    // This visits a role and roleblocks them (when not attacking for faction)
     if (this.visiting != null) {
-      if (this.visiting.group == "town" || Math.random() > 0.5) {
+      if (this.visiting.group == "town" || Math.random() > FIFTY_FIFTY_CHANCE) {
         this.visiting.roleblocked = true;
         this.visiting.receiveVisit(this);
       }

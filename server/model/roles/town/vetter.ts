@@ -1,15 +1,22 @@
 import { Role } from "../abstractRole.js";
 import { Room } from "../../rooms/room.js";
 import { Player } from "../../player/player.js";
+import { VETTER_RESEARCH_SLOTS, FIFTY_FIFTY_CHANCE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
 
-//This class judges the alignment of the selected target (usually!)
+/**
+ * Vetter role - Researches random players to learn their alignments
+ * 
+ * The Vetter can research players by staying home at night, revealing
+ * the faction of random players. Has limited research sessions per game.
+ */
 export class Vetter extends Role {
-  researchSlots = 3;
+  /** Number of research sessions remaining */
+  researchSlots = VETTER_RESEARCH_SLOTS;
 
   name = "Vetter";
   group = "town";
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = BASE_DEFENSE;
+  defence = BASE_DEFENSE;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -23,6 +30,10 @@ export class Vetter extends Role {
     super(room, player);
   }
 
+  /**
+   * Handles night action to toggle research mode
+   * @param recipient Not used - Vetter visits themselves to research
+   */
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (this.researchSlots == 0)
@@ -50,10 +61,13 @@ export class Vetter extends Role {
     }
   }
 
+  /**
+   * Executes research by selecting and investigating random players
+   */
   visit() {
-    //Selects two random people to visit
+    // Selects two random people to investigate
     try {
-      //Gets two different players at random
+      // Gets two different players at random
       if (this.visiting === null) return;
       this.visiting.receiveVisit(this);
       this.researchSlots--;
@@ -77,7 +91,8 @@ export class Vetter extends Role {
         return;
       }
 
-      if (Math.random() > 0.5) {
+      // Randomly choose which of the two players to reveal information about
+      if (Math.random() > FIFTY_FIFTY_CHANCE) {
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
           name: "receiveMessage",
           data: {
