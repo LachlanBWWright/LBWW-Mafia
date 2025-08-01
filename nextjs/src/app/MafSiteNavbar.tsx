@@ -29,6 +29,9 @@ export function MafSiteNavbar({ children }: { children: React.ReactNode }) {
             <Link className="text-white" href="/">
               Play
             </Link>
+            <Link className="text-white" href="/lobby">
+              Lobby
+            </Link>
             <Link className="text-white" href="/faq">
               FAQ
             </Link>

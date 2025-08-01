@@ -3,6 +3,8 @@ import "~/styles/globals.css";
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 import { MafSiteNavbar } from "./MafSiteNavbar";
+import { TRPCProvider } from "~/components/TRPCProvider";
+import { AuthProvider } from "~/components/AuthProvider";
 
 export const metadata: Metadata = {
   title: "MERN Mafia",
@@ -29,7 +31,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <MafSiteNavbar>{children}</MafSiteNavbar>
+        <AuthProvider>
+          <TRPCProvider>
+            <MafSiteNavbar>{children}</MafSiteNavbar>
+          </TRPCProvider>
+        </AuthProvider>
       </body>
     </html>
   );
