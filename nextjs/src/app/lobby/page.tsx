@@ -1,5 +1,5 @@
-import { GameLobby } from "~/components/GameLobby";
+import { GameLobbyDemo } from "~/components/GameLobbyDemo";
 
 export default function LobbyPage() {
-  return <GameLobby />;
+  return <GameLobbyDemo />;
 }
