@@ -28,8 +28,8 @@ export const env = createEnv({
    */
   client: {
     NEXT_PUBLIC_SOCKET_BACKEND: z.enum(["socketio", "partykit"]),
-    NEXT_PUBLIC_PARTYKIT_URL: z.string().url(),
-    NEXT_PUBLIC_SOCKETIO_URL: z.string().url(),
+    NEXT_PUBLIC_PARTYKIT_URL: z.string().url().optional(),
+    NEXT_PUBLIC_SOCKETIO_URL: z.string().url().optional(),
   },
 
   /**
