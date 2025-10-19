@@ -1,13 +1,44 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import { View, Text, Button, TextInput } from "react-native";
+import { View, Text, Button, TextInput, Alert } from "react-native";
 import { StackParamList } from "../App";
+import { api } from "../utils/api";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
 
 export function HomeScreen({ route, navigation }: HomeScreenProps) {
   const [name, setName] = useState("");
   const [disabled, setDisabled] = useState(true);
+
+  const createGameMutation = api.demo.createDemo.useMutation({
+    onSuccess: (data) => {
+      Alert.alert(
+        "Game Created!",
+        `Room Code: ${data.roomCode}`,
+        [
+          {
+            text: "OK",
+            onPress: () => {
+              navigation.navigate("GameScreen", {
+                lobbyId: data.roomCode,
+                title: data.roomCode,
+                name: validateText(name),
+              });
+            },
+          },
+        ]
+      );
+    },
+    onError: (error) => {
+      Alert.alert("Error", `Failed to create game: ${error.message}`);
+    },
+  });
+
+  const handleCreateGame = () => {
+    createGameMutation.mutate({
+      maxPlayers: 10,
+    });
+  };
 
   return (
     <View
@@ -26,7 +57,7 @@ export function HomeScreen({ route, navigation }: HomeScreenProps) {
       <Text
         style={{ justifyContent: "flex-start", alignSelf: "center", flex: 1 }}
       >
-        {name.length != 0 ? `Your name is \"${name}\"` : ""}
+        {name.length != 0 ? `Your name is "${name}"` : ""}
       </Text>
 
       <View style={{ alignContent: "space-between" }}>
@@ -48,15 +79,23 @@ export function HomeScreen({ route, navigation }: HomeScreenProps) {
         />
         <View style={{ margin: 4 }}>
           <Button
-            title="Play Private Match (TBA)"
-            disabled={true}
+            title="Create New Game"
+            disabled={disabled || createGameMutation.isPending}
+            onPress={handleCreateGame}
+            color={"#00AA00"}
+          />
+        </View>
+        <View style={{ margin: 4 }}>
+          <Button
+            title="Join Private Game (Enter Code)"
+            disabled={disabled}
             onPress={() => navigation.navigate("PrivateGameLobbyScreen")}
             color={"#FF0000"}
           />
         </View>
         <View style={{ margin: 4 }}>
           <Button
-            title="Play Public Match"
+            title="Browse Public Games"
             disabled={disabled}
             onPress={() =>
               navigation.navigate("PublicGameLobbyScreen", {

@@ -12,6 +12,7 @@ import {
 import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
 import io from "socket.io-client";
+import { config } from "../config";
 
 type Player = {
   name: string;
@@ -20,7 +21,7 @@ type Player = {
   isUser?: boolean;
 };
 
-const socket = io(process.env.SOCKET_URL || "http://localhost:3000");
+const socket = io(config.socketUrl);
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 export function GameScreen({ route, navigation }: GameScreenProps) {
   const [message, setMessage] = useState("");

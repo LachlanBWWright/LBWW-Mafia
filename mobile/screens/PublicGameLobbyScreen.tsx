@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, Button } from "react-native";
+import { View, Text, FlatList, Button, ActivityIndicator } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StackParamList } from "../App";
+import { api } from "../utils/api";
 
-interface Lobby {
-  name: string;
-  roomType: string;
-  size: number;
-  playerCount: number;
+interface GameSession {
+  id: string;
+  roomCode: string;
+  roomId: string;
+  maxPlayers: number;
+  status: string;
+  participants: Array<{
+    user: {
+      id: string;
+      name: string | null;
+      image: string | null;
+    };
+  }>;
 }
 
 type PublicGameLobbyScreenProps = NativeStackScreenProps<
@@ -19,59 +28,85 @@ export function PublicGameLobbyScreen({
   route,
   navigation,
 }: PublicGameLobbyScreenProps) {
-  const [roomList, setRoomList] = useState(new Array<Lobby>());
+  const { data: activeSessions, isLoading, error } = api.gameSession.getActive.useQuery();
 
-  const navigateToGame = (lobbyId: string) => {
+  const navigateToGame = (roomCode: string) => {
     navigation.navigate("GameScreen", {
-      lobbyId: lobbyId,
+      lobbyId: roomCode,
       title: "Mern Mafia!",
       name: route.params.name,
     });
   };
 
-  useEffect(
-    () => {
-      fetch("https://mern-mafia.herokuapp.com/getRooms")
-        .then((res) => res.json())
-        .then((res) => setRoomList(res));
-    },
-    [] /*Array of things that should prompt the useEffect hook to be called*/,
-  );
+  if (isLoading) {
+    return (
+      <View
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <ActivityIndicator size="large" color="#3333FF" />
+        <Text style={{ marginTop: 10 }}>Loading games...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View
+        style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 20 }}
+      >
+        <Text style={{ color: "red", textAlign: "center" }}>
+          Error loading games: {error.message}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View
       style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
     >
-      {roomList.length != 0 ? (
-        <View>
-          <FlatList
-            data={roomList}
-            renderItem={({ item }) => (
-              <LobbyView lobby={item} navigate={navigateToGame} />
-            )}
-          />
-        </View>
+      {activeSessions && activeSessions.length > 0 ? (
+        <FlatList
+          data={activeSessions}
+          renderItem={({ item }) => (
+            <GameSessionView session={item} navigate={navigateToGame} />
+          )}
+          keyExtractor={(item) => item.id}
+        />
       ) : (
-        <Text>Loading... </Text>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text>No active games found.</Text>
+          <Text style={{ marginTop: 10, color: "#666" }}>
+            Create a new game to get started!
+          </Text>
+        </View>
       )}
     </View>
   );
 }
-//{/* <LobbyView lobby={item}/> */}
-const LobbyView = (props: {
-  lobby: Lobby;
-  navigate: (name: string) => void;
+
+const GameSessionView = (props: {
+  session: GameSession;
+  navigate: (roomCode: string) => void;
 }) => {
+  const playerCount = props.session.participants.length;
+  
   return (
-    <View style={{ flexDirection: "row", padding: 5 }}>
-      <Text style={{ flex: 1 }}>
-        Name: {props.lobby.name} ({props.lobby.playerCount}/{props.lobby.size})
-      </Text>
+    <View style={{ flexDirection: "row", padding: 10, marginVertical: 5, backgroundColor: "#f0f0f0", borderRadius: 8 }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontWeight: "bold" }}>
+          Room: {props.session.roomCode}
+        </Text>
+        <Text>
+          Players: {playerCount}/{props.session.maxPlayers}
+        </Text>
+      </View>
 
       <Button
-        color="red"
+        color="#3333FF"
         title="Join"
-        onPress={() => props.navigate(props.lobby.name)}
+        onPress={() => props.navigate(props.session.roomCode)}
+        disabled={playerCount >= props.session.maxPlayers}
       />
     </View>
   );
