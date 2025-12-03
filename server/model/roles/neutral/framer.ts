@@ -1,13 +1,14 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class Framer extends Role {
   victoryCondition = false;
   target: Player | null = null; //Target to kill (player object)
 
-  name = "Framer";
-  group = "neutral";
+  name = RoleName.Framer;
+  group = RoleGroup.Neutral;
   baseDefence = 1;
   defence = 1;
   roleblocker = false;
@@ -33,7 +34,7 @@ export class Framer extends Role {
       //console.log((index + i) % length)
       //console.log(this.room.playerList[(index + i) % length])
       const target = this.room.playerList[(index + i) % length];
-      if (target && target.role.group === "town" && target.isAlive) {
+      if (target && target.role.group === RoleGroup.Town && target.isAlive) {
         this.target = target ?? null;
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
           name: "receiveMessage",
@@ -58,7 +59,7 @@ export class Framer extends Role {
       const potentialTarget = this.room.playerList[(index + i) % length];
       if (
         potentialTarget &&
-        potentialTarget.role.group === "town" &&
+        potentialTarget.role.group === RoleGroup.Town &&
         potentialTarget.isAlive
       ) {
         this.target = potentialTarget;

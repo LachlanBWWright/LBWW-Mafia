@@ -1,17 +1,21 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { JUDGE_ERROR_RATE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import {
+  JUDGE_ERROR_RATE,
+  BASE_DEFENSE,
+} from "../../../constants/gameConstants.js";
 
 /**
  * Judge role - Investigates player alignments with a chance of error
- * 
+ *
  * The Judge can inspect other players at night to learn their faction,
  * but has a 30% chance of receiving incorrect information.
  */
 export class Judge extends Role {
-  name = "Judge";
-  group = "town";
+  name = RoleName.Judge;
+  group = RoleGroup.Town;
   baseDefence = BASE_DEFENSE;
   defence = BASE_DEFENSE;
   roleblocker = false;

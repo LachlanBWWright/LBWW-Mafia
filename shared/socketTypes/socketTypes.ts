@@ -3,6 +3,13 @@ export type EventType<T> = {
   data: T;
 };
 
+export enum Time {
+  Day = "day",
+  Night = "night",
+  Between = "between",
+  Locked = "locked",
+}
+
 export type PlayerJoinRoomMessage = {
   name: "playerJoinRoom";
   data: {
@@ -122,7 +129,7 @@ export type ReceiveWhisperMessage = {
 export type UpdateDayTime = {
   name: "update-day-time";
   data: {
-    time: string;
+    time: Time;
     dayNumber: number;
     timeLeft: number;
   };
@@ -192,7 +199,7 @@ export type ServerToClientEvents = {
   "receive-chat-message": (message: string) => void;
   "receive-whisper-message": (message: string) => void;
   "update-day-time": (data: {
-    time: string;
+    time: Time;
     dayNumber: number;
     timeLeft: number;
   }) => void;

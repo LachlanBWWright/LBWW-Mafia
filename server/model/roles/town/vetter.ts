@@ -1,11 +1,16 @@
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 import { Room } from "../../rooms/room.js";
 import { Player } from "../../player/player.js";
-import { VETTER_RESEARCH_SLOTS, FIFTY_FIFTY_CHANCE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
+import {
+  VETTER_RESEARCH_SLOTS,
+  FIFTY_FIFTY_CHANCE,
+  BASE_DEFENSE,
+} from "../../../constants/gameConstants.js";
 
 /**
  * Vetter role - Researches random players to learn their alignments
- * 
+ *
  * The Vetter can research players by staying home at night, revealing
  * the faction of random players. Has limited research sessions per game.
  */
@@ -13,8 +18,8 @@ export class Vetter extends Role {
   /** Number of research sessions remaining */
   researchSlots = VETTER_RESEARCH_SLOTS;
 
-  name = "Vetter";
-  group = "town";
+  name = RoleName.Vetter;
+  group = RoleGroup.Town;
   baseDefence = BASE_DEFENSE;
   defence = BASE_DEFENSE;
   roleblocker = false;

@@ -1,6 +1,7 @@
 import { Faction } from "./abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Role } from "../roles/abstractRole.js";
+import { RoleGroup } from "../../shared/roles/roleEnums";
 
 export class MafiaFaction extends Faction {
   attackList: Player[] = [];
@@ -9,7 +10,7 @@ export class MafiaFaction extends Faction {
   findMembers(playerList: Player[]) {
     //Go through a list of members, add them to the this.memberList
     for (const player of playerList) {
-      if (player.role.group == "mafia") {
+      if (player.role.group === RoleGroup.Mafia) {
         this.memberList.push(player);
       }
     }
@@ -74,7 +75,7 @@ export class MafiaFaction extends Faction {
   removeMembers() {
     let i = 0;
     for (const member of this.memberList) {
-      if (!member.isAlive || member.role.group != "mafia") {
+      if (!member.isAlive || member.role.group !== RoleGroup.Mafia) {
         this.memberList.splice(i, 1);
         i--;
       }

@@ -1,6 +1,7 @@
 import { Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
 import { Room } from "../rooms/room.js";
+import { RoleName } from "../../shared/roles/roleEnums";
 
 export class LawmanFaction extends Faction {
   room?: Room;
@@ -8,7 +9,7 @@ export class LawmanFaction extends Faction {
   findMembers(playerList: Player[]) {
     //Go through a list of members, add them to the this.memberList
     for (const player of playerList) {
-      if (player.role.name == "Lawman") {
+      if (player.role.name === RoleName.Lawman) {
         this.memberList.push(player);
       }
     }
@@ -73,7 +74,7 @@ export class LawmanFaction extends Faction {
     for (let i = 0; i < this.memberList.length; i++) {
       const member = this.memberList[i];
       if (!member) continue;
-      if (!member.isAlive || member.role.name != "Lawman") {
+      if (!member.isAlive || member.role.name !== RoleName.Lawman) {
         this.memberList.splice(i, 1);
         i--;
       }

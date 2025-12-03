@@ -44,15 +44,17 @@ import {
   NEUTRAL_ROLE_POWER,
 } from "../../../constants/gameConstants.js";
 
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums";
+
 /**
  * Handles role assignment and game balance for MERN-Mafia
- * 
+ *
  * Generates a balanced team composition based on room size and maintains
  * game balance through power rating calculations.
  */
 export class RoleHandler {
   roomSize: number;
-  
+
   constructor(roomSize: number) {
     this.roomSize = roomSize;
   }
@@ -87,8 +89,10 @@ export class RoleHandler {
 
     for (let i = 0; i < this.roomSize; i++) {
       // Random variance for role selection decisions
-      let randomiser = Math.random() * (ROLE_ASSIGNMENT_VARIANCE * 2) - ROLE_ASSIGNMENT_VARIANCE; // Random Integer between -15 and 15
-      
+      let randomiser =
+        Math.random() * (ROLE_ASSIGNMENT_VARIANCE * 2) -
+        ROLE_ASSIGNMENT_VARIANCE; // Random Integer between -15 and 15
+
       // For testing specific roles, comment out otherwise
       /*             if(i == 0) {
                 roleList.push(MafiaInvestigator);
@@ -97,7 +101,10 @@ export class RoleHandler {
                 continue;
             }  */
 
-      if (comparativePower < TOWN_POWER_THRESHOLD && comparativePower > MAFIA_POWER_THRESHOLD) {
+      if (
+        comparativePower < TOWN_POWER_THRESHOLD &&
+        comparativePower > MAFIA_POWER_THRESHOLD
+      ) {
         // Power is balanced - use randomizer to decide role type
         if (randomiser > comparativePower) {
           // The weaker the town, the higher the chance of a town member being added
@@ -112,7 +119,10 @@ export class RoleHandler {
           if (this.uniqueRoleCheck(addedRole)) randomTownList.splice(index, 1);
         } else {
           // Add mafia/neutral role
-          if (Math.random() > NEUTRAL_ROLE_THRESHOLD || randomNeutralList.length == 0) {
+          if (
+            Math.random() > NEUTRAL_ROLE_THRESHOLD ||
+            randomNeutralList.length == 0
+          ) {
             // Add Mafia
             let index = Math.floor(Math.random() * randomMafiaList.length);
             let addedRole = randomMafiaList[index];
@@ -170,14 +180,14 @@ export class RoleHandler {
     let factionList = [];
 
     for (const player of playerList) {
-      if (player.role.name === "Lawman") {
+      if (player.role.name === RoleName.Lawman) {
         factionList.push(new LawmanFaction());
         break;
       }
     }
 
     for (const player of playerList) {
-      if (player.role.group === "mafia") {
+      if (player.role.group === RoleGroup.Mafia) {
         factionList.push(new MafiaFaction());
         break;
       }

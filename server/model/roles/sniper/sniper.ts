@@ -1,12 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class Sniper extends Role {
   lastVisited: Role | null = null;
 
-  name = "Sniper";
-  group = "sniper";
+  name = RoleName.Sniper;
+  group = RoleGroup.Sniper;
   baseDefence = 1;
   defence = 1;
   roleblocker = false;

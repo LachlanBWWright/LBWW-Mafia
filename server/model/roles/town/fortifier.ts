@@ -1,13 +1,14 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class Fortifier extends Role {
   playerFortified: Role | null = null;
   canFortify = true;
 
-  name = "Fortifier";
-  group = "town";
+  name = RoleName.Fortifier;
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;

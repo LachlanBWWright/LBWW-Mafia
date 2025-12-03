@@ -1,12 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class MafiaSilencer extends RoleMafia {
   attackVote: Player | null = null;
 
-  name = "Mafia Silencer";
-  group = "mafia";
+  name = RoleName.MafiaSilencer;
+  group = RoleGroup.Mafia;
   baseDefence = 0;
   defence = 0;
   roleblocker = true;
@@ -49,7 +50,7 @@ export class MafiaSilencer extends RoleMafia {
   defaultVisit() {
     //This visits a role and attacks them. this.visiting is dictated by the faction Class.
     if (this.visiting != null) {
-      if (this.visiting.group == "town" || Math.random() > 0.5) {
+      if (this.visiting.group === RoleGroup.Town || Math.random() > 0.5) {
         this.visiting.roleblocked = true;
         this.visiting.receiveVisit(this);
       }

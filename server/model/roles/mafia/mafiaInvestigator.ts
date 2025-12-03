@@ -1,12 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class MafiaInvestigator extends RoleMafia {
   attackVote: Player | null = null;
 
-  name = "Mafia Investigator";
-  group = "mafia";
+  name = RoleName.MafiaInvestigator;
+  group = RoleGroup.Mafia;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;

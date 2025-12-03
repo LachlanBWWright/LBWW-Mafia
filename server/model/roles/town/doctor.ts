@@ -1,17 +1,21 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { BASE_DEFENSE, BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import {
+  BASE_DEFENSE,
+  BASIC_ATTACK_DAMAGE,
+} from "../../../constants/gameConstants.js";
 
 /**
  * Doctor role - Heals other players to protect them from attacks
- * 
+ *
  * Can visit another player at night to heal them, providing basic defense
  * against most forms of attack. Cannot heal themselves.
  */
 export class Doctor extends Role {
-  name = "Doctor";
-  group = "town";
+  name = RoleName.Doctor;
+  group = RoleGroup.Town;
   baseDefence = BASE_DEFENSE;
   defence = BASE_DEFENSE;
   roleblocker = false;

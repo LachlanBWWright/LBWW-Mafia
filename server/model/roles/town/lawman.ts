@@ -1,12 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class Lawman extends Role {
   isInsane = false;
 
-  name = "Lawman";
-  group = "town";
+  name = RoleName.Lawman;
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -69,7 +70,7 @@ export class Lawman extends Role {
       this.visiting.attackers.push(this);
 
       this.visiting.receiveVisit(this);
-      if (this.visiting.group == "town") {
+      if (this.visiting.group === RoleGroup.Town) {
         //Go insane if a member of the town got shot
         this.isInsane = true;
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {

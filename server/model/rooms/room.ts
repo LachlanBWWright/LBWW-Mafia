@@ -8,6 +8,8 @@ import { Framer } from "../roles/neutral/framer.js";
 import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { names } from "../player/names/namesList.js";
 import type { SocketHandler } from "../socketHandler/socketHandler";
+import { Time } from "../../../shared/socketTypes/socketTypes";
+import { RoleName } from "../../../shared/roles/roleEnums";
 import {
   SESSION_LENGTH_MULTIPLIER,
   FIRST_DAY_DURATION,
@@ -21,8 +23,8 @@ import {
 
 /**
  * Room class manages a game session of MERN-Mafia
- * 
- * Handles player management, game state, day/night cycles, voting, 
+ *
+ * Handles player management, game state, day/night cycles, voting,
  * whispers, and role interactions. Each room represents one game instance.
  */
 export class Room {
@@ -37,8 +39,8 @@ export class Room {
 
   /** Whether the game has started */
   started = false;
-  /** Current game phase: "day", "night", "" (between phases), or "undefined" (votes locked) */
-  time: "day" | "night" | "" | "undefined" = "";
+  /** Current game phase: Time.Day, Time.Night, "" (between phases), or "undefined" (votes locked) */
+  time: Time = Time.Between;
   /** Array of role classes available for this game */
   roleList: (typeof BlankRole)[] = [];
   /** Array of faction instances for coordinated roles */
@@ -203,7 +205,10 @@ export class Room {
         });
         return;
       }
-      if ((!isDay && this.time === "day") || (isDay && this.time === "night"))
+      if (
+        (!isDay && this.time === Time.Day) ||
+        (isDay && this.time === Time.Night)
+      )
         return;
       if (this.started) {
         //If the game has started, handle the message with the role object
@@ -244,9 +249,9 @@ export class Room {
         return;
       }
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === ""
+        (!isDay && this.time === Time.Day) ||
+        (isDay && this.time === Time.Night) ||
+        this.time === Time.Between
       )
         return;
       if (foundPlayer.hasVoted) {
@@ -259,7 +264,7 @@ export class Room {
           name: "receiveMessage",
           data: { message: "You cannot vote for yourself." },
         });
-      } else if (this.time != "day") {
+      } else if (this.time !== Time.Day) {
         if (foundPlayer.role.nightVote) {
           foundPlayer.hasVoted = true;
           foundPlayer.role.handleNightVote(foundRecipient);
@@ -334,17 +339,17 @@ export class Room {
         return;
       }
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time == "night") ||
-        this.time === ""
+        (!isDay && this.time === Time.Day) ||
+        (isDay && this.time == Time.Night) ||
+        this.time === Time.Between
       )
         return;
-      if (this.time === "night") {
+      if (this.time === Time.Night) {
         this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
           name: "receiveMessage",
           data: { message: "You cannot whisper at night." },
         });
-      } else if (this.time === "day" && foundRecipient.isAlive) {
+      } else if (this.time === Time.Day && foundRecipient.isAlive) {
         if (WHISPER_OVERHEARD_CHANCE > Math.random()) {
           // Whisper was overheard by the town
           this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
@@ -441,16 +446,16 @@ export class Room {
         return;
       }
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === ""
+        (!isDay && this.time === Time.Day) ||
+        (isDay && this.time === Time.Night) ||
+        this.time === Time.Between
       )
         return;
-      if (this.time === "day") {
+      if (this.time === Time.Day) {
         if (foundRecipient !== null)
           foundPlayer.role.handleDayAction(foundRecipient);
         else foundPlayer.role.cancelDayAction();
-      } else if (this.time === "night") {
+      } else if (this.time === Time.Night) {
         if (foundPlayer.role.roleblocked)
           this.socketHandler.sendPlayerMessage(playerSocketId, {
             name: "receiveMessage",
@@ -542,14 +547,14 @@ export class Room {
    * @param sessionLength Base session length in milliseconds
    */
   startFirstDaySession(sessionLength: number) {
-    this.time = "day";
+    this.time = Time.Day;
     this.socketHandler.sendRoomMessage(this.name, {
       name: "receiveMessage",
       data: { message: "Day 1 has started." },
     });
     this.socketHandler.sendRoomMessage(this.name, {
       name: "update-day-time",
-      data: { time: "Day", dayNumber: 1, timeLeft: 5 },
+      data: { time: Time.Day, dayNumber: 1, timeLeft: 5 },
     });
     setTimeout(() => {
       try {
@@ -569,10 +574,10 @@ export class Room {
   /**
    * Starts a day session where players can discuss, vote, and use day abilities
    * @param dayNumber Current day number
-   * @param sessionLength Duration of the day session in milliseconds  
+   * @param sessionLength Duration of the day session in milliseconds
    */
   startDaySession(dayNumber: number, sessionLength: number) {
-    this.time = "day";
+    this.time = Time.Day;
 
     if (this.endDay <= dayNumber) {
       this.socketHandler.sendRoomMessage(this.name, {
@@ -602,7 +607,7 @@ export class Room {
     }
 
     let dateTimeJson = {
-      time: "Day",
+      time: Time.Day,
       dayNumber: dayNumber,
       timeLeft: Math.floor(sessionLength / 1000 + 10), //Converts ms to s, adds the 10s minimum
     };
@@ -643,7 +648,7 @@ export class Room {
             if (livingPlayer.votesReceived >= votesRequired) {
               this.endDay = dayNumber + DEATH_EXTENSION_DAYS;
 
-              if (livingPlayer.role.name === "Confesser") {
+              if (livingPlayer.role.name === RoleName.Confesser) {
                 this.socketHandler.sendRoomMessage(this.name, {
                   name: "receiveMessage",
                   data: {
@@ -735,15 +740,15 @@ export class Room {
    * @param sessionLength Base session length (nights are always fixed duration)
    */
   startNightSession(nightNumber: number, sessionLength: number) {
-    this.time = "night";
+    this.time = Time.Night;
     this.socketHandler.sendRoomMessage(this.name, {
       name: "update-day-time",
-      data: { time: "Night", dayNumber: nightNumber, timeLeft: 15 },
+      data: { time: Time.Night, dayNumber: nightNumber, timeLeft: 15 },
     }); //TimeLeft is in seconds
 
     setTimeout(() => {
       try {
-        this.time = "undefined"; //Prevents users from changing their visits
+        this.time = Time.Locked; //Prevents users from changing their visits
 
         //This handles factional decisions, and lets the factions assign the members "visiting" variable.
         for (const faction of this.factionList) {
@@ -773,7 +778,8 @@ export class Room {
         //Kills players who have been attacked without an adequate defence, resets visits after night logic has been completed
         for (const player of this.playerList) {
           if (player.isAlive) {
-            if (player.role.handleDamage()) this.endDay = nightNumber + DEATH_EXTENSION_DAYS; // Handles the player being attacked, potentially killing them.
+            if (player.role.handleDamage())
+              this.endDay = nightNumber + DEATH_EXTENSION_DAYS; // Handles the player being attacked, potentially killing them.
             player.role.dayVisiting = null; // Resets dayvisiting
             player.role.visiting = null; // Resets visiting.
             player.role.roleblocked = false; // Resets roleblocked status

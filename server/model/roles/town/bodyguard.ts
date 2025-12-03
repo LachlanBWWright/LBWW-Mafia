@@ -1,10 +1,11 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class Bodyguard extends Role {
-  name = "Bodyguard";
-  group = "town";
+  name = RoleName.Bodyguard;
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;

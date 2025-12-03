@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Time } from "../../../shared/socketTypes/socketTypes";
 import type { AbstractSocketClient } from "../socket/AbstractSocketClient";
 
 type MsgType = {
@@ -16,7 +17,7 @@ type PlayerType = {
 type UseGameRoomReturn = {
   // State
   canTalk: boolean;
-  time: string;
+  time: Time;
   dayNumber: number;
   timeLeft: number;
   messages: MsgType[];
@@ -52,7 +53,7 @@ export const useGameRoom = (
 ): UseGameRoomReturn => {
   // State
   const [canTalk, setCanTalk] = useState(true);
-  const [time, setTime] = useState("Day");
+  const [time, setTime] = useState<Time>(Time.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<MsgType[]>([]);
@@ -116,20 +117,20 @@ export const useGameRoom = (
   const handleVisit = (playerIndex: number) => {
     if (visiting !== playerIndex) {
       setVisiting(playerIndex);
-      socketClient.sendHandleVisit(playerIndex, time === "Day");
+      socketClient.sendHandleVisit(playerIndex, time === Time.Day);
     } else {
       setVisiting(null);
-      socketClient.sendHandleVisit(null, time === "Day");
+      socketClient.sendHandleVisit(null, time === Time.Day);
     }
   };
 
   const handleVote = (playerIndex: number) => {
     if (votingFor !== playerIndex) {
       setVotingFor(playerIndex);
-      socketClient.sendHandleVote(playerIndex, time === "Day");
+      socketClient.sendHandleVote(playerIndex, time === Time.Day);
     } else {
       setVotingFor(null);
-      socketClient.sendHandleVote(null, time === "Day");
+      socketClient.sendHandleVote(null, time === Time.Day);
     }
   };
 
@@ -138,14 +139,14 @@ export const useGameRoom = (
       socketClient.sendHandleWhisper(
         whisperingToIndex,
         message,
-        time === "Day",
+        time === Time.Day,
       );
     }
   };
 
   const sendMessage = (message: string) => {
     if (message.length > 0 && message.length <= 150) {
-      socketClient.sendMessageSentByUser(message, time === "Day");
+      socketClient.sendMessageSentByUser(message, time === Time.Day);
     }
   };
 
@@ -249,7 +250,7 @@ export const useGameRoom = (
     });
 
     socketClient.onUpdateDayTime((infoJson) => {
-      setTime(infoJson.time);
+      setTime(infoJson.time as Time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);

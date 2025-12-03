@@ -1,12 +1,13 @@
 import { Player } from "../player/player.js";
 import { Room } from "../rooms/room.js";
 import { Role } from "./abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 //To be used as a 'temp' role, assigned to users before the game has started
 
 export class BlankRole extends Role {
-  name = "Blank Role";
-  group = "unaligned";
+  name = RoleName.BlankRole;
+  group = RoleGroup.Unaligned;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;

@@ -13,6 +13,7 @@ import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
 import io from "socket.io-client";
 import { config } from "../config";
+import { Time } from "../../shared/socketTypes/socketTypes";
 
 type Player = {
   name: string;
@@ -30,7 +31,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
   const [textMessage, setTextMessage] = useState(""); //TODO: Redundant, probably
   const [canTalk, setCanTalk] = useState(true);
-  const [time, setTime] = useState("Day");
+  const [time, setTime] = useState<Time>(Time.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState(new Array<string>());
@@ -117,7 +118,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
     socket.on("update-day-time", (infoJson) => {
       //Gets whether it is day or night, and how long there is left in the session
-      setTime(infoJson.time);
+      setTime(infoJson.time as Time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);
@@ -291,7 +292,7 @@ function PlayerInList(props: {
   player: Player;
   socket: any;
   setMessage: Dispatch<SetStateAction<string>>;
-  time: string;
+  time: Time;
 }) {
   //TODO: Consider fixing the 'any'
   const [color, setColor] = useState("#FFFFFF");
@@ -339,7 +340,7 @@ function PlayerInList(props: {
           }
         />
       )}
-      {props.player.isAlive === true && props.time === "Day" && (
+      {props.player.isAlive === true && props.time === Time.Day && (
         <Button
           title="Vote"
           onPress={() =>

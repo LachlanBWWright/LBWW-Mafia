@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Time } from "../../../../shared/socketTypes/socketTypes";
 import { Form, Button, ListGroup } from "react-bootstrap";
 import { PlayerItem } from "../../components/PlayerItem";
 import type { AbstractSocketClient } from "../../socket/AbstractSocketClient";
@@ -32,7 +33,7 @@ export function Room({
 }) {
   const [textMessage, setTextMessage] = useState("");
   const [canTalk, setCanTalk] = useState(true);
-  const [time, setTime] = useState("Day");
+  const [time, setTime] = useState<Time>(Time.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<MsgType[]>([]);
@@ -64,10 +65,10 @@ export function Room({
   function handleVisit(playerIndex: number) {
     if (visiting !== playerIndex) {
       setVisiting(playerIndex);
-      socketClient.sendHandleVisit(playerIndex, time === "Day");
+      socketClient.sendHandleVisit(playerIndex, time === Time.Day);
     } else {
       setVisiting(null);
-      socketClient.sendHandleVisit(null, time === "Day");
+      socketClient.sendHandleVisit(null, time === Time.Day);
     }
   }
 
@@ -87,7 +88,11 @@ export function Room({
       textMessage.length <= 150 &&
       whisperingTo !== null
     ) {
-      socketClient.sendHandleWhisper(whisperingTo, textMessage, time === "Day");
+      socketClient.sendHandleWhisper(
+        whisperingTo,
+        textMessage,
+        time === Time.Day,
+      );
     }
     setTextMessage("");
     setWhisperingTo(null);
@@ -98,16 +103,16 @@ export function Room({
   function handleVote(playerIndex: number) {
     if (votingFor !== playerIndex) {
       setVotingFor(playerIndex);
-      socketClient.sendHandleVote(playerIndex, time === "Day");
+      socketClient.sendHandleVote(playerIndex, time === Time.Day);
     } else {
       setVotingFor(null);
-      socketClient.sendHandleVote(null, time === "Day");
+      socketClient.sendHandleVote(null, time === Time.Day);
     }
   }
 
   function sendMessage() {
     if (textMessage.length > 0 && textMessage.length <= 150) {
-      socketClient.sendMessageSentByUser(textMessage, time === "Day");
+      socketClient.sendMessageSentByUser(textMessage, time === Time.Day);
       setTextMessage("");
     }
   }
@@ -263,7 +268,7 @@ export function Room({
     });
 
     socketClient.onUpdateDayTime((infoJson) => {
-      setTime(infoJson.time);
+      setTime(infoJson.time as Time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);

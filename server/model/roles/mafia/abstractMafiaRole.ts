@@ -2,10 +2,11 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
+import { RoleGroup } from "../../../shared/roles/roleEnums";
 
 /**
  * Abstract base class for all Mafia faction roles
- * 
+ *
  * Provides common functionality for mafia roles including:
  * - Coordinated faction attacks via voting
  * - Attack execution with basic damage
@@ -15,7 +16,7 @@ export abstract class RoleMafia extends Role {
   attackVote: Player | null = null;
   isAttacking = false;
 
-  group = "mafia";
+  group = RoleGroup.Mafia;
 
   constructor(room: Room, player: Player) {
     //Group is kept as a constructor parameter for consistency, but mafia classes will always be in the 'mafia' group.

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Time } from "../../../shared/socketTypes/socketTypes";
 import { ListGroup, Row, Col, Button, ButtonGroup } from "react-bootstrap";
 
 export function PlayerItem({
@@ -34,7 +35,7 @@ export function PlayerItem({
   username: string | undefined;
   role: string | undefined;
   isAlive: boolean;
-  time: string;
+  time: Time;
   canTalk: boolean;
   canVisit: boolean[];
 }) {
@@ -45,13 +46,13 @@ export function PlayerItem({
   function canVisitFn() {
     //For now, if the player's role is known, they are interpreted as a member of the same faction
     if (!canTalk || !canVisitLocal) return false;
-    if (time === "Day") {
+    if (time === Time.Day) {
       if (canVisit[0] && isAlive && isUser) return true;
       else if (canVisit[1] && isAlive && role === undefined && !isUser)
         return true;
       else if (canVisit[2] && isAlive && role !== undefined && !isUser)
         return true;
-    } else if (time === "Night") {
+    } else if (time === Time.Night) {
       if (canVisit[3] && isAlive && isUser) return true;
       else if (canVisit[4] && isAlive && role === undefined && !isUser)
         return true;
@@ -66,14 +67,14 @@ export function PlayerItem({
       !votingDisabled &&
       votingFor === null &&
       canTalk &&
-      time === "Day" &&
+      time === Time.Day &&
       dayNumber !== 1 &&
       isAlive &&
       !isUser
     )
       return true;
     if (
-      time === "Night" &&
+      time === Time.Night &&
       votingFor === null &&
       canNightVote &&
       isAlive &&
@@ -88,7 +89,7 @@ export function PlayerItem({
     return (
       canTalk &&
       canWhisper &&
-      time === "Day" &&
+      time === Time.Day &&
       dayNumber !== 1 &&
       (whisperingTo === null || whisperingTo === index)
     );

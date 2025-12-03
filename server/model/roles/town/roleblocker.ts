@@ -1,17 +1,21 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { FIFTY_FIFTY_CHANCE, BASE_DEFENSE } from "../../../constants/gameConstants.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import {
+  FIFTY_FIFTY_CHANCE,
+  BASE_DEFENSE,
+} from "../../../constants/gameConstants.js";
 
 /**
  * Roleblocker role - Prevents other players from using their night abilities
- * 
+ *
  * Can target a player at night to roleblock them. Always successful against
  * town members, 50% chance against non-town members.
  */
 export class Roleblocker extends Role {
-  name = "Roleblocker";
-  group = "town";
+  name = RoleName.Roleblocker;
+  group = RoleGroup.Town;
   baseDefence = BASE_DEFENSE;
   defence = BASE_DEFENSE;
   roleblocker = true;
@@ -61,7 +65,10 @@ export class Roleblocker extends Role {
   visit() {
     // Visits a role and attempts to roleblock them
     if (this.visiting != null) {
-      if (this.visiting.group == "town" || Math.random() > FIFTY_FIFTY_CHANCE) {
+      if (
+        this.visiting.group === RoleGroup.Town ||
+        Math.random() > FIFTY_FIFTY_CHANCE
+      ) {
         this.visiting.roleblocked = true;
         this.visiting.receiveVisit(this);
       }

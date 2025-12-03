@@ -1,10 +1,11 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 
 export class Maniac extends Role {
-  name = "Maniac";
-  group = "maniac";
+  name = RoleName.Maniac;
+  group = RoleGroup.Maniac;
   baseDefence = 1;
   defence = 1;
   roleblocker = false;

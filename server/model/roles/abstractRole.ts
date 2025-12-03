@@ -4,6 +4,8 @@ import { Room } from "../rooms/room.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Jailor } from "./town/jailor.js";
+import { RoleName } from "../../../shared/roles/roleEnums";
+import { Time } from "../../../shared/socketTypes/socketTypes";
 
 export abstract class Role {
   room: Room;
@@ -59,7 +61,7 @@ export abstract class Role {
 
   //Handles sending general message
   handleMessage(message: string) {
-    if (this.room.time == "day") {
+    if (this.room.time === Time.Day) {
       //Free speaking only at daytime
       if (this.silenced)
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
@@ -81,7 +83,7 @@ export abstract class Role {
         name: "receive-chat-message",
         data: { message: this.player.playerUsername + ": " + message },
       });
-    } else if (this.name == "Jailor" && this.dayVisiting != null) {
+    } else if (this.name === RoleName.Jailor && this.dayVisiting != null) {
       //Special logic for jailor => jailee messaging
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receive-chat-message",
