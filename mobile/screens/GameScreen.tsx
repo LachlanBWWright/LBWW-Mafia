@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
-import io from "socket.io-client";
+import io, { Socket } from "socket.io-client";
 import { config } from "../config";
 import { Time } from "../../shared/socketTypes/socketTypes";
 
@@ -27,19 +27,16 @@ type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 export function GameScreen({ route, navigation }: GameScreenProps) {
   const [message, setMessage] = useState("");
   const [playerRole, setPlayerRole] = useState("");
-  const [alive, setAlive] = useState(true);
+  const [alive] = useState(true);
 
-  const [textMessage, setTextMessage] = useState(""); //TODO: Redundant, probably
   const [canTalk, setCanTalk] = useState(true);
   const [time, setTime] = useState<Time>(Time.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState(new Array<string>());
   const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
-  const [visiting, setVisiting] = useState<String | null>();
-  const [votingFor, setVotingFor] = useState<String | null>();
-
-  const [drawerOpened, setDrawerOpened] = useState(false);
+  const [, setVisiting] = useState<string | null>();
+  const [, setVotingFor] = useState<string | null>();
 
   useEffect(() =>
     navigation.addListener("beforeRemove", (e) => {
@@ -61,7 +58,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       listJson.map((instance) => {
         list.push(instance);
       });
-      setPlayerList((currentList) => list);
+      setPlayerList((_currentList) => list);
     });
 
     socket.on("receive-new-player", (playerJson: Player) => {
@@ -110,7 +107,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       setPlayerList(tempPlayerList);
     });
 
-    socket.on("update-player-visit", (playerJson) => {
+    socket.on("update-player-visit", (_playerJson) => {
       //Updates player to indicate that the player is visiting them TODO: This might be depreciated in the actual game
       //JSON contains player name
       //Get player by name, update properties, update JSON
@@ -290,11 +287,10 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
 function PlayerInList(props: {
   player: Player;
-  socket: any;
+  socket: Socket;
   setMessage: Dispatch<SetStateAction<string>>;
   time: Time;
 }) {
-  //TODO: Consider fixing the 'any'
   const [color, setColor] = useState("#FFFFFF");
 
   useEffect(() => {

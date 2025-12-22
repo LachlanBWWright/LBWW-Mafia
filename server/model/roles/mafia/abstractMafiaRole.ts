@@ -1,8 +1,8 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
-import { RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 /**
  * Abstract base class for all Mafia faction roles
@@ -13,7 +13,7 @@ import { RoleGroup } from "../../../shared/roles/roleEnums";
  * - Faction communication integration
  */
 export abstract class RoleMafia extends Role {
-  attackVote: Player | null = null;
+  attackVote: Player | Role | null = null;
   isAttacking = false;
 
   group = RoleGroup.Mafia;

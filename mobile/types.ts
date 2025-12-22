@@ -24,8 +24,8 @@ export interface GameSession {
   roomCode: string;
   maxPlayers: number;
   status: 'WAITING' | 'STARTING' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
-  settings: Record<string, any>;
-  result: Record<string, any> | null;
+  settings: Record<string, unknown>;
+  result: Record<string, unknown> | null;
   createdAt: Date;
   startTime: Date | null;
   endTime: Date | null;

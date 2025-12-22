@@ -1,11 +1,12 @@
 import { Faction } from "./abstractFaction.js";
-import { Player } from "../player/player.js";
-import { Role } from "../roles/abstractRole.js";
-import { RoleGroup } from "../../shared/roles/roleEnums";
+import { type Player } from "../player/player.js";
+import { type Role } from "../roles/abstractRole.js";
+import { type Room } from "../rooms/room.js";
+import { RoleGroup } from "../../../shared/roles/roleEnums.js";
 
 export class MafiaFaction extends Faction {
-  attackList: Player[] = [];
-  room?: any;
+  attackList: Role[] = [];
+  room?: Room;
 
   findMembers(playerList: Player[]) {
     //Go through a list of members, add them to the this.memberList
@@ -20,29 +21,37 @@ export class MafiaFaction extends Faction {
 
   handleNightVote() {
     for (const member of this.memberList) {
-      if (member.role.attackVote != null)
-        this.attackList.push(member.role.attackVote); //Adds the vote to attack to the list
-      member.role.attackVote = null;
+      const role = member.role as unknown as Record<string, unknown>;
+      const attackVote = role.attackVote;
+      if (attackVote != null) {
+        // attackVote can be Player or Role, but we need Role for visiting
+        if (typeof attackVote === "object" && "role" in attackVote) {
+          const roleProperty = (attackVote as Record<string, unknown>).role;
+          if (roleProperty instanceof Object) {
+            this.attackList.push(roleProperty as Role);
+          }
+        } else if (attackVote instanceof Object) {
+          this.attackList.push(attackVote as Role);
+        }
+      }
+      role.attackVote = null;
     }
     if (this.attackList.length != 0) {
       const victim =
         this.attackList[Math.floor(Math.random() * this.attackList.length)]; //Selects a random item in the list, and uses that.
       const attackerMember =
         this.memberList[Math.floor(Math.random() * this.memberList.length)];
-      if (!attackerMember) return;
+      if (!attackerMember || !victim) return;
       const attacker = attackerMember.role;
       attacker.visiting = victim;
-      attacker.isAttacking = true;
-
-      //this.memberList[Math.floor(Math.random() * this.memberList.length)].role.visiting = victim; //Selects a random mafia member to make the attack
-      //TODO: Replace above line
+      Object.assign(attacker, { isAttacking: true });
     }
     this.attackList = [];
   }
 
   handleNightMessage(message: string, playerUsername: string) {
     // Mafia only chat
-    let nightMessage = playerUsername + ": " + message;
+    const nightMessage = playerUsername + ": " + message;
     if (!this.room) return;
     // Sends the message to every member of the faction.
     for (const member of this.memberList) {

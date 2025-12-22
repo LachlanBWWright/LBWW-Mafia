@@ -1,4 +1,4 @@
-import { Player } from "../player/player.js";
+import { type Player } from "../player/player.js";
 
 export abstract class Faction {
   memberList: Player[] = [];

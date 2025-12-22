@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 export class Bodyguard extends Role {
   name = RoleName.Bodyguard;
@@ -57,9 +57,8 @@ export class Bodyguard extends Role {
 
   handleVisits() {
     if (this.visiting != null) {
-      for (let i = 0; i < this.visiting.visitors.length; i++) {
-        const visitor: Role | undefined = this.visiting.visitors[i];
-        if (visitor && visitor != this && visitor != this.visiting) {
+      for (const visitor of this.visiting.visitors) {
+        if (visitor && visitor !== this && visitor !== this.visiting) {
           if (visitor.damage === 0) {
             visitor.damage = 1;
           }

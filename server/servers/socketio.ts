@@ -1,10 +1,10 @@
-import { Server, Socket } from "socket.io";
+import { Server, type Socket } from "socket.io";
 import axios from "axios";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
 import { SocketIoHandler } from "../model/socketHandler/socketioHandler.js";
 
-export type ClientToServerEvents = {
+export interface ClientToServerEvents {
   playerJoinRoom: (
     captchaToken: string,
     cb: (result: string | number) => void,
@@ -14,15 +14,15 @@ export type ClientToServerEvents = {
   handleVote: (recipient: number | null, isDay: boolean) => void;
   handleVisit: (recipient: number | null, isDay: boolean) => void;
   handleWhisper: (recipient: number, message: string, isDay: boolean) => void;
-};
+}
 
-type PlayerList = {
+interface PlayerList {
   name: string;
-  isAlive: boolean | undefined;
-  role: string;
-};
+  isAlive?: boolean;
+  role?: string;
+}
 
-type PlayerReturned = {
+interface PlayerReturned {
   name: string;
   role: string;
   dayVisitSelf: boolean;
@@ -32,9 +32,9 @@ type PlayerReturned = {
   nightVisitOthers: boolean;
   nightVisitFaction: boolean;
   nightVote: boolean;
-};
+}
 
-export type ServerToClientEvents = {
+export interface ServerToClientEvents {
   //receive-message
   receiveMessage: (message: string) => void;
   blockMessages: () => void;
@@ -54,14 +54,23 @@ export type ServerToClientEvents = {
   "update-faction-role": (data: { name: string; role: string }) => void;
   "receive-role": (role: string) => void;
   "update-player-visit": () => void;
-};
+}
 
-export type InterServerEvents = {};
+export type InterServerEvents = Record<string, never>;
 
-export type SocketData = {
+export interface SocketData {
   roomObject: Room;
   position: number;
-};
+}
+
+interface RecaptchaResponse {
+  success: boolean;
+  score?: number;
+  action?: string;
+  challenge_ts?: string;
+  hostname?: string;
+  error_codes?: string[];
+}
 
 export const io = new Server<
   ClientToServerEvents,
@@ -102,25 +111,25 @@ export function addSocketListeners(
       async (captchaToken: string, cb: (code: string | number) => void) => {
         console.log("playerJoinRoom");
         try {
-          let res = await axios.post(
+          const res = await axios.post<RecaptchaResponse>(
             `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${process.env.CAPTCHA_KEY}`,
           );
           if (res.data.success || process.env.debug === "true") {
             console.log("Captcha Success");
             //Blocks players from joining if ReCaptcha V3 score is too low, allows regardless if debug mode is on
-            if (playRoom.current?.started || playRoom.current === undefined)
+            if (playRoom.current?.started ?? playRoom.current === undefined)
               playRoom.current = new Room(roomSize, new SocketIoHandler());
             console.log("playroomCurrent", playRoom.current);
             if (playRoom.current !== undefined) {
               socket.data.roomObject = playRoom.current;
-              socket.join(playRoom.current.name); //Joins room, messages will be received accordingly
-              let result = socket.data.roomObject.addPlayer(socket.id);
-              console.log("Result: " + result);
+              void socket.join(playRoom.current.name); //Joins room, messages will be received accordingly
+              const result = socket.data.roomObject.addPlayer(socket.id);
+              console.log("Result: " + String(result));
               cb(result);
             }
           } else cb(2);
         } catch (error) {
-          console.log("CatchTest: " + error);
+          console.log("CatchTest: " + String(error));
           //cb(2); //If a room isn't found, socketio tries to callback null.
         }
       },
@@ -133,7 +142,7 @@ export function addSocketListeners(
           socket.data.roomObject.removePlayer(socket.id);
         }
       } catch (error) {
-        console.log("Disconnect error: " + error);
+        console.log("Disconnect error: " + String(error));
       }
     });
 

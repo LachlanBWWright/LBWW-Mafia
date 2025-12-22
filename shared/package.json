@@ -1,4 +1,6 @@
 {
+	"name": "shared",
+	"type": "module",
 	"dependencies": {
 		"partyrpc": "^0.3.0"
 	}

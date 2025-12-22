@@ -1,7 +1,7 @@
-import { Player } from "../player/player.js";
+import { type Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
-import { Room } from "../rooms/room.js";
-import { RoleName } from "../../shared/roles/roleEnums";
+import { type Room } from "../rooms/room.js";
+import { RoleName } from "../../../shared/roles/roleEnums.js";
 
 export class LawmanFaction extends Faction {
   room?: Room;
@@ -25,16 +25,20 @@ export class LawmanFaction extends Faction {
     //Called at the end of the night. Forces a random visit for insane members.
     if (this.room === undefined) return;
     for (const member of this.memberList) {
-      if (member.role.isInsane) {
+      const role = member.role;
+      const isInsane = Object.getOwnPropertyNames(role).includes("isInsane")
+        ? (role as unknown as Record<string, unknown>).isInsane
+        : false;
+      if (isInsane) {
         //Selects a random person to visit
         for (let f = 0; f < 100; f++) {
           //Uses this instead of a while loop just in case some error occurs
           try {
-            let randomVictim =
+            const randomVictim =
               this.room.playerList[
                 Math.floor(Math.random() * this.room.playerList.length)
               ];
-            if (randomVictim && randomVictim.isAlive) {
+            if (randomVictim?.isAlive) {
               console.log(randomVictim.role.name);
               member.role.visiting = randomVictim.role;
               f = 1000;
@@ -47,7 +51,7 @@ export class LawmanFaction extends Faction {
     }
   }
 
-  handleNightMessage(message: string, playerUsername: string) {
+  handleNightMessage(_message: string, playerUsername: string) {
     //Tells the player that they cannot speak at night.
     if (!this.room) return;
     for (const member of this.memberList) {

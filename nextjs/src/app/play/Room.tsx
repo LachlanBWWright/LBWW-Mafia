@@ -1,20 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Time } from "../../../../shared/socketTypes/socketTypes";
+import { useEffect, useRef, useState } from "react";
+import { Time } from "~/types/shared";
 import { Form, Button, ListGroup } from "react-bootstrap";
 import { PlayerItem } from "../../components/PlayerItem";
 import type { AbstractSocketClient } from "../../socket/AbstractSocketClient";
 
-type MsgType = {
+interface MsgType {
   type: number;
   text: string;
-};
+}
 
-type PlayerType = {
+interface PlayerType {
   name: string;
   role?: string;
   isUser?: boolean;
   isAlive?: boolean;
-};
+}
 
 export function Room({
   captchaToken,
@@ -131,7 +131,8 @@ export function Room({
   }
 
   useEffect(() => {
-    scrollRef.current?.addEventListener("scroll", scrollEvent);
+    const scrollElement = scrollRef.current;
+    scrollElement?.addEventListener("scroll", scrollEvent);
 
     // Register listeners using the abstract client
     socketClient.onReceiveMessage((inMsg) => {
@@ -218,9 +219,10 @@ export function Room({
           tempPlayerList[index].role = playerJson.role;
           tempPlayerList[index].isUser = true;
         }
-        setRole(playerJson.role);
         return tempPlayerList;
       });
+      // Avoid calling parent state setters inside the updater function — call them here instead
+      setRole(playerJson.role);
       setCanVisit([
         playerJson.dayVisitSelf,
         playerJson.dayVisitOthers,
@@ -311,7 +313,7 @@ export function Room({
     });
 
     return () => {
-      scrollRef.current?.removeEventListener("scroll", scrollEvent);
+      scrollElement?.removeEventListener("scroll", scrollEvent);
       socketClient.removeAllListeners();
       socketClient.sendDisconnect();
     };

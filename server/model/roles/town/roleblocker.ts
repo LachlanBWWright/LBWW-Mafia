@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 import {
   FIFTY_FIFTY_CHANCE,
   BASE_DEFENSE,

@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 export class Watchman extends Role {
   name = RoleName.Watchman;
@@ -54,7 +54,7 @@ export class Watchman extends Role {
   handleVisits() {
     try {
       if (this.visiting != null) {
-        let allVisitors = this.visiting.visitors.length;
+        const allVisitors = this.visiting.visitors.length;
         if (allVisitors == 1) {
           //Tells the player that nobody's visited their target - The one visiter being the watchman themself.
           this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
@@ -62,7 +62,7 @@ export class Watchman extends Role {
             data: { message: "Nobody visited your target." },
           });
         } else if (allVisitors == 2) {
-          let alibiPlayer =
+          const alibiPlayer =
             this.room.playerList[
               Math.floor(Math.random() * this.room.playerList.length)
             ];
@@ -137,7 +137,7 @@ export class Watchman extends Role {
             }
           }
         } else {
-          let visitorList = [];
+          const visitorList = [];
           for (const visitingVisitor of this.visiting.visitors) {
             if (visitingVisitor.player.isAlive && visitingVisitor != this) {
               //Lists all visitors, excluding the watchman itself

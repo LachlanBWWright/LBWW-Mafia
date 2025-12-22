@@ -2,8 +2,9 @@ import { AbstractSocketClient } from "./AbstractSocketClient";
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
-} from "../../../shared/socketTypes/socketTypes";
-import { io, Socket } from "socket.io-client";
+} from "~/types/shared";
+import { io } from "socket.io-client";
+import type { Socket } from "socket.io-client";
 
 export class SocketIoClient extends AbstractSocketClient {
   private _socket: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -24,7 +25,7 @@ export class SocketIoClient extends AbstractSocketClient {
     captchaToken: string,
     cb: (result: string | number) => void,
   ): void {
-    this._socket.emit("playerJoinRoom", captchaToken, cb);
+    this._socket.emit("playerJoinRoom", { playerUsername: captchaToken }, cb);
   }
 
   sendDisconnect(): void {
@@ -32,48 +33,85 @@ export class SocketIoClient extends AbstractSocketClient {
   }
 
   sendMessageSentByUser(message: string, isDay: boolean): void {
-    this._socket.emit("messageSentByUser", message, isDay);
+    this._socket.emit("messageSentByUser", { message, isDay });
   }
 
   sendHandleVote(recipient: number | null, isDay: boolean): void {
-    this._socket.emit("handleVote", recipient, isDay);
+    this._socket.emit("handleVote", { recipient, isDay });
   }
 
   sendHandleVisit(recipient: number | null, isDay: boolean): void {
-    this._socket.emit("handleVisit", recipient, isDay);
+    this._socket.emit("handleVisit", { recipient, isDay });
   }
 
   sendHandleWhisper(recipient: number, message: string, isDay: boolean): void {
-    this._socket.emit("handleWhisper", recipient, message, isDay);
+    this._socket.emit("handleWhisper", { recipient, message, isDay });
   }
 
   private _setupListeners() {
-    this._socket.on("receiveMessage", (msg: string) => {
+    const extractMessage = (data: unknown): string => {
+      if (typeof data === "string") return data;
+      if (
+        data &&
+        typeof data === "object" &&
+        "message" in (data as Record<string, unknown>) &&
+        typeof (data as Record<string, unknown>).message === "string"
+      )
+        return (data as Record<string, string>).message;
+      return "";
+    };
+
+    const extractPlayerList = (
+      data: unknown,
+    ): { name: string; isAlive?: boolean; role?: string }[] => {
+      if (Array.isArray(data))
+        return data as { name: string; isAlive?: boolean; role?: string }[];
+      if (
+        data &&
+        typeof data === "object" &&
+        "playerList" in (data as Record<string, unknown>) &&
+        Array.isArray((data as Record<string, unknown>).playerList)
+      )
+        return (data as Record<string, unknown>).playerList as {
+          name: string;
+          isAlive?: boolean;
+          role?: string;
+        }[];
+      return [];
+    };
+
+    const extractPlayer = (data: unknown): { name: string } | undefined => {
+      if (data && typeof data === "object") {
+        if ("player" in (data as Record<string, unknown>))
+          return (data as Record<string, { name: string }>).player;
+        return data as { name: string };
+      }
+      return undefined;
+    };
+
+    this._socket.on("receiveMessage", (data: unknown) => {
+      const msg = extractMessage(data);
       this.receiveMessageListeners.forEach((cb) => cb(msg));
     });
-    this._socket.on("receive-chat-message", (msg: string) => {
+    this._socket.on("receive-chat-message", (data: unknown) => {
+      const msg = extractMessage(data);
       this.receiveChatMessageListeners.forEach((cb) => cb(msg));
     });
-    this._socket.on("receive-whisper-message", (msg: string) => {
+    this._socket.on("receive-whisper-message", (data: unknown) => {
+      const msg = extractMessage(data);
       this.receiveWhisperMessageListeners.forEach((cb) => cb(msg));
     });
-    this._socket.on(
-      "receive-player-list",
-      (
-        playerList: {
-          name: string;
-          isAlive: boolean | undefined;
-          role: string;
-        }[],
-      ) => {
-        this.receivePlayerListListeners.forEach((cb) => cb(playerList));
-      },
-    );
-    this._socket.on("receive-new-player", (player: { name: string }) => {
-      this.receiveNewPlayerListeners.forEach((cb) => cb(player));
+    this._socket.on("receive-player-list", (data: unknown) => {
+      const playerList = extractPlayerList(data);
+      this.receivePlayerListListeners.forEach((cb) => cb(playerList));
     });
-    this._socket.on("remove-player", (player: { name: string }) => {
-      this.removePlayerListeners.forEach((cb) => cb(player));
+    this._socket.on("receive-new-player", (data: unknown) => {
+      const player = extractPlayer(data);
+      if (player) this.receiveNewPlayerListeners.forEach((cb) => cb(player));
+    });
+    this._socket.on("remove-player", (data: unknown) => {
+      const player = extractPlayer(data);
+      if (player) this.removePlayerListeners.forEach((cb) => cb(player));
     });
     this._socket.on(
       "assign-player-role",
@@ -91,19 +129,18 @@ export class SocketIoClient extends AbstractSocketClient {
         this.assignPlayerRoleListeners.forEach((cb) => cb(player));
       },
     );
-    this._socket.on(
-      "update-faction-role",
-      (data: { name: string; role: string }) => {
-        this.updateFactionRoleListeners.forEach((cb) => cb(data));
-      },
-    );
+    const evUpdateFaction = "update-faction-role" as keyof ServerToClientEvents;
+    this._socket.on(evUpdateFaction, (data: { name: string; role: string }) => {
+      this.updateFactionRoleListeners.forEach((cb) => cb(data));
+    });
     this._socket.on(
       "update-player-role",
       (data: { name: string; role?: string }) => {
         this.updatePlayerRoleListeners.forEach((cb) => cb(data));
       },
     );
-    this._socket.on("update-player-visit", () => {
+    const evPlayerVisit = "update-player-visit" as keyof ServerToClientEvents;
+    this._socket.on(evPlayerVisit, () => {
       this.updatePlayerVisitListeners.forEach((cb) => cb());
     });
     this._socket.on(
@@ -133,8 +170,8 @@ export class SocketIoClient extends AbstractSocketClient {
     listener: (
       playerList: {
         name: string;
-        isAlive: boolean | undefined;
-        role: string;
+        isAlive?: boolean;
+        role?: string;
       }[],
     ) => void,
   ): void {

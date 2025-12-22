@@ -1,20 +1,20 @@
-import { useState, useEffect } from "react";
-import { Time } from "../../../shared/socketTypes/socketTypes";
+import { useState, useEffect, useCallback } from "react";
+import { Time } from "~/types/shared";
 import type { AbstractSocketClient } from "../socket/AbstractSocketClient";
 
-type MsgType = {
+interface MsgType {
   type: number;
   text: string;
-};
+}
 
-type PlayerType = {
+interface PlayerType {
   name: string;
   role?: string;
   isUser?: boolean;
   isAlive?: boolean;
-};
+}
 
-type UseGameRoomReturn = {
+interface UseGameRoomReturn {
   // State
   canTalk: boolean;
   time: Time;
@@ -44,7 +44,7 @@ type UseGameRoomReturn = {
   setWhisperingTo: (playerIndex: number | null) => void;
   setScrollDownRequest: (value: boolean) => void;
   scrollEvent: () => void;
-};
+}
 
 export const useGameRoom = (
   scrollRef: React.RefObject<HTMLDivElement | null>,
@@ -76,7 +76,7 @@ export const useGameRoom = (
   const [canNightVote, setCanNightVote] = useState(false);
 
   // Helper function for message scrolling
-  const addMessageWithScroll = (msg: MsgType) => {
+  const addMessageWithScroll = useCallback((msg: MsgType) => {
     if (scrollRef.current === null) return;
 
     if (
@@ -94,7 +94,7 @@ export const useGameRoom = (
       setShowScrollDown(true);
       setScrollNewMessages((prev) => prev + 1);
     }
-  };
+  }, [scrollRef]);
 
   // Scroll event handler
   const scrollEvent = () => {
@@ -273,7 +273,7 @@ export const useGameRoom = (
     socketClient.onBlockMessages(() => {
       setCanTalk(false);
     });
-  }, [setRole, scrollRef, socketClient]);
+  }, [setRole, scrollRef, socketClient, addMessageWithScroll]);
 
   return {
     // State

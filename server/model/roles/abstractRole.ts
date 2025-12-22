@@ -1,18 +1,19 @@
 //This is the base class for a role
 
-import { Room } from "../rooms/room.js";
-import { Faction } from "../factions/abstractFaction.js";
-import { Player } from "../player/player.js";
-import { Jailor } from "./town/jailor.js";
-import { RoleName } from "../../../shared/roles/roleEnums";
-import { Time } from "../../../shared/socketTypes/socketTypes";
+import { type Room } from "../rooms/room.js";
+import { type Faction } from "../factions/abstractFaction.js";
+import { type Player } from "../player/player.js";
+import { type Jailor } from "./town/jailor.js";
+import { RoleName } from "../../../shared/roles/roleEnums.js";
+import type { RoleGroup } from "../../../shared/roles/roleEnums.js";
+import { Time } from "../../../shared/socketTypes/socketTypes.js";
 
 export abstract class Role {
   room: Room;
   player: Player;
 
-  abstract name: string;
-  abstract group: string;
+  abstract name: RoleName;
+  abstract group: RoleGroup;
   faction?: Faction;
 
   abstract baseDefence: number;
@@ -120,7 +121,7 @@ export abstract class Role {
     }
   }
 
-  handleDayAction(recipient: Player) {
+  handleDayAction(_recipient: Player) {
     //Handles the class' daytime action
     this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
       name: "receiveMessage",
@@ -137,7 +138,7 @@ export abstract class Role {
     this.dayVisiting = null;
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Handles the class' nighttime action
     this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
       name: "receiveMessage",
@@ -145,7 +146,7 @@ export abstract class Role {
     });
   }
 
-  handleNightVote(recipient: Player) {
+  handleNightVote(_recipient: Player) {
     this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
       name: "receiveMessage",
       data: { message: "Your class has no nighttime factional voting." },
@@ -211,9 +212,23 @@ export abstract class Role {
   }
 
   //These should be overriden by child classes if applicable
-  dayVisit() {} //Visit another player (Day)
-  visit() {} //Visit another player (Night)
-  receiveDayVisit(role: Role) {} //Called by another player visiting at night
-  handleDayVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
-  handleVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
+  dayVisit(): void {
+    //Visit another player (Day)
+  }
+
+  visit(): void {
+    //Visit another player (Night)
+  }
+
+  receiveDayVisit(_role: Role): void {
+    //Called by another player visiting at night
+  }
+
+  handleDayVisits(): void {
+    //Called after visit. For roles such as the watchman, who can see who has visited who
+  }
+
+  handleVisits(): void {
+    //Called after visit. For roles such as the watchman, who can see who has visited who
+  }
 }

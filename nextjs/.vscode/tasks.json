@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "pnpm:install",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["install"],
+      "cwd": "${workspaceFolder}",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "pnpm:dev",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["dev"],
+      "cwd": "${workspaceFolder}",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^.*$",
+          "file": 1,
+          "location": 2,
+          "message": 3
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*Ready in.*",
+          "endsPattern": "^.*compiled.*"
+        }
+      }
+    },
+    {
+      "label": "pnpm:build",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["build"],
+      "cwd": "${workspaceFolder}",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "label": "pnpm:lint",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["lint:fix"],
+      "cwd": "${workspaceFolder}",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "pnpm:type-check",
+      "type": "shell",
+      "command": "pnpm",
+      "args": ["typecheck"],
+      "cwd": "${workspaceFolder}",
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}

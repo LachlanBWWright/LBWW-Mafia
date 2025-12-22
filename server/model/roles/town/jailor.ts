@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 import {
   JAILOR_EXECUTION_DAMAGE,
   BASIC_ATTACK_DAMAGE,
@@ -62,7 +62,7 @@ export class Jailor extends Role {
     }
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Choose if the player who is jailed should be executed, or let go
     if (this.dayVisiting == null) {
       //this.visiting = this;

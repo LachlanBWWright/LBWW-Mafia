@@ -1,14 +1,14 @@
 import type * as Party from "partykit/server";
-import { PartyKitHandler } from "../model/socketHandler/partyKitHandler";
-import type { MessageToServer } from "../../shared/socketTypes/socketTypes"; // "../../../shared/socketTypes/socketTypes";
-import { Room } from "../model/rooms/room";
+import { PartyKitHandler } from "../model/socketHandler/partyKitHandler.js";
+import type { MessageToServer } from "../../shared/socketTypes/socketTypes.js";
+import { Room } from "../model/rooms/room.js";
 
 // This Party.Server implementation delegates socket logic to PartyKitHandler,
 // so game logic can use the same socket API as Socket.IO.
 export default class Server implements Party.Server {
   socketHandler: PartyKitHandler;
   playRoom: { current: Room | undefined } = { current: undefined };
-  roomSize: number = 10; // Default, can be set via env or config
+  roomSize = 10; // Default, can be set via env or config
 
   constructor(readonly room: Party.Room) {
     this.socketHandler = new PartyKitHandler(room);
@@ -41,10 +41,9 @@ export default class Server implements Party.Server {
 
     switch (msg.name) {
       case "playerJoinRoom": {
-        const { captchaToken } = msg.data;
         // TODO: Add captcha verification if needed (PartyKit doesn't support server-side HTTP requests easily)
         if (
-          this.playRoom.current?.started ||
+          this.playRoom.current?.started ??
           this.playRoom.current === undefined
         ) {
           this.playRoom.current = new Room(this.roomSize, this.socketHandler);
@@ -54,6 +53,11 @@ export default class Server implements Party.Server {
           this.socketHandler.sendPlayerMessage(sender.id, {
             name: "receiveMessage",
             data: { message: `Join result: ${result}` },
+          });
+          // Send a join response so PartyKit clients can receive the result via callback
+          this.socketHandler.sendPlayerMessage(sender.id, {
+            name: "playerJoinResponse",
+            data: result,
           });
         }
         break;
@@ -101,7 +105,9 @@ export default class Server implements Party.Server {
       default:
         this.socketHandler.sendPlayerMessage(sender.id, {
           name: "receiveMessage",
-          data: { message: `Unknown event: ${msg}` },
+          data: {
+            message: `Unknown event: ${String((msg as MessageToServer).name)}`,
+          },
         });
         break;
     }

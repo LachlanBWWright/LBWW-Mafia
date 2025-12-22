@@ -1,5 +1,5 @@
-import { SocketHandler } from "./socketHandler";
-import { MessageToClient } from "../../../shared/socketTypes/socketTypes";
+import { SocketHandler } from "./socketHandler.js";
+import { type MessageToClient } from "../../../shared/socketTypes/socketTypes.js";
 import type * as Party from "partykit/server";
 
 export class PartyKitHandler extends SocketHandler {
@@ -11,6 +11,12 @@ export class PartyKitHandler extends SocketHandler {
 
   sendPlayerMessage(playerSocketId: string, message: MessageToClient): void {
     const player = this.room.getConnection(playerSocketId);
+    console.debug("PartyKitHandler.sendPlayerMessage", {
+      playerSocketId,
+      found: !!player,
+      roomId: this.room.id,
+      messageName: message.name,
+    });
     if (!player) {
       console.error(`Player with ID ${playerSocketId} not found in room.`);
       return;
@@ -18,14 +24,16 @@ export class PartyKitHandler extends SocketHandler {
     player.send(JSON.stringify(message));
   }
 
-  sendRoomMessage(roomId: string, message: MessageToClient): void {
-    /*     if (this.room.id !== roomId) {
-      console.error(`Room with ID ${roomId} not found.`);
-      return;
-    } */
+  sendRoomMessage(_roomId: string, message: MessageToClient): void {
+    console.debug("PartyKitHandler.sendRoomMessage", {
+      roomId: this.room.id,
+      messageName: message.name,
+    });
     this.room.broadcast(JSON.stringify(message));
   }
 
   //No partykit disconnect method, so this is a no-op
-  disconnectSockets(): void {}
+  disconnectSockets(): void {
+    console.log("PartyKit disconnectSockets called - no action taken.");
+  }
 }

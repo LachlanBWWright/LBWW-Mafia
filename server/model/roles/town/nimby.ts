@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 export class Nimby extends Role {
   alertSlots = 3;
@@ -23,7 +23,7 @@ export class Nimby extends Role {
     super(room, player);
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
     if (this.alertSlots == 0)
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
@@ -58,9 +58,7 @@ export class Nimby extends Role {
 
   handleVisits() {
     if (this.visiting != null) {
-      for (let i = 0; i < this.visiting.visitors.length; i++) {
-        const visitor: Role | undefined = this.visiting.visitors[i];
-
+      for (const visitor of this.visiting.visitors) {
         if (!visitor) continue;
         // If the visitor is not the Nimby or the Nimby's target, and the visitor has no damage, set their damage to 1
         if (visitor != this && visitor != this.visiting) {

@@ -32,8 +32,8 @@ import { Peacemaker } from "../../roles/neutral/peacemaker.js";
 import { MafiaFaction } from "../../factions/mafiaFaction.js";
 import { LawmanFaction } from "../../factions/lawmanFaction.js";
 
-import { Player } from "../../player/player.js";
-import { BlankRole } from "../../roles/blankRole.js";
+import { type Player } from "../../player/player.js";
+import { type BlankRole } from "../../roles/blankRole.js";
 import {
   TOWN_POWER_THRESHOLD,
   MAFIA_POWER_THRESHOLD,
@@ -44,7 +44,7 @@ import {
   NEUTRAL_ROLE_POWER,
 } from "../../../constants/gameConstants.js";
 
-import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 /**
  * Handles role assignment and game balance for MERN-Mafia
@@ -64,11 +64,11 @@ export class RoleHandler {
    * @returns Array of role classes to be instantiated for players
    */
   assignGame(): (typeof BlankRole)[] {
-    let roleList: (typeof BlankRole)[] = []; // The array of roles to be returned to the room object
+    const roleList: (typeof BlankRole)[] = []; // The array of roles to be returned to the room object
     let comparativePower = 0; // The comparative power, positive is in favour of town, negative in favour of the mafia
 
     // Role Lists - Available roles for random selection
-    let randomTownList: (typeof BlankRole)[] = [
+    const randomTownList: (typeof BlankRole)[] = [
       Doctor,
       Judge,
       Watchman,
@@ -84,12 +84,12 @@ export class RoleHandler {
       Roleblocker,
       Jailor,
     ];
-    let randomMafiaList = [Mafia, MafiaRoleblocker, MafiaInvestigator];
-    let randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
+    const randomMafiaList = [Mafia, MafiaRoleblocker, MafiaInvestigator];
+    const randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
 
     for (let i = 0; i < this.roomSize; i++) {
       // Random variance for role selection decisions
-      let randomiser =
+      const randomiser =
         Math.random() * (ROLE_ASSIGNMENT_VARIANCE * 2) -
         ROLE_ASSIGNMENT_VARIANCE; // Random Integer between -15 and 15
 
@@ -108,8 +108,8 @@ export class RoleHandler {
         // Power is balanced - use randomizer to decide role type
         if (randomiser > comparativePower) {
           // The weaker the town, the higher the chance of a town member being added
-          let index = Math.floor(Math.random() * randomTownList.length);
-          let addedRole = randomTownList[index];
+          const index = Math.floor(Math.random() * randomTownList.length);
+          const addedRole = randomTownList[index];
           if (!addedRole) {
             continue;
           }
@@ -124,8 +124,8 @@ export class RoleHandler {
             randomNeutralList.length == 0
           ) {
             // Add Mafia
-            let index = Math.floor(Math.random() * randomMafiaList.length);
-            let addedRole = randomMafiaList[index];
+            const index = Math.floor(Math.random() * randomMafiaList.length);
+            const addedRole = randomMafiaList[index];
             if (!addedRole) {
               continue;
             }
@@ -135,8 +135,8 @@ export class RoleHandler {
               randomMafiaList.splice(index, 1);
           } else {
             // Add neutral role
-            let index = Math.floor(Math.random() * randomNeutralList.length);
-            let addedRole = randomNeutralList[index];
+            const index = Math.floor(Math.random() * randomNeutralList.length);
+            const addedRole = randomNeutralList[index];
             if (!addedRole) {
               continue;
             }
@@ -148,8 +148,8 @@ export class RoleHandler {
         }
       } else if (comparativePower >= TOWN_POWER_THRESHOLD) {
         // Town is too powerful - Add mafia
-        let index = Math.floor(Math.random() * randomMafiaList.length);
-        let addedRole = randomMafiaList[index];
+        const index = Math.floor(Math.random() * randomMafiaList.length);
+        const addedRole = randomMafiaList[index];
         if (!addedRole) {
           continue;
         }
@@ -158,8 +158,8 @@ export class RoleHandler {
         if (this.uniqueRoleCheck(addedRole)) randomMafiaList.splice(index, 1);
       } else {
         // Mafia is too powerful - Add town
-        let index = Math.floor(Math.random() * randomTownList.length);
-        let addedRole = randomTownList[index];
+        const index = Math.floor(Math.random() * randomTownList.length);
+        const addedRole = randomTownList[index];
         if (!addedRole) {
           continue;
         }
@@ -177,7 +177,7 @@ export class RoleHandler {
    * @returns Array of faction instances for coordinated play
    */
   assignFactionsFromPlayerList(playerList: Player[]) {
-    let factionList = [];
+    const factionList = [];
 
     for (const player of playerList) {
       if (player.role.name === RoleName.Lawman) {

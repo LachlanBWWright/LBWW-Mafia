@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Time } from "../../../shared/socketTypes/socketTypes";
+import { useEffect, useState } from "react";
+import { Time } from "~/types/shared";
 import { ListGroup, Row, Col, Button, ButtonGroup } from "react-bootstrap";
 
 export function PlayerItem({

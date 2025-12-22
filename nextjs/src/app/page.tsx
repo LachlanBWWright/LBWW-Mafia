@@ -5,7 +5,6 @@ import { Card, Tooltip, OverlayTrigger, Button } from "react-bootstrap";
 import { Room } from "./play/Room";
 import { roles } from "~/app/info/roles";
 
-import ReCAPTCHA from "react-google-recaptcha";
 import type { AbstractSocketClient } from "~/socket/AbstractSocketClient";
 import { PartyKitSocketClient } from "~/socket/PartyKitClient";
 import { SocketIoClient } from "~/socket/SocketIoClient";
@@ -17,8 +16,6 @@ export default function PlayPage() {
   const [playerRole, setPlayerRole] = useState("");
   const [failReason, setFailReason] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
-  const [captchaEntered, setCaptchaEntered] = useState(false);
-  const [inGame, setInGame] = useState(false);
 
   const socketClientRef = React.useRef<AbstractSocketClient | null>(null);
 
@@ -28,21 +25,22 @@ export default function PlayPage() {
     if (backend === "partykit") {
       // Use PartyKitSocketClient
       // Room name can be dynamic, for now use a default/test value
-      socketClientRef.current = new PartyKitSocketClient(
-        env.NEXT_PUBLIC_PARTYKIT_URL,
-        "TESTROOMNAME",
-      );
+      if (env.NEXT_PUBLIC_PARTYKIT_URL) {
+        socketClientRef.current = new PartyKitSocketClient(
+          env.NEXT_PUBLIC_PARTYKIT_URL,
+          "TESTROOMNAME",
+        );
+      }
     } else {
       // Use SocketIoClient with endpoint from env
-      socketClientRef.current = new SocketIoClient(
-        env.NEXT_PUBLIC_SOCKETIO_URL,
-      );
+      if (env.NEXT_PUBLIC_SOCKETIO_URL) {
+        socketClientRef.current = new SocketIoClient(
+          env.NEXT_PUBLIC_SOCKETIO_URL,
+        );
+      }
     }
   }, []);
 
-  useEffect(() => {
-    setInGame(playerRole !== "");
-  }, [playerRole, setInGame]);
 
   if (playerRoom) {
     /* Shows the room if a name and room has been selected */
@@ -78,8 +76,8 @@ export default function PlayPage() {
           </Card.Text>
           {socketClientRef.current && (
             <Room
-              socketClient={socketClientRef.current}
               captchaToken={captchaToken}
+              socketClient={socketClientRef.current}
               setFailReason={setFailReason}
               setName={setPlayerName}
               setRoom={setPlayerRoom}

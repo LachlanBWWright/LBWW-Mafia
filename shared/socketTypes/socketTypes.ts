@@ -67,8 +67,8 @@ export type ClientToServerEvents = {
 
 type PlayerList = {
   name: string;
-  isAlive: boolean | undefined;
-  role: string;
+  isAlive?: boolean;
+  role?: string;
 };
 
 type PlayerReturned = {
@@ -83,9 +83,10 @@ type PlayerReturned = {
   nightVote: boolean;
 };
 
-type SvrMsg = {
-  name: keyof ServerToClientEvents;
-};
+// Unused type - kept for potential future use
+// type SvrMsg = {
+//   name: keyof ServerToClientEvents;
+// };
 
 export type ReceiveMessage = {
   name: "receiveMessage";

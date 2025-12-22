@@ -1,7 +1,7 @@
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
-import { Room } from "../../rooms/room.js";
-import { Player } from "../../player/player.js";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
+import { type Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
 import {
   VETTER_RESEARCH_SLOTS,
   FIFTY_FIFTY_CHANCE,
@@ -39,7 +39,7 @@ export class Vetter extends Role {
    * Handles night action to toggle research mode
    * @param recipient Not used - Vetter visits themselves to research
    */
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
     if (this.researchSlots == 0)
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
@@ -76,7 +76,7 @@ export class Vetter extends Role {
       if (this.visiting === null) return;
       this.visiting.receiveVisit(this);
       this.researchSlots--;
-      let randomPlayerOneIdx = Math.floor(
+      const randomPlayerOneIdx = Math.floor(
         Math.random() * this.room.playerList.length,
       );
       let randomPlayerTwoIdx = randomPlayerOneIdx;

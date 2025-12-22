@@ -5,7 +5,7 @@ import type { Socket } from "socket.io-client";
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
-} from "../../../shared/socketTypes/socketTypes";
+} from "~/types/shared";
 
 export const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
   "http://localhost:8000",

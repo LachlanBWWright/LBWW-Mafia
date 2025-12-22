@@ -2,6 +2,10 @@ import { FlatCompat } from "@eslint/eslintrc";
 import tseslint from "typescript-eslint";
 // @ts-ignore -- no types for this plugin
 import drizzle from "eslint-plugin-drizzle";
+// @ts-ignore -- no types for this plugin
+import react from "eslint-plugin-react";
+// Optional: add react-hooks rules
+import reactHooks from "eslint-plugin-react-hooks";
 
 const compat = new FlatCompat({
   baseDirectory: import.meta.dirname,
@@ -12,10 +16,19 @@ export default tseslint.config(
     ignores: [".next"],
   },
   ...compat.extends("next/core-web-vitals"),
+  // enable react recommended rules (including jsx-key) and jsx-runtime settings
+  ...compat.extends("plugin:react/recommended", "plugin:react/jsx-runtime"),
   {
     files: ["**/*.ts", "**/*.tsx"],
     plugins: {
       drizzle,
+      react,
+      "react-hooks": reactHooks,
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
     },
     extends: [
       ...tseslint.configs.recommended,
@@ -23,8 +36,10 @@ export default tseslint.config(
       ...tseslint.configs.stylisticTypeChecked,
     ],
     rules: {
-      "@typescript-eslint/array-type": "off",
-      "@typescript-eslint/consistent-type-definitions": "off",
+      // ensure missing keys in lists are treated as errors
+      // also check fragment shorthand (<>...</>) for missing keys
+      "react/jsx-key": ["error", { checkFragmentShorthand: true }],
+
       "@typescript-eslint/consistent-type-imports": [
         "warn",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
@@ -33,7 +48,6 @@ export default tseslint.config(
         "warn",
         { argsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/require-await": "off",
       "@typescript-eslint/no-misused-promises": [
         "error",
         { checksVoidReturn: { attributes: false } },

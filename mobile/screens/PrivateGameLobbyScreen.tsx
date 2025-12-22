@@ -10,7 +10,7 @@ type PrivateGameLobbyScreenProps = NativeStackScreenProps<
 >;
 
 export function PrivateGameLobbyScreen({
-  route,
+  route: _route,
   navigation,
 }: PrivateGameLobbyScreenProps) {
   const [roomCode, setRoomCode] = useState("");

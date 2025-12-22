@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 //This class judges the alignment of the selected target (usually!)
 export class Investigator extends Role {
@@ -50,7 +50,7 @@ export class Investigator extends Role {
     //Visits a role, and tries to determine their alignment.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      let possibleRoles = [];
+      const possibleRoles = [];
       for (let i = 0; i < 3; i++) {
         if (Math.random() < 0.3) {
           //Give the targets role

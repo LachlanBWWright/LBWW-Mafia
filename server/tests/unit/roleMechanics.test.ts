@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { describe, it, expect } from "vitest";
+import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums.js";
 
 /**
  * Unit tests for individual role mechanics and special interactions
@@ -7,26 +7,26 @@ import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
 describe("Role Mechanics and Interactions", () => {
   // Base role class for testing
   class TestRole {
-    name: string;
+    name: RoleName;
     group: RoleGroup;
-    damage: number = 0;
-    defence: number = 0;
-    baseDefence: number = 0;
+    damage = 0;
+    defence = 0;
+    baseDefence = 0;
 
     // Ability flags
-    dayVisitSelf: boolean = false;
-    dayVisitOthers: boolean = false;
-    nightVisitSelf: boolean = false;
-    nightVisitOthers: boolean = false;
-    nightVote: boolean = false;
+    dayVisitSelf = false;
+    dayVisitOthers = false;
+    nightVisitSelf = false;
+    nightVisitOthers = false;
+    nightVote = false;
 
     // State tracking
     visiting: TestRole | null = null;
     visitors: TestRole[] = [];
-    roleblocked: boolean = false;
-    isAlive: boolean = true;
+    roleblocked = false;
+    isAlive = true;
 
-    constructor(name: string, group: RoleGroup) {
+    constructor(name: RoleName, group: RoleGroup) {
       this.name = name;
       this.group = group;
     }
@@ -196,7 +196,7 @@ describe("Role Mechanics and Interactions", () => {
   describe("Doctor Mechanics", () => {
     it("should heal target and grant defense", () => {
       const doctor = new Doctor();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       expect(target.defence).toBe(0);
 
@@ -209,7 +209,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should not heal when roleblocked", () => {
       const doctor = new Doctor();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       doctor.roleblocked = true;
       doctor.heal(target);
@@ -222,7 +222,7 @@ describe("Role Mechanics and Interactions", () => {
   describe("Mafia Attack Mechanics", () => {
     it("should successfully attack undefended target", () => {
       const mafia = new Mafia();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       expect(target.isAlive).toBe(true);
 
@@ -236,7 +236,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should fail to attack defended target", () => {
       const mafia = new Mafia();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
       target.defence = 1; // Basic defense
 
       const success = mafia.attack(target);
@@ -248,7 +248,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should not attack when roleblocked", () => {
       const mafia = new Mafia();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       mafia.roleblocked = true;
       const success = mafia.attack(target);
@@ -306,7 +306,7 @@ describe("Role Mechanics and Interactions", () => {
   describe("Bodyguard Mechanics", () => {
     it("should protect target and provide defense", () => {
       const bodyguard = new Bodyguard();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       bodyguard.protect(target);
 
@@ -317,7 +317,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should kill attackers when protecting", () => {
       const bodyguard = new Bodyguard();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
       const attacker1 = new Mafia();
       const attacker2 = new Maniac();
 
@@ -334,7 +334,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should not counterattack itself", () => {
       const bodyguard = new Bodyguard();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
       const attacker = new Mafia();
 
       bodyguard.protect(target);
@@ -367,7 +367,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should prevent maniac from killing when roleblocked", () => {
       const maniac = new Maniac();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       maniac.roleblocked = true;
       const success = maniac.kill(target);
@@ -395,7 +395,7 @@ describe("Role Mechanics and Interactions", () => {
     it("should prevent roleblocked players from using abilities", () => {
       const roleblocker = new Roleblocker();
       const doctor = new Doctor();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       // Roleblock the doctor
       roleblocker.roleblock(doctor);
@@ -422,7 +422,7 @@ describe("Role Mechanics and Interactions", () => {
     it("should handle doctor vs mafia interaction", () => {
       const doctor = new Doctor();
       const mafia = new Mafia();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       // Doctor heals target
       doctor.heal(target);
@@ -450,7 +450,7 @@ describe("Role Mechanics and Interactions", () => {
 
     it("should handle bodyguard vs multiple attackers", () => {
       const bodyguard = new Bodyguard();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
       const mafia = new Mafia();
       const maniac = new Maniac();
 
@@ -471,7 +471,7 @@ describe("Role Mechanics and Interactions", () => {
       const roleblocker = new Roleblocker();
       const doctor = new Doctor();
       const mafia = new Mafia();
-      const target = new TestRole("Civilian", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       // Roleblock doctor
       roleblocker.roleblock(doctor);
@@ -492,8 +492,8 @@ describe("Role Mechanics and Interactions", () => {
       const doctor = new Doctor();
       const mafia = new Mafia();
       const investigator = new Investigator();
-      const target1 = new TestRole("Civilian1", RoleGroup.Town);
-      const target2 = new TestRole("Civilian2", RoleGroup.Town);
+      const target1 = new TestRole(RoleName.BlankRole, RoleGroup.Town);
+      const target2 = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       // Night 1: Doctor heals target1, Mafia attacks target1, Investigator checks Mafia
       doctor.heal(target1);
@@ -528,7 +528,7 @@ describe("Role Mechanics and Interactions", () => {
       const doctor = new Doctor();
       const bodyguard = new Bodyguard();
       const mafia = new Mafia();
-      const target = new TestRole("VIP", RoleGroup.Town);
+      const target = new TestRole(RoleName.BlankRole, RoleGroup.Town);
 
       // Both doctor and bodyguard protect same target
       doctor.heal(target);

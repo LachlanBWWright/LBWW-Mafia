@@ -1,4 +1,3 @@
-import React from "react";
 import { Card, CardBody, CardTitle, CardText } from "react-bootstrap";
 
 export default function Stats() {

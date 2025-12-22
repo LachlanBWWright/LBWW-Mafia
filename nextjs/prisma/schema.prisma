@@ -7,7 +7,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -38,16 +37,16 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
+  id                 String              @id @default(cuid())
+  name               String?
+  email              String?             @unique
+  emailVerified      DateTime?
+  image              String?
+  accounts           Account[]
+  sessions           Session[]
   gameParticipations GameParticipation[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model VerificationToken {
@@ -59,32 +58,32 @@ model VerificationToken {
 }
 
 model GameSession {
-  id            String   @id @default(cuid())
-  roomId        String   @unique
-  roomCode      String   @unique
-  status        GameStatus @default(WAITING)
-  startTime     DateTime?
-  endTime       DateTime?
-  maxPlayers    Int      @default(10)
-  settings      Json?    // Game settings like roles, time limits, etc.
-  result        Json?    // Game result including winners, etc.
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  participants  GameParticipation[]
+  id           String              @id @default(cuid())
+  roomId       String              @unique
+  roomCode     String              @unique
+  status       GameStatus          @default(WAITING)
+  startTime    DateTime?
+  endTime      DateTime?
+  maxPlayers   Int                 @default(10)
+  settings     Json? // Game settings like roles, time limits, etc.
+  result       Json? // Game result including winners, etc.
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  participants GameParticipation[]
 }
 
 model GameParticipation {
-  id            String      @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
   gameSessionId String
-  role          String?     // Assigned role in the game
-  isAlive       Boolean     @default(true)
-  joinedAt      DateTime    @default(now())
+  role          String? // Assigned role in the game
+  isAlive       Boolean   @default(true)
+  joinedAt      DateTime  @default(now())
   leftAt        DateTime?
-  
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gameSession   GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
-  
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameSession GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
   @@unique([userId, gameSessionId])
 }
 

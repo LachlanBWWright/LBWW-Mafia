@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
 export class Framer extends Role {
   victoryCondition = false;
@@ -28,8 +28,8 @@ export class Framer extends Role {
 
   initRole() {
     // Find a random target
-    let length = this.room.playerList.length;
-    let index = Math.floor(Math.random() * length);
+    const length = this.room.playerList.length;
+    const index = Math.floor(Math.random() * length);
     for (let i = 0; i < length; i++) {
       //console.log((index + i) % length)
       //console.log(this.room.playerList[(index + i) % length])
@@ -52,9 +52,9 @@ export class Framer extends Role {
 
   dayUpdate() {
     //Updates the target
-    if (this.target?.isAlive || this.victoryCondition) return; //Nothing happens if the target isn't dead, or the player's already won.
-    let length = this.room.playerList.length;
-    let index = Math.floor(Math.random() * length);
+    if (this.target?.isAlive ?? this.victoryCondition) return; //Nothing happens if the target isn't dead, or the player's already won.
+    const length = this.room.playerList.length;
+    const index = Math.floor(Math.random() * length);
     for (let i = 0; i < length; i++) {
       const potentialTarget = this.room.playerList[(index + i) % length];
       if (

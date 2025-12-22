@@ -1,4 +1,4 @@
-import { MessageToClient } from "../../../shared/socketTypes/socketTypes";
+import { type MessageToClient } from "../../../shared/socketTypes/socketTypes.js";
 
 export abstract class SocketHandler {
   abstract sendPlayerMessage(

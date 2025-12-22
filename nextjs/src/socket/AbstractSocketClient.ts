@@ -1,47 +1,45 @@
 export abstract class AbstractSocketClient {
   // Listener arrays for each event type
-  protected receiveMessageListeners: Array<(msg: string) => void> = [];
-  protected receiveChatMessageListeners: Array<(msg: string) => void> = [];
-  protected receiveWhisperMessageListeners: Array<(msg: string) => void> = [];
-  protected receivePlayerListListeners: Array<
-    (
-      playerList: {
-        name: string;
-        isAlive: boolean | undefined;
-        role: string;
-      }[],
-    ) => void
-  > = [];
-  protected receiveNewPlayerListeners: Array<
-    (player: { name: string }) => void
-  > = [];
-  protected removePlayerListeners: Array<(player: { name: string }) => void> =
-    [];
-  protected assignPlayerRoleListeners: Array<
-    (player: {
+  protected receiveMessageListeners: ((msg: string) => void)[] = [];
+  protected receiveChatMessageListeners: ((msg: string) => void)[] = [];
+  protected receiveWhisperMessageListeners: ((msg: string) => void)[] = [];
+  protected receivePlayerListListeners: ((
+    playerList: {
       name: string;
-      role: string;
-      dayVisitSelf: boolean;
-      dayVisitOthers: boolean;
-      dayVisitFaction: boolean;
-      nightVisitSelf: boolean;
-      nightVisitOthers: boolean;
-      nightVisitFaction: boolean;
-      nightVote: boolean;
-    }) => void
-  > = [];
-  protected updateFactionRoleListeners: Array<
-    (data: { name: string; role: string }) => void
-  > = [];
-  protected updatePlayerRoleListeners: Array<
-    (data: { name: string; role?: string }) => void
-  > = [];
-  protected updatePlayerVisitListeners: Array<() => void> = [];
-  protected updateDayTimeListeners: Array<
-    (data: { time: string; dayNumber: number; timeLeft: number }) => void
-  > = [];
-  protected disableVotingListeners: Array<() => void> = [];
-  protected blockMessagesListeners: Array<() => void> = [];
+      isAlive?: boolean;
+      role?: string;
+    }[],
+  ) => void)[] = [];
+  protected receiveNewPlayerListeners: ((player: { name: string }) => void)[] =
+    [];
+  protected removePlayerListeners: ((player: { name: string }) => void)[] = [];
+  protected assignPlayerRoleListeners: ((player: {
+    name: string;
+    role: string;
+    dayVisitSelf: boolean;
+    dayVisitOthers: boolean;
+    dayVisitFaction: boolean;
+    nightVisitSelf: boolean;
+    nightVisitOthers: boolean;
+    nightVisitFaction: boolean;
+    nightVote: boolean;
+  }) => void)[] = [];
+  protected updateFactionRoleListeners: ((data: {
+    name: string;
+    role: string;
+  }) => void)[] = [];
+  protected updatePlayerRoleListeners: ((data: {
+    name: string;
+    role?: string;
+  }) => void)[] = [];
+  protected updatePlayerVisitListeners: (() => void)[] = [];
+  protected updateDayTimeListeners: ((data: {
+    time: string;
+    dayNumber: number;
+    timeLeft: number;
+  }) => void)[] = [];
+  protected disableVotingListeners: (() => void)[] = [];
+  protected blockMessagesListeners: (() => void)[] = [];
 
   // --- Abstract methods: all must be consecutive ---
   abstract sendPlayerJoinRoom(
@@ -65,8 +63,8 @@ export abstract class AbstractSocketClient {
     listener: (
       playerList: {
         name: string;
-        isAlive: boolean | undefined;
-        role: string;
+        isAlive?: boolean;
+        role?: string;
       }[],
     ) => void,
   ): void;

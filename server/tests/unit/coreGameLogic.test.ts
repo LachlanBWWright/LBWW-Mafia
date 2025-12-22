@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { RoleGroup, RoleName } from "../../../shared/roles/roleEnums";
+import { describe, it, expect } from "vitest";
+import { RoleGroup, RoleName } from "../../../shared/roles/roleEnums.js";
 
 /**
  * Unit tests for core Mafia game logic and mechanics
@@ -10,9 +10,9 @@ describe("Mafia Game - Core Logic Simulation", () => {
   class TestPlayer {
     socketId: string;
     playerUsername: string;
-    isAlive: boolean = true;
-    hasVoted: boolean = false;
-    votesReceived: number = 0;
+    isAlive = true;
+    hasVoted = false;
+    votesReceived = 0;
     position: number;
     role: { name: string; group: RoleGroup } | null = null;
 
@@ -27,11 +27,11 @@ describe("Mafia Game - Core Logic Simulation", () => {
   class TestRoom {
     name: string;
     size: number;
-    playerCount: number = 0;
+    playerCount = 0;
     playerList: TestPlayer[] = [];
-    started: boolean = false;
+    started = false;
     time: "day" | "night" | "" = "";
-    gameHasEnded: boolean = false;
+    gameHasEnded = false;
 
     constructor(size: number) {
       this.name = `test-room-${Date.now()}`;
@@ -62,17 +62,15 @@ describe("Mafia Game - Core Logic Simulation", () => {
       // Simple role assignment for testing
       const roles = this.generateRoles(this.size);
       this.playerList.forEach((player, index) => {
-        player.role = roles[index] || {
+        player.role = roles[index] ?? {
           name: "Civilian",
           group: RoleGroup.Town,
         };
       });
     }
 
-    generateRoles(
-      playerCount: number,
-    ): Array<{ name: string; group: RoleGroup }> {
-      const roles: Array<{ name: string; group: RoleGroup }> = [];
+    generateRoles(playerCount: number): { name: string; group: RoleGroup }[] {
+      const roles: { name: string; group: RoleGroup }[] = [];
 
       // Simple balanced role assignment
       if (playerCount >= 3) {
@@ -106,7 +104,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
   // Helper functions
   function simulateVoting(
     room: TestRoom,
-    votes: Array<{ voter: number; target: number }>,
+    votes: { voter: number; target: number }[],
   ): void {
     // Reset votes
     room.playerList.forEach((p) => {
@@ -455,8 +453,8 @@ describe("Mafia Game - Core Logic Simulation", () => {
 
         const roleCounts = room.playerList.reduce(
           (acc, player) => {
-            const group = player.role?.group || "unknown";
-            acc[group] = (acc[group] || 0) + 1;
+            const group = player.role?.group ?? "unknown";
+            acc[group] = (acc[group] ?? 0) + 1;
             return acc;
           },
           {} as Record<string, number>,
@@ -467,7 +465,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
         expect(roleCounts.town).toBeGreaterThanOrEqual(1);
 
         // Mafia should not outnumber town at start
-        expect(roleCounts.mafia).toBeLessThan(roleCounts.town || 0);
+        expect(roleCounts.mafia).toBeLessThan(roleCounts.town ?? 0);
 
         // Total should match game size
         const total = Object.values(roleCounts).reduce(

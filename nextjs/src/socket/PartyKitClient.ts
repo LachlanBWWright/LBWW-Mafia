@@ -1,36 +1,26 @@
 import { AbstractSocketClient } from "./AbstractSocketClient";
 import PartySocket from "partysocket";
+import { z } from "zod";
 import type {
-  ServerToClientEvents,
-  ClientToServerEvents,
   //Client to server messages
   PlayerJoinRoomMessage,
   MessageSentByUserMessage,
   HandleVoteMessage,
   HandleVisitMessage,
   HandleWhisperMessage,
-  MessageToServer, //All
   //Server to client messages
-  ReceiveMessage,
-  BlockMessages,
-  ReceiveNewPlayer,
-  RemovePlayer,
-  ReceivePlayerList,
-  ReceiveChatMessage,
-  ReceiveWhisperMessage,
-  UpdateDayTime,
-  DisableVoting,
-  UpdatePlayerRole,
-  AssignPlayerRole,
-  UpdateFactionRole,
-  ReceiveRole,
-  UpdatePlayerVisit,
-  MessageToClient, //All
-} from "../../../shared/socketTypes/socketTypes";
+} from "~/types/shared";
+
+// Zod schema for validating MessageToClient
+const messageToClientSchema = z.object({
+  name: z.string(),
+  data: z.any().optional(),
+});
 
 export class PartyKitSocketClient extends AbstractSocketClient {
   socket: PartySocket;
   receiveMessageListeners: ((msg: string) => void)[] = [];
+  private _pendingJoinCallback?: (result: string | number) => void;
 
   constructor(host: string, room: string) {
     super();
@@ -38,80 +28,199 @@ export class PartyKitSocketClient extends AbstractSocketClient {
       host,
       room,
     });
-    this.socket.addEventListener("open", (event) => {
-      console.log(event);
+    this.socket.addEventListener("open", (_event) => {
+      console.debug("PartyKit socket opened");
     });
     this.socket.addEventListener("message", (event: MessageEvent<string>) => {
-      console.log("EVENT DATA:", event.data);
+      console.debug("PartyKit message received");
 
-      console.log("Typeof event.data:", typeof event.data);
+      console.debug("Type of partykit message:", typeof event.data);
       // Parse the incoming message
       try {
-        //Ignore unsafe ts cast
-        //TODO: Add zod validation
-        //eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const data: MessageToClient = JSON.parse(event.data);
+        // Validate incoming message with Zod
+        const data = messageToClientSchema.parse(JSON.parse(event.data));
         // Dispatch to the correct listeners based on event name
         switch (data.name) {
-          case "receiveMessage":
-            this.receiveMessageListeners.forEach((cb) => cb(data.data.message));
+          case "receiveMessage": {
+            const parsed = z
+              .object({ message: z.string() })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const msg = parsed.data.message;
+              for (const cb of this.receiveMessageListeners) cb(msg);
+            }
             break;
-          case "receive-chat-message":
-            this.receiveChatMessageListeners.forEach((cb) =>
-              cb(data.data.message),
-            );
+          }
+          case "receive-chat-message": {
+            const parsed = z
+              .object({ message: z.string() })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const msg = parsed.data.message;
+              for (const cb of this.receiveChatMessageListeners) cb(msg);
+            }
             break;
-          case "receive-whisper-message":
-            this.receiveWhisperMessageListeners.forEach((cb) =>
-              cb(data.data.message),
-            );
+          }
+          case "receive-whisper-message": {
+            const parsed = z
+              .object({ message: z.string() })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const msg = parsed.data.message;
+              for (const cb of this.receiveWhisperMessageListeners) cb(msg);
+            }
             break;
-          case "receive-player-list":
-            this.receivePlayerListListeners.forEach((cb) =>
-              cb(data.data.playerList),
-            );
+          }
+          case "receive-player-list": {
+            const parsed = z
+              .object({
+                playerList: z.array(
+                  z.object({
+                    name: z.string(),
+                    isAlive: z.boolean().optional(),
+                    role: z.string().optional(),
+                  }),
+                ),
+              })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const playerList = parsed.data.playerList as {
+                name: string;
+                isAlive?: boolean;
+                role?: string;
+              }[];
+              for (const cb of this.receivePlayerListListeners) cb(playerList);
+            }
             break;
-          case "receive-new-player":
-            this.receiveNewPlayerListeners.forEach((cb) =>
-              cb(data.data.player),
-            );
+          }
+          case "receive-new-player": {
+            const parsed = z
+              .object({ player: z.object({ name: z.string() }) })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const player = parsed.data.player as { name: string };
+              for (const cb of this.receiveNewPlayerListeners) cb(player);
+            }
             break;
-          case "remove-player":
-            this.removePlayerListeners.forEach((cb) => cb(data.data.player));
+          }
+          case "remove-player": {
+            const parsed = z
+              .object({ player: z.object({ name: z.string() }) })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const player = parsed.data.player as { name: string };
+              for (const cb of this.removePlayerListeners) cb(player);
+            }
             break;
-          case "assign-player-role":
-            this.assignPlayerRoleListeners.forEach((cb) => cb(data.data));
+          }
+          case "playerJoinResponse": {
+            // Server will send the numeric/string result for join (to mimic Socket.IO callback)
+            // We accept either a primitive or an object
+            if (this._pendingJoinCallback) {
+              // If data.data is a primitive, pass it directly; otherwise, try to extract
+              const cb = this._pendingJoinCallback;
+              const parsedJoin = z.any().safeParse(data.data);
+              if (parsedJoin.success) cb(parsedJoin.data as string | number);
+              else cb(3);
+              this._pendingJoinCallback = undefined;
+            }
             break;
-          case "update-faction-role":
-            this.updateFactionRoleListeners.forEach((cb) => cb(data.data));
+          }
+          case "assign-player-role": {
+            const playerSchema = z.object({
+              name: z.string(),
+              role: z.string(),
+              dayVisitSelf: z.boolean(),
+              dayVisitOthers: z.boolean(),
+              dayVisitFaction: z.boolean(),
+              nightVisitSelf: z.boolean(),
+              nightVisitOthers: z.boolean(),
+              nightVisitFaction: z.boolean(),
+              nightVote: z.boolean(),
+            });
+            const parsed = playerSchema.safeParse(data.data);
+            if (parsed.success) {
+              const playerData = parsed.data as {
+                name: string;
+                role: string;
+                dayVisitSelf: boolean;
+                dayVisitOthers: boolean;
+                dayVisitFaction: boolean;
+                nightVisitSelf: boolean;
+                nightVisitOthers: boolean;
+                nightVisitFaction: boolean;
+                nightVote: boolean;
+              };
+              for (const cb of this.assignPlayerRoleListeners) cb(playerData);
+            }
             break;
-          case "update-player-role":
-            this.updatePlayerRoleListeners.forEach((cb) => cb(data.data));
+          }
+          case "update-faction-role": {
+            const parsed = z
+              .object({ name: z.string(), role: z.string() })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const dataObj = parsed.data as { name: string; role: string };
+              for (const cb of this.updateFactionRoleListeners) cb(dataObj);
+            }
             break;
+          }
+          case "update-player-role": {
+            const parsed = z
+              .object({ name: z.string(), role: z.string().optional() })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const dataObj = parsed.data as { name: string; role?: string };
+              for (const cb of this.updatePlayerRoleListeners) cb(dataObj);
+            }
+            break;
+          }
           case "update-player-visit":
-            this.updatePlayerVisitListeners.forEach((cb) => cb());
+            for (const cb of this.updatePlayerVisitListeners) cb();
             break;
-          case "update-day-time":
-            this.updateDayTimeListeners.forEach((cb) => cb(data.data));
+          case "update-day-time": {
+            const parsed = z
+              .object({
+                time: z.string(),
+                dayNumber: z.number(),
+                timeLeft: z.number(),
+              })
+              .safeParse(data.data);
+            if (parsed.success) {
+              const info = parsed.data as {
+                time: string;
+                dayNumber: number;
+                timeLeft: number;
+              };
+              for (const cb of this.updateDayTimeListeners) cb(info);
+            }
             break;
+          }
           case "disable-voting":
-            this.disableVotingListeners.forEach((cb) => cb());
+            for (const cb of this.disableVotingListeners) cb();
             break;
           case "blockMessages":
-            this.blockMessagesListeners.forEach((cb) => cb());
+            for (const cb of this.blockMessagesListeners) cb();
             break;
           default:
-            console.warn("Unknown event name from PartyKit message:", data);
+            console.warn(
+              "Unknown event name from PartyKit message:",
+              JSON.stringify(data),
+            );
         }
       } catch (err) {
-        console.error("Failed to parse PartyKit message:", event.data, err);
+        console.error(
+          "Failed to parse PartyKit message:",
+          event.data,
+          String(err),
+        );
       }
     });
-    this.socket.addEventListener("error", (event) => {
-      console.log(event);
+    this.socket.addEventListener("error", (_event) => {
+      console.debug("PartyKit socket error");
     });
-    this.socket.addEventListener("close", (event) => {
-      console.log(event);
+    this.socket.addEventListener("close", (_event) => {
+      console.debug("PartyKit socket close");
     });
   }
 
@@ -119,52 +228,58 @@ export class PartyKitSocketClient extends AbstractSocketClient {
     // Implement PartyKit send logic here
     //this.socket.send(data: )
   }
+  // Sends a join request and calls cb with the server result once the server responds
   sendPlayerJoinRoom(
     captchaToken: string,
     cb: (result: string | number) => void,
   ): void {
-    // Implement PartyKit send logic here
-    this.socket.send(
-      JSON.stringify({
-        name: "playerJoinRoom",
-        data: { captchaToken },
-      } satisfies PlayerJoinRoomMessage),
-    );
+    // Register a temporary join callback
+    this._pendingJoinCallback = cb;
+
+    const playerJoinPayload: {
+      name: "playerJoinRoom";
+      data: PlayerJoinRoomMessage;
+    } = { name: "playerJoinRoom", data: { playerUsername: captchaToken } };
+    this.socket.send(JSON.stringify(playerJoinPayload));
+
+    // Fallback timeout in case the server doesn't respond
+    setTimeout(() => {
+      if (this._pendingJoinCallback) {
+        this._pendingJoinCallback(3); // Treat as room full / failure after timeout
+        this._pendingJoinCallback = undefined;
+      }
+    }, 5000);
   }
   sendMessageSentByUser(message: string, isDay: boolean): void {
-    this.socket.send(
-      JSON.stringify({
-        name: "messageSentByUser",
-        data: { message, isDay },
-      } satisfies MessageSentByUserMessage),
-    );
+    const messageSentPayload: {
+      name: "messageSentByUser";
+      data: MessageSentByUserMessage;
+    } = { name: "messageSentByUser", data: { message, isDay } };
+    this.socket.send(JSON.stringify(messageSentPayload));
   }
 
   sendHandleVote(recipient: number | null, isDay: boolean): void {
-    this.socket.send(
-      JSON.stringify({
-        name: "handleVote",
-        data: { recipient, isDay },
-      } satisfies HandleVoteMessage),
-    );
+    const handleVotePayload: { name: "handleVote"; data: HandleVoteMessage } = {
+      name: "handleVote",
+      data: { recipient, isDay },
+    };
+    this.socket.send(JSON.stringify(handleVotePayload));
   }
 
   sendHandleVisit(recipient: number | null, isDay: boolean): void {
-    this.socket.send(
-      JSON.stringify({
-        name: "handleVisit",
-        data: { recipient, isDay },
-      } satisfies HandleVisitMessage),
-    );
+    const handleVisitPayload: {
+      name: "handleVisit";
+      data: HandleVisitMessage;
+    } = { name: "handleVisit", data: { recipient, isDay } };
+    this.socket.send(JSON.stringify(handleVisitPayload));
   }
 
   sendHandleWhisper(recipient: number, message: string, isDay: boolean): void {
-    this.socket.send(
-      JSON.stringify({
-        name: "handleWhisper",
-        data: { recipient, message, isDay },
-      } satisfies HandleWhisperMessage),
-    );
+    const handleWhisperPayload: {
+      name: "handleWhisper";
+      data: HandleWhisperMessage;
+    } = { name: "handleWhisper", data: { recipient, message, isDay } };
+    this.socket.send(JSON.stringify(handleWhisperPayload));
   }
 
   onReceiveMessage(listener: (msg: string) => void): () => void {
@@ -193,8 +308,8 @@ export class PartyKitSocketClient extends AbstractSocketClient {
     listener: (
       playerList: {
         name: string;
-        isAlive: boolean | undefined;
-        role: string;
+        isAlive?: boolean;
+        role?: string;
       }[],
     ) => void,
   ): () => void {

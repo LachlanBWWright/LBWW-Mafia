@@ -6,7 +6,7 @@ import { api } from "../utils/api";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
 
-export function HomeScreen({ route, navigation }: HomeScreenProps) {
+export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
   const [name, setName] = useState("");
   const [disabled, setDisabled] = useState(true);
 

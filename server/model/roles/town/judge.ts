@@ -1,7 +1,7 @@
-import { Player } from "../../player/player.js";
-import { Room } from "../../rooms/room.js";
+import { type Player } from "../../player/player.js";
+import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums";
+import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 import {
   JUDGE_ERROR_RATE,
   BASE_DEFENSE,
@@ -69,7 +69,7 @@ export class Judge extends Role {
 
       if (Math.random() < JUDGE_ERROR_RATE) {
         // Judge gets wrong information - return a random player's faction
-        let livingPlayerList = [];
+        const livingPlayerList = [];
         for (const player of this.room.playerList) {
           if (player.isAlive) {
             livingPlayerList.push(player);

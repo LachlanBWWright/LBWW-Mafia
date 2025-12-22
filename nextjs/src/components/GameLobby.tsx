@@ -30,12 +30,12 @@ export function GameLobby() {
     }
   })
   
-  const { data: activeGames, refetch: refetchActiveGames } = api.gameSession.getActive.useQuery()
+  const { data: activeGames } = api.gameSession.getActive.useQuery()
   const { data: userHistory } = api.gameSession.getUserHistory.useQuery(undefined, {
     enabled: !!session,
   })
 
-  const handleCreateGame = async () => {
+  const handleCreateGame = () => {
     createGameMutation.mutate({
       maxPlayers: 10,
       settings: {
@@ -46,7 +46,7 @@ export function GameLobby() {
     })
   }
 
-  const handleJoinGame = async () => {
+  const handleJoinGame = () => {
     if (!roomCode.trim()) {
       alert('Please enter a room code')
       return
@@ -142,7 +142,7 @@ export function GameLobby() {
                         <span>Room: {game.roomCode}</span>
                         <span>{game.participants.length}/{game.maxPlayers} players</span>
                       </div>
-                      <button 
+                      <button
                         className="btn btn-sm btn-outline-primary mt-1"
                         onClick={() => handleJoinActiveGame(game.roomCode)}
                         disabled={joinGameMutation.isPending}
@@ -170,20 +170,20 @@ export function GameLobby() {
                       <div className="d-flex justify-content-between">
                         <span>Room: {game.roomCode}</span>
                         <span className={`badge ${
-                          game.status === 'FINISHED' ? 'badge-success' : 
-                          game.status === 'IN_PROGRESS' ? 'badge-warning' : 
+                          game.status === 'FINISHED' ? 'badge-success' :
+                          game.status === 'IN_PROGRESS' ? 'badge-warning' :
                           'badge-secondary'
                         }`}>
                           {game.status}
                         </span>
                       </div>
                       <small className="text-muted">
-                        Role: {game.userRole || 'None'} | 
+                        Role: {game.userRole ?? 'None'} |
                         Players: {game.participants.length}
                       </small>
                       {(game.status === 'WAITING' || game.status === 'IN_PROGRESS') && (
                         <div className="mt-1">
-                          <button 
+                          <button
                             className="btn btn-sm btn-outline-primary"
                             onClick={() => router.push(`/room/${game.roomCode}`)}
                           >
