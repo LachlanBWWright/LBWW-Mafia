@@ -47,7 +47,8 @@ describe("Room start behaviour", () => {
 
     // Check that the room was sent an update-day-time message (Day 1)
     const updateDay = mock.roomMessages.some(
-      (r) => r.message.name === "update-day-time" && r.message.data?.dayNumber === 1,
+      (r) =>
+        r.message.name === "update-day-time" && r.message.data?.dayNumber === 1,
     );
     expect(updateDay).toBe(true);
 
@@ -59,7 +60,9 @@ describe("Room start behaviour", () => {
     }
 
     // Check that a player list was broadcast to the room when it filled
-    const hasPlayerList = mock.roomMessages.some((r) => r.message.name === "receive-player-list");
+    const hasPlayerList = mock.roomMessages.some(
+      (r) => r.message.name === "receive-player-list",
+    );
     expect(hasPlayerList).toBe(true);
   });
 
@@ -69,7 +72,9 @@ describe("Room start behaviour", () => {
     // Explicitly call emitPlayerList with room name
     room.emitPlayerList(room.name);
 
-    const hasPlayerList = mock.roomMessages.some((r) => r.message.name === "receive-player-list");
+    const hasPlayerList = mock.roomMessages.some(
+      (r) => r.message.name === "receive-player-list",
+    );
     expect(hasPlayerList).toBe(true);
   });
 });

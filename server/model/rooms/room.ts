@@ -8,7 +8,10 @@ import { type Framer } from "../roles/neutral/framer.js";
 import { type Peacemaker } from "../roles/neutral/peacemaker.js";
 import { names } from "../player/names/namesList.js";
 import type { SocketHandler } from "../socketHandler/socketHandler.js";
-import { Time } from "../../../shared/socketTypes/socketTypes.js";
+import {
+  Time,
+  type MessageToClient,
+} from "../../../shared/socketTypes/socketTypes.js";
 import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums.js";
 import {
   SESSION_LENGTH_MULTIPLIER,
@@ -577,11 +580,11 @@ export class Room {
    */
   startFirstDaySession(sessionLength: number) {
     this.time = Time.Day;
-    const dayMessage = {
+    const dayMessage: MessageToClient = {
       name: "receiveMessage",
       data: { message: "Day 1 has started." },
     };
-    const updateDay = {
+    const updateDay: MessageToClient = {
       name: "update-day-time",
       data: { time: Time.Day, dayNumber: 1, timeLeft: 5 },
     };

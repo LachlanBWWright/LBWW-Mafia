@@ -451,13 +451,13 @@ describe("Mafia Game - Core Logic Simulation", () => {
           room.addPlayer(`socket${i}`, `Player${i}`);
         }
 
-        const roleCounts = room.playerList.reduce(
+        const roleCounts = room.playerList.reduce<Record<string, number>>(
           (acc, player) => {
             const group = player.role?.group ?? "unknown";
             acc[group] = (acc[group] ?? 0) + 1;
             return acc;
           },
-          {} as Record<string, number>,
+          {},
         );
 
         // Should have at least 1 mafia and some town

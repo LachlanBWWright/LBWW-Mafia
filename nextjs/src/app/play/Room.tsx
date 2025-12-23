@@ -270,7 +270,7 @@ export function Room({
     });
 
     socketClient.onUpdateDayTime((infoJson) => {
-      setTime(infoJson.time as Time);
+      setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);

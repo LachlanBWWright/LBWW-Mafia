@@ -1,10 +1,14 @@
 import { Faction } from "./abstractFaction.js";
-import { type Player } from "../player/player.js";
-import { type Role } from "../roles/abstractRole.js";
+import { Player } from "../player/player.js";
+import { Role } from "../roles/abstractRole.js";
 import { type Room } from "../rooms/room.js";
 import { RoleGroup } from "../../../shared/roles/roleEnums.js";
 
+import type { RoleMafia } from "../roles/mafia/abstractMafiaRole.js";
+
 export class MafiaFaction extends Faction {
+  // Members are players whose `role` is `RoleMafia` (mafia-specific role behavior available)
+  memberList: (Player & { role: RoleMafia })[] = [];
   attackList: Role[] = [];
   room?: Room;
 
@@ -21,19 +25,18 @@ export class MafiaFaction extends Faction {
 
   handleNightVote() {
     for (const member of this.memberList) {
-      const role = member.role as unknown as Record<string, unknown>;
+      const role = member.role;
       const attackVote = role.attackVote;
-      if (attackVote != null) {
-        // attackVote can be Player or Role, but we need Role for visiting
-        if (typeof attackVote === "object" && "role" in attackVote) {
-          const roleProperty = (attackVote as Record<string, unknown>).role;
-          if (roleProperty instanceof Object) {
-            this.attackList.push(roleProperty as Role);
-          }
-        } else if (attackVote instanceof Object) {
-          this.attackList.push(attackVote as Role);
-        }
+
+      if (attackVote instanceof Role) {
+        // Direct Role vote
+        this.attackList.push(attackVote);
+      } else if (attackVote instanceof Player && attackVote.role) {
+        // Player vote: use their assigned role
+        this.attackList.push(attackVote.role);
       }
+
+      // reset
       role.attackVote = null;
     }
     if (this.attackList.length != 0) {

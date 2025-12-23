@@ -3,8 +3,21 @@ import type {
   ServerToClientEvents,
   ClientToServerEvents,
 } from "~/types/shared";
+import type { Time } from "~/types/shared";
 import { io } from "socket.io-client";
 import type { Socket } from "socket.io-client";
+import {
+  ReceiveMessageDataSchema,
+  ReceiveChatMessageDataSchema,
+  ReceiveWhisperMessageDataSchema,
+  ReceivePlayerListDataSchema,
+  ReceiveNewPlayerDataSchema,
+  RemovePlayerDataSchema,
+  AssignPlayerRoleDataSchema,
+  UpdateFactionRoleDataSchema,
+  UpdatePlayerRoleDataSchema,
+  UpdateDayTimeDataSchema,
+} from "./socketSchemas";
 
 export class SocketIoClient extends AbstractSocketClient {
   private _socket: Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -49,109 +62,87 @@ export class SocketIoClient extends AbstractSocketClient {
   }
 
   private _setupListeners() {
-    const extractMessage = (data: unknown): string => {
-      if (typeof data === "string") return data;
-      if (
-        data &&
-        typeof data === "object" &&
-        "message" in (data as Record<string, unknown>) &&
-        typeof (data as Record<string, unknown>).message === "string"
-      )
-        return (data as Record<string, string>).message;
-      return "";
-    };
-
-    const extractPlayerList = (
-      data: unknown,
-    ): { name: string; isAlive?: boolean; role?: string }[] => {
-      if (Array.isArray(data))
-        return data as { name: string; isAlive?: boolean; role?: string }[];
-      if (
-        data &&
-        typeof data === "object" &&
-        "playerList" in (data as Record<string, unknown>) &&
-        Array.isArray((data as Record<string, unknown>).playerList)
-      )
-        return (data as Record<string, unknown>).playerList as {
-          name: string;
-          isAlive?: boolean;
-          role?: string;
-        }[];
-      return [];
-    };
-
-    const extractPlayer = (data: unknown): { name: string } | undefined => {
-      if (data && typeof data === "object") {
-        if ("player" in (data as Record<string, unknown>))
-          return (data as Record<string, { name: string }>).player;
-        return data as { name: string };
-      }
-      return undefined;
-    };
+    // Use zod-based parsing for each event to avoid duck-typing and `any` usage
 
     this._socket.on("receiveMessage", (data: unknown) => {
-      const msg = extractMessage(data);
+      const parsed = ReceiveMessageDataSchema.safeParse(data);
+      const msg = parsed.success
+        ? parsed.data.message
+        : typeof data === "string"
+          ? data
+          : "";
       this.receiveMessageListeners.forEach((cb) => cb(msg));
     });
+
     this._socket.on("receive-chat-message", (data: unknown) => {
-      const msg = extractMessage(data);
+      const parsed = ReceiveChatMessageDataSchema.safeParse(data);
+      const msg = parsed.success
+        ? parsed.data.message
+        : typeof data === "string"
+          ? data
+          : "";
       this.receiveChatMessageListeners.forEach((cb) => cb(msg));
     });
+
     this._socket.on("receive-whisper-message", (data: unknown) => {
-      const msg = extractMessage(data);
+      const parsed = ReceiveWhisperMessageDataSchema.safeParse(data);
+      const msg = parsed.success
+        ? parsed.data.message
+        : typeof data === "string"
+          ? data
+          : "";
       this.receiveWhisperMessageListeners.forEach((cb) => cb(msg));
     });
+
     this._socket.on("receive-player-list", (data: unknown) => {
-      const playerList = extractPlayerList(data);
+      const parsed = ReceivePlayerListDataSchema.safeParse(data);
+      const playerList = parsed.success ? parsed.data.playerList : [];
       this.receivePlayerListListeners.forEach((cb) => cb(playerList));
     });
+
     this._socket.on("receive-new-player", (data: unknown) => {
-      const player = extractPlayer(data);
-      if (player) this.receiveNewPlayerListeners.forEach((cb) => cb(player));
+      const parsed = ReceiveNewPlayerDataSchema.safeParse(data);
+      if (parsed.success)
+        this.receiveNewPlayerListeners.forEach((cb) => cb(parsed.data.player));
     });
+
     this._socket.on("remove-player", (data: unknown) => {
-      const player = extractPlayer(data);
-      if (player) this.removePlayerListeners.forEach((cb) => cb(player));
+      const parsed = RemovePlayerDataSchema.safeParse(data);
+      if (parsed.success)
+        this.removePlayerListeners.forEach((cb) => cb(parsed.data.player));
     });
-    this._socket.on(
-      "assign-player-role",
-      (player: {
-        name: string;
-        role: string;
-        dayVisitSelf: boolean;
-        dayVisitOthers: boolean;
-        dayVisitFaction: boolean;
-        nightVisitSelf: boolean;
-        nightVisitOthers: boolean;
-        nightVisitFaction: boolean;
-        nightVote: boolean;
-      }) => {
-        this.assignPlayerRoleListeners.forEach((cb) => cb(player));
-      },
-    );
-    const evUpdateFaction = "update-faction-role" as keyof ServerToClientEvents;
-    this._socket.on(evUpdateFaction, (data: { name: string; role: string }) => {
-      this.updateFactionRoleListeners.forEach((cb) => cb(data));
+    this._socket.on("assign-player-role", (data: unknown) => {
+      const parsed = AssignPlayerRoleDataSchema.safeParse(data);
+      if (parsed.success)
+        this.assignPlayerRoleListeners.forEach((cb) => cb(parsed.data));
     });
-    this._socket.on(
-      "update-player-role",
-      (data: { name: string; role?: string }) => {
-        this.updatePlayerRoleListeners.forEach((cb) => cb(data));
-      },
-    );
-    const evPlayerVisit = "update-player-visit" as keyof ServerToClientEvents;
-    this._socket.on(evPlayerVisit, () => {
+
+    this._socket.on("update-faction-role", (data: unknown) => {
+      const parsed = UpdateFactionRoleDataSchema.safeParse(data);
+      if (parsed.success)
+        this.updateFactionRoleListeners.forEach((cb) => cb(parsed.data));
+    });
+
+    this._socket.on("update-player-role", (data: unknown) => {
+      const parsed = UpdatePlayerRoleDataSchema.safeParse(data);
+      if (parsed.success)
+        this.updatePlayerRoleListeners.forEach((cb) => cb(parsed.data));
+    });
+
+    this._socket.on("update-player-visit", () => {
       this.updatePlayerVisitListeners.forEach((cb) => cb());
     });
-    this._socket.on(
-      "update-day-time",
-      (data: { time: string; dayNumber: number; timeLeft: number }) => {
-        this.updateDayTimeListeners.forEach((cb) => cb(data));
-      },
-    );
+
+    this._socket.on("update-day-time", (data: unknown) => {
+      const parsed = UpdateDayTimeDataSchema.safeParse(data);
+      if (parsed.success)
+        this.updateDayTimeListeners.forEach((cb) => cb(parsed.data));
+    });
+
     this._socket.on("disable-voting", () => {
       this.disableVotingListeners.forEach((cb) => cb());
     });
+
     this._socket.on("blockMessages", () => {
       this.blockMessagesListeners.forEach((cb) => cb());
     });
@@ -213,7 +204,7 @@ export class SocketIoClient extends AbstractSocketClient {
   }
   onUpdateDayTime(
     listener: (data: {
-      time: string;
+      time: Time;
       dayNumber: number;
       timeLeft: number;
     }) => void,

@@ -76,25 +76,28 @@ export const useGameRoom = (
   const [canNightVote, setCanNightVote] = useState(false);
 
   // Helper function for message scrolling
-  const addMessageWithScroll = useCallback((msg: MsgType) => {
-    if (scrollRef.current === null) return;
+  const addMessageWithScroll = useCallback(
+    (msg: MsgType) => {
+      if (scrollRef.current === null) return;
 
-    if (
-      scrollRef.current.scrollHeight -
-        scrollRef.current.scrollTop -
-        scrollRef.current.clientHeight <=
-      scrollRef.current.clientHeight / 5
-    ) {
-      setMessages((messages) => [...messages, msg]);
-      setShowScrollDown(false);
-      setScrollNewMessages(0);
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    } else {
-      setMessages((messages) => [...messages, msg]);
-      setShowScrollDown(true);
-      setScrollNewMessages((prev) => prev + 1);
-    }
-  }, [scrollRef]);
+      if (
+        scrollRef.current.scrollHeight -
+          scrollRef.current.scrollTop -
+          scrollRef.current.clientHeight <=
+        scrollRef.current.clientHeight / 5
+      ) {
+        setMessages((messages) => [...messages, msg]);
+        setShowScrollDown(false);
+        setScrollNewMessages(0);
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      } else {
+        setMessages((messages) => [...messages, msg]);
+        setShowScrollDown(true);
+        setScrollNewMessages((prev) => prev + 1);
+      }
+    },
+    [scrollRef],
+  );
 
   // Scroll event handler
   const scrollEvent = () => {
@@ -250,7 +253,7 @@ export const useGameRoom = (
     });
 
     socketClient.onUpdateDayTime((infoJson) => {
-      setTime(infoJson.time as Time);
+      setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);

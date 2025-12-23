@@ -1,9 +1,15 @@
 import { type Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
 import { type Room } from "../rooms/room.js";
+import type { Role } from "../roles/abstractRole.js";
 import { RoleName } from "../../../shared/roles/roleEnums.js";
 
+type LawmanRole = Role & { isInsane?: boolean };
+
 export class LawmanFaction extends Faction {
+  // Members are players whose role is Lawman; role may have `isInsane` flag
+  memberList: (Player & { role: LawmanRole })[] = [];
+
   room?: Room;
 
   findMembers(playerList: Player[]) {
@@ -26,9 +32,8 @@ export class LawmanFaction extends Faction {
     if (this.room === undefined) return;
     for (const member of this.memberList) {
       const role = member.role;
-      const isInsane = Object.getOwnPropertyNames(role).includes("isInsane")
-        ? (role as unknown as Record<string, unknown>).isInsane
-        : false;
+      const isInsane =
+        typeof role.isInsane === "boolean" ? role.isInsane : false;
       if (isInsane) {
         //Selects a random person to visit
         for (let f = 0; f < 100; f++) {

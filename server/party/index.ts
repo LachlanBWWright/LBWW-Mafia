@@ -1,7 +1,41 @@
+import { z } from "zod";
 import type * as Party from "partykit/server";
 import { PartyKitHandler } from "../model/socketHandler/partyKitHandler.js";
-import type { MessageToServer } from "../../shared/socketTypes/socketTypes.js";
 import { Room } from "../model/rooms/room.js";
+
+// Module-level zod schema for validating incoming Party messages (created once)
+const messageSchema = z.discriminatedUnion("name", [
+  z.object({
+    name: z.literal("playerJoinRoom"),
+    data: z.object({ playerUsername: z.string() }),
+  }),
+  z.object({
+    name: z.literal("messageSentByUser"),
+    data: z.object({ message: z.string(), isDay: z.boolean() }),
+  }),
+  z.object({
+    name: z.literal("handleVote"),
+    data: z.object({
+      recipient: z.union([z.number(), z.null()]),
+      isDay: z.boolean(),
+    }),
+  }),
+  z.object({
+    name: z.literal("handleVisit"),
+    data: z.object({
+      recipient: z.union([z.number(), z.null()]),
+      isDay: z.boolean(),
+    }),
+  }),
+  z.object({
+    name: z.literal("handleWhisper"),
+    data: z.object({
+      recipient: z.number(),
+      message: z.string(),
+      isDay: z.boolean(),
+    }),
+  }),
+]);
 
 // This Party.Server implementation delegates socket logic to PartyKitHandler,
 // so game logic can use the same socket API as Socket.IO.
@@ -26,18 +60,20 @@ export default class Server implements Party.Server {
   }
 
   onMessage(message: string, sender: Party.Connection) {
-    let msg: MessageToServer | undefined;
+    // Validate incoming messages using the module-level `messageSchema` (created once)
+
+    let parsed: unknown;
     console.log(message);
     try {
-      msg = JSON.parse(message) as MessageToServer;
+      parsed = JSON.parse(message);
     } catch {
-      msg = undefined;
+      parsed = undefined;
     }
 
-    //TODO: REMOVE THIS TEST STUFF
-    if (!msg || typeof msg !== "object" || !("name" in msg)) {
-      return;
-    }
+    const parsedMsg = messageSchema.safeParse(parsed);
+    if (!parsedMsg.success) return;
+
+    const msg = parsedMsg.data; // strongly-typed by zod
 
     switch (msg.name) {
       case "playerJoinRoom": {
@@ -56,8 +92,8 @@ export default class Server implements Party.Server {
           });
           // Send a join response so PartyKit clients can receive the result via callback
           this.socketHandler.sendPlayerMessage(sender.id, {
-            name: "playerJoinResponse",
-            data: result,
+            name: "joinRoomCallback",
+            data: { result },
           });
         }
         break;
@@ -106,7 +142,7 @@ export default class Server implements Party.Server {
         this.socketHandler.sendPlayerMessage(sender.id, {
           name: "receiveMessage",
           data: {
-            message: `Unknown event: ${String((msg as MessageToServer).name)}`,
+            message: `Unknown event: ${JSON.stringify(parsed)}`,
           },
         });
         break;

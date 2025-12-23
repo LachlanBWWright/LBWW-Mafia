@@ -42,26 +42,23 @@ export const authOptions: NextAuthOptions = {
 const authInstance: unknown = NextAuth(authOptions);
 
 // Export handlers if available at runtime (typed for Next.js route compatibility)
-let handlersVar: unknown = undefined;
-if (isAuthInstance(authInstance) && "handlers" in authInstance) {
-  handlersVar = (authInstance as { handlers?: unknown }).handlers;
+export type NextAuthHandler = (
+  request: NextRequest,
+  context: { params: Promise<{ nextauth: string[] }> },
+) => void | Response | Promise<void | Response>;
+
+let handlersVar: NextAuthHandler | undefined = undefined;
+
+if (
+  isAuthInstance(authInstance) &&
+  typeof authInstance.handlers === "function"
+) {
+  handlersVar = authInstance.handlers as NextAuthHandler;
 }
 
-export const handlers:
-  | ((
-      request: NextRequest,
-      context: { params: Promise<{ nextauth: string[] }> },
-    ) => void | Response | Promise<void | Response>)
-  | undefined = handlersVar as
-  | ((
-      request: NextRequest,
-      context: { params: Promise<{ nextauth: string[] }> },
-    ) => void | Response | Promise<void | Response>)
-  | undefined;
+export const handlers = handlersVar;
 
-function isAuthInstance(
-  obj: unknown,
-): obj is {
+function isAuthInstance(obj: unknown): obj is {
   auth: () => Promise<Session | null>;
   signIn?: (...args: unknown[]) => Promise<void>;
   signOut?: (...args: unknown[]) => Promise<void>;

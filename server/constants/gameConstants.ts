@@ -1,6 +1,6 @@
 /**
  * Game constants for MERN-Mafia
- * 
+ *
  * This file contains all magic numbers used throughout the game logic,
  * organized by category to improve maintainability and reduce tech debt.
  */
@@ -63,7 +63,7 @@ export const NEUTRAL_ROLE_THRESHOLD = 0.3;
 export const TOWN_POWER_THRESHOLD = 15;
 
 /**
- * Power balance threshold for mafia advantage  
+ * Power balance threshold for mafia advantage
  * When comparative power drops below negative this, force town roles to balance
  */
 export const MAFIA_POWER_THRESHOLD = -15;
@@ -138,7 +138,7 @@ export const TOWN_ROLE_POWER = {
   FORTIFIER: 8,
   ROLEBLOCKER: 5,
   JAILOR: 12,
-} as const;
+};
 
 /**
  * Power ratings for mafia roles (negative values help mafia)
@@ -148,7 +148,7 @@ export const MAFIA_ROLE_POWER = {
   MAFIA: -13,
   MAFIA_ROLEBLOCKER: -20,
   MAFIA_INVESTIGATOR: -15,
-} as const;
+};
 
 /**
  * Power ratings for neutral roles (negative values as they work against town)
@@ -160,4 +160,4 @@ export const NEUTRAL_ROLE_POWER = {
   FRAMER: -5,
   CONFESSER: -5,
   PEACEMAKER: -2,
-} as const;
+};

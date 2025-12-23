@@ -1,3 +1,5 @@
+import type { Time } from "~/types/shared";
+
 export abstract class AbstractSocketClient {
   // Listener arrays for each event type
   protected receiveMessageListeners: ((msg: string) => void)[] = [];
@@ -34,7 +36,7 @@ export abstract class AbstractSocketClient {
   }) => void)[] = [];
   protected updatePlayerVisitListeners: (() => void)[] = [];
   protected updateDayTimeListeners: ((data: {
-    time: string;
+    time: Time;
     dayNumber: number;
     timeLeft: number;
   }) => void)[] = [];
@@ -94,7 +96,7 @@ export abstract class AbstractSocketClient {
   abstract onUpdatePlayerVisit(listener: () => void): void;
   abstract onUpdateDayTime(
     listener: (data: {
-      time: string;
+      time: Time;
       dayNumber: number;
       timeLeft: number;
     }) => void,

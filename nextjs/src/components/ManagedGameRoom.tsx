@@ -56,13 +56,7 @@ export function ManagedGameRoom({ roomCode }: ManagedGameRoomProps) {
 
     return () => {
       // Cleanup socket connection
-      if (
-        client &&
-        typeof (client as unknown as Record<string, unknown>).disconnect ===
-          "function"
-      ) {
-        void (client as unknown as { disconnect: () => void }).disconnect();
-      }
+      if (client) client.sendDisconnect();
     };
   }, [gameSession?.roomId]);
 

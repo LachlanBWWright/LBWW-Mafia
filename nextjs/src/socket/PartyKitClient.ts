@@ -1,6 +1,20 @@
 import { AbstractSocketClient } from "./AbstractSocketClient";
 import PartySocket from "partysocket";
 import { z } from "zod";
+import { type Time } from "~/types/shared";
+import {
+  ReceiveMessageDataSchema,
+  ReceiveChatMessageDataSchema,
+  ReceiveWhisperMessageDataSchema,
+  ReceivePlayerListDataSchema,
+  ReceiveNewPlayerDataSchema,
+  RemovePlayerDataSchema,
+  AssignPlayerRoleDataSchema,
+  UpdateFactionRoleDataSchema,
+  UpdatePlayerRoleDataSchema,
+  UpdateDayTimeDataSchema,
+  JoinRoomCallbackSchema,
+} from "./socketSchemas";
 import type {
   //Client to server messages
   PlayerJoinRoomMessage,
@@ -42,9 +56,7 @@ export class PartyKitSocketClient extends AbstractSocketClient {
         // Dispatch to the correct listeners based on event name
         switch (data.name) {
           case "receiveMessage": {
-            const parsed = z
-              .object({ message: z.string() })
-              .safeParse(data.data);
+            const parsed = ReceiveMessageDataSchema.safeParse(data.data);
             if (parsed.success) {
               const msg = parsed.data.message;
               for (const cb of this.receiveMessageListeners) cb(msg);
@@ -52,9 +64,7 @@ export class PartyKitSocketClient extends AbstractSocketClient {
             break;
           }
           case "receive-chat-message": {
-            const parsed = z
-              .object({ message: z.string() })
-              .safeParse(data.data);
+            const parsed = ReceiveChatMessageDataSchema.safeParse(data.data);
             if (parsed.success) {
               const msg = parsed.data.message;
               for (const cb of this.receiveChatMessageListeners) cb(msg);
@@ -62,9 +72,7 @@ export class PartyKitSocketClient extends AbstractSocketClient {
             break;
           }
           case "receive-whisper-message": {
-            const parsed = z
-              .object({ message: z.string() })
-              .safeParse(data.data);
+            const parsed = ReceiveWhisperMessageDataSchema.safeParse(data.data);
             if (parsed.success) {
               const msg = parsed.data.message;
               for (const cb of this.receiveWhisperMessageListeners) cb(msg);
@@ -72,105 +80,60 @@ export class PartyKitSocketClient extends AbstractSocketClient {
             break;
           }
           case "receive-player-list": {
-            const parsed = z
-              .object({
-                playerList: z.array(
-                  z.object({
-                    name: z.string(),
-                    isAlive: z.boolean().optional(),
-                    role: z.string().optional(),
-                  }),
-                ),
-              })
-              .safeParse(data.data);
+            const parsed = ReceivePlayerListDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const playerList = parsed.data.playerList as {
-                name: string;
-                isAlive?: boolean;
-                role?: string;
-              }[];
+              const playerList = parsed.data.playerList;
               for (const cb of this.receivePlayerListListeners) cb(playerList);
             }
             break;
           }
           case "receive-new-player": {
-            const parsed = z
-              .object({ player: z.object({ name: z.string() }) })
-              .safeParse(data.data);
+            const parsed = ReceiveNewPlayerDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const player = parsed.data.player as { name: string };
+              const player = parsed.data.player;
               for (const cb of this.receiveNewPlayerListeners) cb(player);
             }
             break;
           }
           case "remove-player": {
-            const parsed = z
-              .object({ player: z.object({ name: z.string() }) })
-              .safeParse(data.data);
+            const parsed = RemovePlayerDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const player = parsed.data.player as { name: string };
+              const player = parsed.data.player;
               for (const cb of this.removePlayerListeners) cb(player);
             }
             break;
           }
-          case "playerJoinResponse": {
+          case "joinRoomCallback": {
             // Server will send the numeric/string result for join (to mimic Socket.IO callback)
-            // We accept either a primitive or an object
             if (this._pendingJoinCallback) {
-              // If data.data is a primitive, pass it directly; otherwise, try to extract
               const cb = this._pendingJoinCallback;
-              const parsedJoin = z.any().safeParse(data.data);
-              if (parsedJoin.success) cb(parsedJoin.data as string | number);
+              const parsedJoin = JoinRoomCallbackSchema.safeParse(data.data);
+              if (parsedJoin.success) cb(parsedJoin.data.result);
               else cb(3);
               this._pendingJoinCallback = undefined;
             }
             break;
           }
           case "assign-player-role": {
-            const playerSchema = z.object({
-              name: z.string(),
-              role: z.string(),
-              dayVisitSelf: z.boolean(),
-              dayVisitOthers: z.boolean(),
-              dayVisitFaction: z.boolean(),
-              nightVisitSelf: z.boolean(),
-              nightVisitOthers: z.boolean(),
-              nightVisitFaction: z.boolean(),
-              nightVote: z.boolean(),
-            });
-            const parsed = playerSchema.safeParse(data.data);
+            const parsed = AssignPlayerRoleDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const playerData = parsed.data as {
-                name: string;
-                role: string;
-                dayVisitSelf: boolean;
-                dayVisitOthers: boolean;
-                dayVisitFaction: boolean;
-                nightVisitSelf: boolean;
-                nightVisitOthers: boolean;
-                nightVisitFaction: boolean;
-                nightVote: boolean;
-              };
+              const playerData = parsed.data;
               for (const cb of this.assignPlayerRoleListeners) cb(playerData);
             }
             break;
           }
           case "update-faction-role": {
-            const parsed = z
-              .object({ name: z.string(), role: z.string() })
-              .safeParse(data.data);
+            const parsed = UpdateFactionRoleDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const dataObj = parsed.data as { name: string; role: string };
+              const dataObj = parsed.data;
               for (const cb of this.updateFactionRoleListeners) cb(dataObj);
             }
             break;
           }
           case "update-player-role": {
-            const parsed = z
-              .object({ name: z.string(), role: z.string().optional() })
-              .safeParse(data.data);
+            const parsed = UpdatePlayerRoleDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const dataObj = parsed.data as { name: string; role?: string };
+              const dataObj = parsed.data;
               for (const cb of this.updatePlayerRoleListeners) cb(dataObj);
             }
             break;
@@ -179,19 +142,9 @@ export class PartyKitSocketClient extends AbstractSocketClient {
             for (const cb of this.updatePlayerVisitListeners) cb();
             break;
           case "update-day-time": {
-            const parsed = z
-              .object({
-                time: z.string(),
-                dayNumber: z.number(),
-                timeLeft: z.number(),
-              })
-              .safeParse(data.data);
+            const parsed = UpdateDayTimeDataSchema.safeParse(data.data);
             if (parsed.success) {
-              const info = parsed.data as {
-                time: string;
-                dayNumber: number;
-                timeLeft: number;
-              };
+              const info = parsed.data;
               for (const cb of this.updateDayTimeListeners) cb(info);
             }
             break;
@@ -386,7 +339,7 @@ export class PartyKitSocketClient extends AbstractSocketClient {
   }
   onUpdateDayTime(
     listener: (data: {
-      time: string;
+      time: Time;
       dayNumber: number;
       timeLeft: number;
     }) => void,
