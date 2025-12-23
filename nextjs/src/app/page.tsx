@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, Tooltip, OverlayTrigger, Button } from "react-bootstrap";
 import { Room } from "./play/Room";
 import { roles } from "~/app/info/roles";
@@ -15,9 +15,9 @@ export default function PlayPage() {
   const [playerRoom, setPlayerRoom] = useState(false);
   const [playerRole, setPlayerRole] = useState("");
   const [failReason, setFailReason] = useState("");
-  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaToken] = useState("");
 
-  const socketClientRef = React.useRef<AbstractSocketClient | null>(null);
+  const socketClientRef = useRef<AbstractSocketClient | null>(null);
 
   useEffect(() => {
     // Determine socket backend and endpoint from env
@@ -40,7 +40,6 @@ export default function PlayPage() {
       }
     }
   }, []);
-
 
   if (playerRoom) {
     /* Shows the room if a name and room has been selected */

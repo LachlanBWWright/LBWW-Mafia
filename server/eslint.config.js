@@ -13,7 +13,7 @@ export default tseslint.config(
     ],
     languageOptions: {
       parserOptions: {
-        project: "./tsconfig.json",
+        project: "./tsconfig.eslint.json",
       },
     },
     rules: {
@@ -45,12 +45,13 @@ export default tseslint.config(
     files: ["tests/**/*.ts", "servers/**/*.ts", "party/**/*.ts", "*.ts"],
     rules: {
       "@typescript-eslint/no-floating-promises": "warn",
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-redundant-type-constituents": "warn",
-      "@typescript-eslint/no-unsafe-enum-comparison": "warn",
+      // Tests interact with partially-typed test utilities and mocks; relax unsafe checks
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-redundant-type-constituents": "off",
+      "@typescript-eslint/no-unsafe-enum-comparison": "off",
       "@typescript-eslint/restrict-plus-operands": "warn",
     },
   },

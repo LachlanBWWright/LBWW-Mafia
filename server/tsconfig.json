@@ -110,5 +110,6 @@
     /* Completeness */
     // "skipDefaultLibCheck": true,                      /* Skip type checking .d.ts files that are included with TypeScript. */
   },
-  "include": ["**/*.ts", "../shared/**/*.ts"]
+  "include": ["**/*.ts", "../shared/**/*.ts"],
+  "exclude": ["node_modules", "build", "tests", "coverage"]
 }

@@ -16,7 +16,8 @@ export class MafiaFaction extends Faction {
     //Go through a list of members, add them to the this.memberList
     for (const player of playerList) {
       if (player.role.group === RoleGroup.Mafia) {
-        this.memberList.push(player);
+        // Type assertion is safe here because we check for RoleGroup.Mafia
+        this.memberList.push(player as Player & { role: RoleMafia });
       }
     }
 
