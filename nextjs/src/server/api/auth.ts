@@ -1,4 +1,7 @@
 import NextAuth, { type NextAuthOptions, type Session } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "~/lib/prisma";
 import type { DefaultSession } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import type { NextRequest } from "next/server";
@@ -11,8 +14,19 @@ declare module "next-auth" {
 }
 
 export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma) as any,
   providers: [
-    // Temporarily removed providers to test basic setup
+    GoogleProvider({
+      clientId: process.env.AUTH_GOOGLE_ID ?? "",
+      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
+    }),
   ],
   callbacks: {
     session: ({
@@ -28,13 +42,23 @@ export const authOptions: NextAuthOptions = {
         id: token.sub ?? "anonymous_user",
       },
     }),
-    jwt: ({ token }: { token: JWT }) => {
-      // Maintain token as-is; additional mapping can be done here if needed
+    jwt: ({ token, user, account }: { token: JWT; user?: any; account?: any }) => {
+      if (user) {
+        token.sub = user.id;
+      }
+      if (account) {
+        token.accessToken = account.access_token;
+      }
       return token;
     },
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  pages: {
+    signIn: "/auth/signin",
+    error: "/auth/error",
   },
 };
 

@@ -1,0 +1,158 @@
+// Unified Prisma schema for MERN Mafia
+// Shared between Next.js and server
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ========== AUTH MODELS (NextAuth compatible) ==========
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  
+  // New field for custom display name
+  displayName   String?
+
+  // Relations
+  accounts           Account[]
+  sessions           Session[]
+  gameParticipations GameParticipation[]
+  preferences        UserPreferences?
+  stats              UserStats?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ========== USER PREFERENCES ==========
+
+model UserPreferences {
+  id                   String  @id @default(cuid())
+  userId               String  @unique
+  
+  soundEnabled         Boolean @default(true)
+  notificationsEnabled Boolean @default(true)
+  theme                String  @default("system") // light, dark, system
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ========== GAME MODELS ==========
+
+enum GameStatus {
+  WAITING
+  STARTING
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}
+
+model GameSession {
+  id          String      @id @default(cuid())
+  roomId      String      @unique
+  roomCode    String      @unique
+  status      GameStatus  @default(WAITING)
+  startTime   DateTime?
+  endTime     DateTime?
+  maxPlayers  Int         @default(10)
+  settings    Json?       // Game settings like roles, time limits, etc.
+  result      Json?       // Game result including winners, phases, etc.
+  
+  participants GameParticipation[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GameParticipation {
+  id            String    @id @default(cuid())
+  userId        String
+  gameSessionId String
+  role          String?   // Role assigned during game (e.g., "Mafia", "Doctor")
+  isAlive       Boolean   @default(true)
+  isWinner      Boolean?  // Set when game ends based on faction win
+  joinedAt      DateTime  @default(now())
+  leftAt        DateTime?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameSession GameSession @relation(fields: [gameSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameSessionId])
+  @@index([userId])
+  @@index([gameSessionId])
+}
+
+// ========== USER STATS CACHE ==========
+
+model UserStats {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  
+  // Overall stats
+  totalGames   Int      @default(0)
+  totalWins    Int      @default(0)
+  
+  // Faction stats
+  townGames    Int      @default(0)
+  townWins     Int      @default(0)
+  mafiaGames   Int      @default(0)
+  mafiaWins    Int      @default(0)
+  neutralGames Int      @default(0)
+  neutralWins  Int      @default(0)
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastUpdated DateTime @default(now())
+
+  @@index([totalWins])
+  @@index([totalGames])
+}

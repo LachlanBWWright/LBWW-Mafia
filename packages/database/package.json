@@ -1,0 +1,25 @@
+{
+  "name": "@mernmafia/database",
+  "version": "1.0.0",
+  "description": "Shared Prisma database schema and client for MERN Mafia",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.13.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.13.0",
+    "typescript": "^5.8.2"
+  },
+  "prisma": {
+    "schema": "./prisma/schema.prisma"
+  }
+}
