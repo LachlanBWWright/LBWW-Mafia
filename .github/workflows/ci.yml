@@ -1,0 +1,158 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-typecheck:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies (Next.js)
+        run: |
+          cd nextjs
+          npm ci
+      
+      - name: Type check
+        run: |
+          cd nextjs
+          npm run typecheck
+      
+      - name: Lint
+        run: |
+          cd nextjs
+          npm run lint
+
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies (Server)
+        run: |
+          cd server
+          npm ci
+      
+      - name: Run tests
+        run: |
+          cd server
+          npm test
+
+  database-check:
+    name: Database Schema Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies (Database)
+        run: |
+          cd packages/database
+          npm ci
+      
+      - name: Generate Prisma Client
+        run: |
+          cd packages/database
+          npx prisma generate
+      
+      - name: Validate Schema
+        run: |
+          cd packages/database
+          npx prisma validate
+      
+      - name: Check Migrations
+        run: |
+          cd packages/database
+          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma
+
+  build-nextjs:
+    name: Build Next.js
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, database-check]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies (Database)
+        run: |
+          cd packages/database
+          npm ci
+          npx prisma generate
+      
+      - name: Install dependencies (Next.js)
+        run: |
+          cd nextjs
+          npm ci
+      
+      - name: Build
+        run: |
+          cd nextjs
+          npm run build
+        env:
+          DATABASE_URL: file:./test.db
+          NEXTAUTH_SECRET: test-secret-for-ci
+          NEXTAUTH_URL: http://localhost:3000
+
+  build-mobile:
+    name: Build Mobile App
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          cd mobile
+          npm ci
+      
+      - name: Type check
+        run: |
+          cd mobile
+          npm run lint
+
+  all-checks-passed:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test-backend, database-check, build-nextjs, build-mobile]
+    
+    steps:
+      - name: Success
+        run: echo "✅ All checks passed!"
