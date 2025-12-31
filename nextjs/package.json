@@ -23,6 +23,7 @@
     "@auth/drizzle-adapter": "^1.11.1",
     "@auth/prisma-adapter": "^2.11.1",
     "@libsql/client": "^0.15.15",
+    "@mernmafia/database": "workspace:*",
     "@prisma/adapter-better-sqlite3": "^7.2.0",
     "@prisma/adapter-libsql": "^7.2.0",
     "@prisma/client": "^7.2.0",
@@ -46,7 +47,7 @@
     "react-dom": "^19.2.3",
     "react-google-recaptcha": "^3.1.0",
     "socket.io-client": "^4.8.1",
-    "zod": "^4.2.1"
+    "zod": "^3.24.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
