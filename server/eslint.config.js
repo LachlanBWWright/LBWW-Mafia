@@ -9,6 +9,9 @@ export default tseslint.config(
     extends: [
       ...tseslint.configs.recommended,
       ...tseslint.configs.recommendedTypeChecked,
+      ...tseslint.configs.strict,
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylistic,
       ...tseslint.configs.stylisticTypeChecked,
     ],
     languageOptions: {
@@ -29,6 +32,14 @@ export default tseslint.config(
         "error",
         { checksVoidReturn: { attributes: false } },
       ],
+      // Relax strict rules for existing codebase patterns
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "@typescript-eslint/no-useless-constructor": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "@typescript-eslint/restrict-plus-operands": "warn",
+      "@typescript-eslint/restrict-template-expressions": "warn",
+      "@typescript-eslint/no-confusing-void-expression": "warn",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "warn",
     },
   },
   {
