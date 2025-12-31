@@ -49,6 +49,8 @@ export interface ServerToClientEvents {
     nightVote: boolean;
   }) => void;
   "update-player-role": (data: { name: string }) => void;
+  "update-faction-role": (data: { name: string }) => void;
+  "update-player-visit": () => void;
   blockMessages: () => void;
   "disable-voting": () => void;
   "remove-player": (data: { player: { name: string } }) => void;
