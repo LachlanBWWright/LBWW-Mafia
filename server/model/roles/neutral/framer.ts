@@ -34,8 +34,8 @@ export class Framer extends Role {
       //console.log((index + i) % length)
       //console.log(this.room.playerList[(index + i) % length])
       const target = this.room.playerList[(index + i) % length];
-      if (target && target.role.group === RoleGroup.Town && target.isAlive) {
-        this.target = target ?? null;
+      if (target?.role.group === RoleGroup.Town && target.isAlive) {
+        this.target = target;
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
           name: "receiveMessage",
           data: {
@@ -58,8 +58,7 @@ export class Framer extends Role {
     for (let i = 0; i < length; i++) {
       const potentialTarget = this.room.playerList[(index + i) % length];
       if (
-        potentialTarget &&
-        potentialTarget.role.group === RoleGroup.Town &&
+        potentialTarget?.role.group === RoleGroup.Town &&
         potentialTarget.isAlive
       ) {
         this.target = potentialTarget;
