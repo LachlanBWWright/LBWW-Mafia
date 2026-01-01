@@ -11,14 +11,14 @@ import React from "react";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { TRPCProvider } from "./utils/trpc";
 
-export type StackParamList = {
+export interface StackParamList {
   HomeScreen: undefined;
   HowToPlayScreen: undefined;
   PrivateGameLobbyScreen: undefined;
   PublicGameLobbyScreen: { name: string };
   SettingsScreen: undefined;
   GameScreen: { lobbyId: string; title: string; name: string };
-};
+}
 
 const Stack = createNativeStackNavigator<StackParamList>();
 
@@ -35,7 +35,7 @@ export default function App() {
               headerRight: () => (
                 <View style={{ flexDirection: "row" }}>
                   <Pressable
-                    onPress={() => navigation.navigate("HowToPlayScreen")}
+                    onPress={() => { navigation.navigate("HowToPlayScreen"); }}
                   >
                     <Icon
                       name="help"
@@ -45,7 +45,7 @@ export default function App() {
                     />
                   </Pressable>
                   <Pressable
-                    onPress={() => navigation.navigate("SettingsScreen")}
+                    onPress={() => { navigation.navigate("SettingsScreen"); }}
                   >
                     <Icon
                       name="settings"
@@ -82,7 +82,7 @@ export default function App() {
             name="GameScreen"
             component={GameScreen}
             options={({ navigation: _navigation, route }) => ({
-              title: `${route.params.title}`,
+              title: route.params.title,
               headerLeft: () => <Text></Text>,
             })}
           />

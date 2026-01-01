@@ -1,5 +1,5 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { type NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,18 @@ import {
   DrawerLayoutAndroid,
   Vibration,
 } from 'react-native';
-import { StackParamList } from '../App';
+import { type StackParamList } from '../App';
 import { StackActions } from '@react-navigation/native';
-import io, { Socket } from 'socket.io-client';
+import io, { type Socket } from 'socket.io-client';
 import { config } from '../config';
 import { Time } from '../../shared/socketTypes/socketTypes';
 
-type Player = {
+interface Player {
   name: string;
   isAlive?: boolean;
   role?: string;
   isUser?: boolean;
-};
+}
 
 const socket = io(config.socketUrl);
 type GameScreenProps = NativeStackScreenProps<StackParamList, 'GameScreen'>;
@@ -34,7 +34,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState(new Array<string>());
-  const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
+  const [playerList, setPlayerList] = useState<Player[]>([]); //TODO: Update this!
   const [, setVisiting] = useState<string | null>();
   const [, setVotingFor] = useState<string | null>();
 
@@ -46,15 +46,17 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
   useEffect(() => {
     //Socket.io Integration - Runs on creation
-    socket.on('connect', () => {});
+    socket.on('connect', () => {
+      // Connection established
+    });
 
     socket.on('receive-message', (inMsg: string) => {
       addMessage(old => [...old, inMsg]);
     });
 
-    socket.on('receive-player-list', (listJson: Array<Player>) => {
+    socket.on('receive-player-list', (listJson: Player[]) => {
       //Receive all players upon joining, and the game starting
-      let list = new Array<Player>();
+      const list = new Array<Player>();
       listJson.map(instance => {
         list.push(instance);
       });
@@ -73,9 +75,9 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
     socket.on('assign-player-role', (playerJson: Player) => {
       //Shows the player their own role, lets the client know that this is who they are playing as
-      let tempPlayerList: Array<Player> = [];
+      let tempPlayerList: Player[] = [];
       setPlayerList(list => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(player => player.name === playerJson.name);
+      const index = tempPlayerList.findIndex(player => player.name === playerJson.name);
       tempPlayerList[index].role = playerJson.role;
       tempPlayerList[index].isUser = true;
       //TODO: Who player visits at day (living) (0 - Nobody, 1 - Self, 2 - Others, 3 - Everybody)
@@ -88,9 +90,9 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
     socket.on('update-player-role', (playerJson: Player) => {
       //Updates player role upon their death
-      let tempPlayerList: Array<Player> = [];
+      let tempPlayerList: Player[] = [];
       setPlayerList(list => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(player => player.name === playerJson.name);
+      const index = tempPlayerList.findIndex(player => player.name === playerJson.name);
       if (playerJson.role !== undefined) tempPlayerList[index].role = playerJson.role;
       tempPlayerList[index].isAlive = false;
       if (tempPlayerList[index].isUser) {
@@ -117,7 +119,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         this.setState({visiting: null}); //Resets who the player is visiting
         this.setState({votingFor: null}); */
       let timeLeft = infoJson.timeLeft;
-      let countDown = setInterval(() => {
+      const countDown = setInterval(() => {
         if (timeLeft > 0) {
           setTimeLeft(timeLeft - 1);
           timeLeft--;
@@ -257,7 +259,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
           >
             <Button
               title="Disconnect"
-              onPress={() => navigation.dispatch(StackActions.popToTop())}
+              onPress={() => { navigation.dispatch(StackActions.popToTop()); }}
               color={'#FF0000'}
             />
           </View>
@@ -277,9 +279,9 @@ function PlayerInList(props: {
 
   useEffect(() => {
     if (props.player.isAlive !== undefined) {
-      if (props.player.isAlive === false) setColor('#FF0000');
+      if (!props.player.isAlive) setColor('#FF0000');
       else if (props.player.isUser === true) setColor('#3333FF');
-      else if (props.player.isAlive === true) setColor('#33FF33');
+      else if (props.player.isAlive) setColor('#33FF33');
     }
   }, [props.player.isAlive]);
 
@@ -304,7 +306,7 @@ function PlayerInList(props: {
         {props.player.name} {props.player.role !== undefined ? '(' + props.player.role + ')' : ''}
       </Text>
       {props.player.isAlive === true && props.player.isUser !== true && (
-        <Button title="Whisper" onPress={() => props.setMessage('/w ' + props.player.name)} />
+        <Button title="Whisper" onPress={() => { props.setMessage('/w ' + props.player.name); }} />
       )}
       {props.player.isAlive === true && (
         <Button

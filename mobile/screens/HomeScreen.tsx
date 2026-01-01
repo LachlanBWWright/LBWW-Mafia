@@ -1,7 +1,7 @@
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
 import { View, Text, Button, TextInput, Alert } from "react-native";
-import { StackParamList } from "../App";
+import { type StackParamList } from "../App";
 import { api } from "../utils/api";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
@@ -89,7 +89,7 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
           <Button
             title="Join Private Game (Enter Code)"
             disabled={disabled}
-            onPress={() => navigation.navigate("PrivateGameLobbyScreen")}
+            onPress={() => { navigation.navigate("PrivateGameLobbyScreen"); }}
             color={"#FF0000"}
           />
         </View>
@@ -98,9 +98,9 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             title="Browse Public Games"
             disabled={disabled}
             onPress={() =>
-              navigation.navigate("PublicGameLobbyScreen", {
+              { navigation.navigate("PublicGameLobbyScreen", {
                 name: validateText(name),
-              })
+              }); }
             }
             color={"#3333FF"}
           />

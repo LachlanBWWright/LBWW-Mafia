@@ -1,7 +1,7 @@
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
 import { View, Text, Button, TextInput, Alert, StyleSheet } from "react-native";
-import { StackParamList } from "../App";
+import { type StackParamList } from "../App";
 import { api } from "../utils/api";
 
 type PrivateGameLobbyScreenProps = NativeStackScreenProps<
@@ -54,7 +54,7 @@ export function PrivateGameLobbyScreen({
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Your Username:</Text>
         <TextInput
-          onChangeText={(text) => setUsername(text)}
+          onChangeText={(text) => { setUsername(text); }}
           placeholder="Enter your username"
           autoComplete="username"
           value={username}
@@ -63,7 +63,7 @@ export function PrivateGameLobbyScreen({
         
         <Text style={styles.label}>Room Code:</Text>
         <TextInput
-          onChangeText={(text) => setRoomCode(text.toUpperCase())}
+          onChangeText={(text) => { setRoomCode(text.toUpperCase()); }}
           placeholder="Enter 6-character room code"
           value={roomCode}
           maxLength={6}

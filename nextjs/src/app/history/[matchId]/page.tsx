@@ -169,7 +169,7 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ matchId
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-700 p-4 rounded-lg text-center">
                 <div className="text-3xl font-bold text-blue-400">
-                  {String(matchResult.phases ?? 'N/A')}
+                  {typeof matchResult.phases === 'number' ? String(matchResult.phases) : 'N/A'}
                 </div>
                 <div className="text-sm text-gray-400">Phases</div>
               </div>
