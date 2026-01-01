@@ -1,5 +1,5 @@
 /build
-node_modules/
+**/node_modules/
 .env
 .env.local
 *.log
@@ -8,3 +8,4 @@ dist/
 coverage/
 .next/
 .expo/
+pnpm-lock.yaml
