@@ -9,3 +9,4 @@ coverage/
 .next/
 .expo/
 pnpm-lock.yaml
+node_modules
