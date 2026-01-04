@@ -8,6 +8,7 @@ function resolveJsToTs(): Plugin {
   return {
     name: "resolve-js-to-ts",
     resolveId(source, importer) {
+      // console.log(`ResolveId called for: ${source} from ${importer}`);
       if (source.endsWith(".js") && importer) {
         // Get the directory of the importer
         const importerDir = path.dirname(importer);
@@ -18,6 +19,7 @@ function resolveJsToTs(): Plugin {
 
         // Check if the .ts file exists
         if (fs.existsSync(tsPath)) {
+          // console.log(`Resolved ${source} to ${tsPath}`);
           return tsPath;
         }
       }
