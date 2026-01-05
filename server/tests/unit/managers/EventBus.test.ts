@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   EventBus,
-  GameEventType,
+  type GameEventType,
   type GameEvent,
 } from "../../../model/managers/EventBus.js";
 

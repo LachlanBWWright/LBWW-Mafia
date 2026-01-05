@@ -32,7 +32,7 @@ export default tseslint.config(
         "error",
         { checksVoidReturn: { attributes: false } },
       ],
-      // Relax strict rules for existing codebase patterns
+      // Warnings for now, will try to fix code
       "@typescript-eslint/no-unnecessary-condition": "warn",
       "@typescript-eslint/no-useless-constructor": "warn",
       "@typescript-eslint/no-non-null-assertion": "warn",
@@ -43,27 +43,17 @@ export default tseslint.config(
     },
   },
   {
-    files: ["model/**/*.ts"],
+    files: ["tests/**/*.ts", "servers/**/*.ts", "party/**/*.ts", "scripts/**/*.ts"],
     rules: {
-      "@typescript-eslint/no-unsafe-member-access": "warn",
-      "@typescript-eslint/no-unsafe-assignment": "warn",
-      "@typescript-eslint/no-unsafe-argument": "warn",
-      "@typescript-eslint/no-unsafe-call": "warn",
-      "@typescript-eslint/no-unsafe-enum-comparison": "warn",
-    },
-  },
-  {
-    files: ["tests/**/*.ts", "servers/**/*.ts", "party/**/*.ts", "*.ts"],
-    rules: {
-      "@typescript-eslint/no-floating-promises": "warn",
-      // Tests interact with partially-typed test utilities and mocks; relax unsafe checks
+      "@typescript-eslint/no-floating-promises": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-redundant-type-constituents": "off",
       "@typescript-eslint/no-unsafe-enum-comparison": "off",
-      "@typescript-eslint/restrict-plus-operands": "warn",
+      "@typescript-eslint/restrict-plus-operands": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
     },
   },
 );

@@ -1,6 +1,6 @@
 import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import { View, Text, Button, TextInput, Alert } from "react-native";
+import { View, Text, Button, TextInput, Alert, ScrollView } from "react-native";
 import { type StackParamList } from "../App";
 import { api } from "../utils/api";
 
@@ -41,26 +41,24 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
   };
 
   return (
-    <View
-      style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
-    >
+    <ScrollView contentContainerStyle={{ padding: 20 }}>
       <Text
         style={{
-          justifyContent: "flex-start",
-          alignSelf: "center",
+          textAlign: "center",
           fontSize: 25,
           fontWeight: "bold",
+          marginBottom: 20,
         }}
       >
         Welcome To MERN Mafia!
       </Text>
       <Text
-        style={{ justifyContent: "flex-start", alignSelf: "center", flex: 1 }}
+        style={{ textAlign: "center", marginBottom: 20 }}
       >
         {name.length != 0 ? `Your name is "${name}"` : ""}
       </Text>
 
-      <View style={{ alignContent: "space-between" }}>
+      <View style={{ marginBottom: 20 }}>
         <TextInput
           onChangeText={(text) => {
             setName(text);
@@ -74,10 +72,11 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             borderColor: "#0000FF",
             borderWidth: 1,
             borderRadius: 10,
-            margin: 4,
+            marginVertical: 4,
+            padding: 10,
           }}
         />
-        <View style={{ margin: 4 }}>
+        <View style={{ marginVertical: 4 }}>
           <Button
             title="Create New Game"
             disabled={disabled || createGameMutation.isPending}
@@ -85,7 +84,7 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             color={"#00AA00"}
           />
         </View>
-        <View style={{ margin: 4 }}>
+        <View style={{ marginVertical: 4 }}>
           <Button
             title="Join Private Game (Enter Code)"
             disabled={disabled}
@@ -93,7 +92,7 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             color={"#FF0000"}
           />
         </View>
-        <View style={{ margin: 4 }}>
+        <View style={{ marginVertical: 4 }}>
           <Button
             title="Browse Public Games"
             disabled={disabled}
@@ -106,7 +105,34 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
           />
         </View>
       </View>
-    </View>
+
+      <Text style={{ fontSize: 18, fontWeight: "bold", marginTop: 20, marginBottom: 10 }}>
+        More Options
+      </Text>
+
+      <View style={{ gap: 10 }}>
+        <Button
+          title="Match History"
+          onPress={() => navigation.navigate("HistoryScreen")}
+          color="#4B5563"
+        />
+        <Button
+          title="Leaderboard"
+          onPress={() => navigation.navigate("LeaderboardScreen")}
+          color="#4B5563"
+        />
+        <Button
+          title="Roles Wiki"
+          onPress={() => navigation.navigate("RolesScreen")}
+          color="#4B5563"
+        />
+        <Button
+          title="Your Stats"
+          onPress={() => navigation.navigate("StatsScreen")}
+          color="#4B5563"
+        />
+      </View>
+    </ScrollView>
   );
 }
 

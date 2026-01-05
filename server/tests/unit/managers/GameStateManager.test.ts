@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   GameStateManager,
-  type GameStateSnapshot,
 } from "../../../model/managers/GameStateManager.js";
 import { Time } from "../../../../shared/socketTypes/socketTypes.js";
 

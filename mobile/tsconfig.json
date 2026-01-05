@@ -3,6 +3,11 @@
   "compilerOptions": {
     "jsx": "react",
     "strict": true
-  }
-  
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".eslintrc.js",
+    "../nextjs/src/types/**/*.d.ts"
+  ]
 }
