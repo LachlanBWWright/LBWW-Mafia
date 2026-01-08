@@ -22,6 +22,12 @@ interface Player {
   isUser?: boolean;
 }
 
+interface DayTimeInfo {
+  time: Time;
+  dayNumber: number;
+  timeLeft: number;
+}
+
 const socket = io(config.socketUrl);
 type GameScreenProps = NativeStackScreenProps<StackParamList, 'GameScreen'>;
 export function GameScreen({ route, navigation }: GameScreenProps) {
@@ -69,8 +75,14 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       let tempPlayerList: Player[] = [];
       setPlayerList(list => (tempPlayerList = [...list]));
       const index = tempPlayerList.findIndex(player => player.name === playerJson.name);
-      tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isUser = true;
+      if (index !== -1) {
+        // Safe updates
+        const p = tempPlayerList[index];
+        if (p) {
+            p.role = playerJson.role;
+            p.isUser = true;
+        }
+      }
       setPlayerRole(playerJson.role ?? '');
       setPlayerList(tempPlayerList);
     });
@@ -79,25 +91,30 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       let tempPlayerList: Player[] = [];
       setPlayerList(list => (tempPlayerList = [...list]));
       const index = tempPlayerList.findIndex(player => player.name === playerJson.name);
-      if (playerJson.role !== undefined) tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isAlive = false;
-      if (tempPlayerList[index].isUser) {
-        setCanTalk(false);
-        Vibration.vibrate([500, 200, 500, 200, 500], false);
+      if (index !== -1) {
+        const p = tempPlayerList[index];
+        if (p) {
+            if (playerJson.role !== undefined) p.role = playerJson.role;
+            p.isAlive = false;
+            if (p.isUser) {
+                setCanTalk(false);
+                Vibration.vibrate([500, 200, 500, 200, 500], false);
+            }
+        }
       }
       setPlayerList(tempPlayerList);
     });
 
-    socket.on('update-day-time', infoJson => {
+    socket.on('update-day-time', (infoJson: DayTimeInfo) => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);
-      let timeLeft = infoJson.timeLeft;
+      let timeLeftVal = infoJson.timeLeft;
       const countDown = setInterval(() => {
-        if (timeLeft > 0) {
-          setTimeLeft(timeLeft - 1);
-          timeLeft--;
+        if (timeLeftVal > 0) {
+          setTimeLeft(timeLeftVal - 1);
+          timeLeftVal--;
         } else {
           clearInterval(countDown);
         }
