@@ -2,12 +2,17 @@
   "extends": "./node_modules/expo/tsconfig.base",
   "compilerOptions": {
     "jsx": "react",
-    "strict": true
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["../nextjs/src/*"]
+    }
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
     ".eslintrc.js",
-    "../nextjs/src/types/**/*.d.ts"
+    "../nextjs/src/types/**/*.d.ts",
+    "nativewind-env.d.ts"
   ]
 }

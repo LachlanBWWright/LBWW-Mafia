@@ -32,7 +32,7 @@ export class MafiaFaction extends Faction {
       if (attackVote instanceof Role) {
         // Direct Role vote
         this.attackList.push(attackVote);
-      } else if (attackVote instanceof Player && attackVote.role) {
+      } else if (attackVote instanceof Player) {
         // Player vote: use their assigned role
         this.attackList.push(attackVote.role);
       }

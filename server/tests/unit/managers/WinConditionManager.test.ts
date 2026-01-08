@@ -14,12 +14,12 @@ import type { Peacemaker } from "../../../model/roles/neutral/peacemaker.js";
 // Minimal mock role to avoid complex dependencies
 class MockRole implements Role {
   readonly name = "MockRole";
+  readonly description = "";
+  readonly winConditionDescription = "";
   group: RoleGroup;
   constructor(group: RoleGroup) {
     this.group = group;
   }
-  get description() { return ""; }
-  get winConditionDescription() { return ""; }
 }
 
 describe("WinConditionManager", () => {
@@ -51,10 +51,10 @@ describe("WinConditionManager", () => {
     const condition = new FactionEliminationWinCondition();
     winManager.registerCondition(condition);
 
-    const p1 = new Player("1", "p1", RoleGroup.Town);
+    const p1 = new Player("1", "p1", 0);
     p1.role = new MockRole(RoleGroup.Town);
 
-    const p2 = new Player("2", "p2", RoleGroup.Mafia);
+    const p2 = new Player("2", "p2", 0);
     p2.role = new MockRole(RoleGroup.Mafia);
 
     const context: WinConditionContext = {
@@ -79,7 +79,7 @@ describe("WinConditionManager", () => {
     const condition = new PeacemakerWinCondition();
     winManager.registerCondition(condition);
 
-    const pmPlayer = new Player("pm", "Peacemaker", RoleGroup.Neutral);
+    const pmPlayer = new Player("pm", "Peacemaker", 0);
     const mockPeacemakerRole = {
        player: pmPlayer
     } as unknown as Peacemaker;

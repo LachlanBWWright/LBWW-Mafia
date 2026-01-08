@@ -42,12 +42,9 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     navigation.addListener('beforeRemove', e => {
       if (!alive) e.preventDefault();
     })
-  );
+  , [navigation, alive]);
 
   useEffect(() => {
-    socket.on('connect', () => {
-    });
-
     socket.on('receive-message', (inMsg: string) => {
       addMessage(old => [...old, inMsg]);
     });
@@ -91,9 +88,6 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       setPlayerList(tempPlayerList);
     });
 
-    socket.on('update-player-visit', _playerJson => {
-    });
-
     socket.on('update-day-time', infoJson => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
@@ -129,7 +123,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off('update-player-visit');
       socket.disconnect();
     };
-  }, []);
+  }, [navigation, route.params.name, route.params.lobbyId]);
 
   const flatList = React.useRef<FlatList>(null);
   const drawer = React.useRef<DrawerLayoutAndroid>(null);

@@ -1,5 +1,4 @@
 import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
@@ -17,10 +16,6 @@ export class Watchman extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
@@ -28,11 +23,12 @@ export class Watchman extends Role {
         name: "receiveMessage",
         data: { message: "You cannot watch yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {
-          message: "You have chosen to watch " + recipient.playerUsername + ".",
+          message:
+            "You have chosen to watch " + recipient.playerUsername + ".",
         },
       });
       this.visiting = recipient.role;
@@ -79,33 +75,34 @@ export class Watchman extends Role {
             alibi == this.visiting
           ) {
             //Reveals the only player visited if the random selection is dead, visitor, the person being watched, or the watchman
-            if (this.visiting.visitors[0] == this) {
+            const visitor0 = this.visiting.visitors[0];
+            const visitor1 = this.visiting.visitors[1];
+
+            if (visitor0 == this && visitor1) {
               this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
                 name: "receiveMessage",
                 data: {
                   message:
-                    "Your target was visited by " +
-                    this.visiting.visitors[1]?.player.playerUsername +
-                    ".",
+                    `Your target was visited by ${visitor1.player.playerUsername}.`,
                 },
               });
-            } else {
+            } else if (visitor0) {
               this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
                 name: "receiveMessage",
                 data: {
                   message:
-                    "Your target was visited by " +
-                    this.visiting.visitors[0]?.player.playerUsername +
-                    ".",
+                    `Your target was visited by ${visitor0.player.playerUsername}.`,
                 },
               });
             }
           } else {
             //Reveals the visitor, alongside the 'red herring' alibi.
+            const visitor0 = this.visiting.visitors[0];
+            const visitor1 = this.visiting.visitors[1];
             const realVisitor =
-              this.visiting.visitors[0] == this
-                ? this.visiting.visitors[1]
-                : this.visiting.visitors[0];
+              visitor0 == this
+                ? visitor1
+                : visitor0;
             if (!realVisitor) {
               return;
             }
@@ -115,11 +112,7 @@ export class Watchman extends Role {
                 name: "receiveMessage",
                 data: {
                   message:
-                    "Your target was visited by " +
-                    realVisitor.player.playerUsername +
-                    " or " +
-                    alibi.player.playerUsername +
-                    ".",
+                    `Your target was visited by ${realVisitor.player.playerUsername} or ${alibi.player.playerUsername}.`,
                 },
               });
             } else {
@@ -127,11 +120,7 @@ export class Watchman extends Role {
                 name: "receiveMessage",
                 data: {
                   message:
-                    "Your target was visited by " +
-                    alibi.player.playerUsername +
-                    " or " +
-                    realVisitor.player.playerUsername +
-                    ".",
+                    `Your target was visited by ${alibi.player.playerUsername} or ${realVisitor.player.playerUsername}.`,
                 },
               });
             }
@@ -147,15 +136,19 @@ export class Watchman extends Role {
 
           let visitorAnnouncement = "The list of visitors is: ";
           for (let i = 0; i < visitorList.length - 1; i++) {
+            const visitor = visitorList[i];
+            if (visitor) {
+                visitorAnnouncement = visitorAnnouncement.concat(
+                `${visitor.player.playerUsername}, `,
+                );
+            }
+          }
+          const lastVisitor = visitorList[visitorList.length - 1];
+          if (lastVisitor) {
             visitorAnnouncement = visitorAnnouncement.concat(
-              visitorList[i]?.player.playerUsername + ", ",
+                `and ${lastVisitor.player.playerUsername}.`,
             );
           }
-          visitorAnnouncement = visitorAnnouncement.concat(
-            "and " +
-              visitorList[visitorList.length - 1]?.player.playerUsername +
-              ".",
-          );
           this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
             name: "receiveMessage",
             data: { message: visitorAnnouncement },

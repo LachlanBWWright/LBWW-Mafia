@@ -48,7 +48,7 @@ describe("Room start behaviour", () => {
     // Check that the room was sent an update-day-time message (Day 1)
     const updateDay = mock.roomMessages.some(
       (r) =>
-        r.message.name === "update-day-time" && r.message.data?.dayNumber === 1,
+        r.message.name === "update-day-time" && r.message.data.dayNumber === 1,
     );
     expect(updateDay).toBe(true);
 

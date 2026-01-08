@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function signIn(_idToken: string) {
+  async function signIn(_idToken: string) {
     try {
       setIsLoading(true);
       // TODO: Call tRPC googleMobileAuth endpoint

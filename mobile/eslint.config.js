@@ -63,7 +63,7 @@ export default tseslint.config(
       // React hooks rules
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
-      // Relax strict rules for existing codebase patterns
+      // Relax strict rules for existing codebase patterns (warn instead of off if possible)
       "@typescript-eslint/no-unnecessary-condition": "warn",
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/restrict-template-expressions": "warn",
@@ -73,7 +73,6 @@ export default tseslint.config(
       "@typescript-eslint/no-unsafe-argument": "warn",
       "@typescript-eslint/no-unsafe-call": "warn",
       "@typescript-eslint/no-unsafe-return": "warn",
-      "@typescript-eslint/no-empty-function": "off",
     },
   },
   {

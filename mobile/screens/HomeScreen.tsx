@@ -41,24 +41,15 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      <Text
-        style={{
-          textAlign: "center",
-          fontSize: 25,
-          fontWeight: "bold",
-          marginBottom: 20,
-        }}
-      >
+    <ScrollView contentContainerStyle={{ padding: 20 }} className="flex-1 bg-white">
+      <Text className="text-center text-2xl font-bold mb-5 text-black">
         Welcome To MERN Mafia!
       </Text>
-      <Text
-        style={{ textAlign: "center", marginBottom: 20 }}
-      >
+      <Text className="text-center mb-5 text-gray-700">
         {name.length != 0 ? `Your name is "${name}"` : ""}
       </Text>
 
-      <View style={{ marginBottom: 20 }}>
+      <View className="mb-5">
         <TextInput
           onChangeText={(text) => {
             setName(text);
@@ -68,15 +59,9 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
           placeholder={"Enter your username, 3-12 lowercase letters only!"}
           autoComplete={"username"}
           value={name}
-          style={{
-            borderColor: "#0000FF",
-            borderWidth: 1,
-            borderRadius: 10,
-            marginVertical: 4,
-            padding: 10,
-          }}
+          className="border border-blue-600 rounded-lg p-3 my-2 text-base"
         />
-        <View style={{ marginVertical: 4 }}>
+        <View className="my-1">
           <Button
             title="Create New Game"
             disabled={disabled || createGameMutation.isPending}
@@ -84,7 +69,7 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             color={"#00AA00"}
           />
         </View>
-        <View style={{ marginVertical: 4 }}>
+        <View className="my-1">
           <Button
             title="Join Private Game (Enter Code)"
             disabled={disabled}
@@ -92,7 +77,7 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             color={"#FF0000"}
           />
         </View>
-        <View style={{ marginVertical: 4 }}>
+        <View className="my-1">
           <Button
             title="Browse Public Games"
             disabled={disabled}
@@ -106,11 +91,11 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
         </View>
       </View>
 
-      <Text style={{ fontSize: 18, fontWeight: "bold", marginTop: 20, marginBottom: 10 }}>
+      <Text className="text-lg font-bold mt-5 mb-3 text-black">
         More Options
       </Text>
 
-      <View style={{ gap: 10 }}>
+      <View className="gap-3">
         <Button
           title="Match History"
           onPress={() => navigation.navigate("HistoryScreen")}

@@ -31,10 +31,6 @@ export class Jailor extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   /**
    * Processes day action to jail a target player
    * @param recipient The player to jail (cannot be self)
@@ -46,7 +42,7 @@ export class Jailor extends Role {
         name: "receiveMessage",
         data: { message: "You cannot jail yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {

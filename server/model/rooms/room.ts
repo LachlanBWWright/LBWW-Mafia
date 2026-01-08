@@ -38,16 +38,6 @@ import { PlayerRegistry } from "../managers/PlayerRegistry.js";
 
 /**
  * Room class manages a game session of MERN-Mafia
- *
- * Refactored to use the Facade pattern - coordinates managers instead of
- * handling all responsibilities directly. Managers handle specific concerns:
- * - GameStateManager: Centralized state management
- * - PlayerRegistry: Player list management
- * - VoteManager: Voting logic
- * - PhaseManager: Phase transitions
- * - WinConditionManager: Win condition checks
- * - ActionHandler: Unified action processing
- * - EventBus: Decoupled event system
  */
 export class Room {
   /** Unique room identifier generated using crypto */
@@ -77,10 +67,6 @@ export class Room {
   private winConditionManager: WinConditionManager;
   private eventBus: EventBus;
 
-  // Unused managers kept for future use
-  // private voteManager: VoteManager;
-  // private actionHandler: ActionHandler;
-
   /**
    * Creates a new game room
    * @param size Maximum number of players allowed
@@ -99,10 +85,6 @@ export class Room {
     this.phaseManager = new PhaseManager();
     this.winConditionManager = new WinConditionManager();
     this.eventBus = new EventBus();
-
-    // These will be used for future enhancements
-    // this.voteManager = new VoteManager();
-    // this.actionHandler = new ActionHandler();
 
     // Register win conditions
     this.winConditionManager.registerCondition(new PeacemakerWinCondition());
@@ -196,7 +178,7 @@ export class Room {
 
     this.socketHandler.sendRoomMessage(this.name, {
       name: "receiveMessage",
-      data: { message: playerUsername + " has joined the room!" },
+      data: { message: `${playerUsername} has joined the room!` },
     });
 
     const newPos = this.playerRegistry.getPlayerCount();
@@ -251,7 +233,7 @@ export class Room {
       });
       this.socketHandler.sendRoomMessage(this.name, {
         name: "receiveMessage",
-        data: { message: player.playerUsername + " has left the room!" },
+        data: { message: `${player.playerUsername} has left the room!` },
       });
       this.playerRegistry.removePlayer(player);
 
@@ -268,7 +250,7 @@ export class Room {
       this.socketHandler.sendRoomMessage(this.name, {
         name: "receiveMessage",
         data: {
-          message: player.playerUsername + " has abandoned the game!",
+          message: `${player.playerUsername} has abandoned the game!`,
         },
       });
       player.role.damage = ABANDON_DAMAGE;
@@ -347,7 +329,7 @@ export class Room {
       } else {
         this.socketHandler.sendRoomMessage(this.name, {
           name: "receive-chat-message",
-          data: { message: foundPlayer.playerUsername + ": " + message },
+          data: { message: `${foundPlayer.playerUsername}: ${message}` },
         });
       }
     } catch (error) {
@@ -427,14 +409,7 @@ export class Room {
             name: "receiveMessage",
             data: {
               message:
-                foundPlayer.playerUsername +
-                " has voted for " +
-                foundRecipient.playerUsername +
-                " to be executed! There are " +
-                foundRecipient.votesReceived +
-                " votes for " +
-                foundRecipient.playerUsername +
-                " to be killed.",
+                `${foundPlayer.playerUsername} has voted for ${foundRecipient.playerUsername} to be executed! There are ${String(foundRecipient.votesReceived)} votes for ${foundRecipient.playerUsername} to be killed.`,
             },
           });
         else
@@ -442,12 +417,7 @@ export class Room {
             name: "receiveMessage",
             data: {
               message:
-                foundPlayer.playerUsername +
-                " has voted for " +
-                foundRecipient.playerUsername +
-                " to be executed! There is 1 vote for " +
-                foundRecipient.playerUsername +
-                " to be killed.",
+                `${foundPlayer.playerUsername} has voted for ${foundRecipient.playerUsername} to be executed! There is 1 vote for ${foundRecipient.playerUsername} to be killed.`,
             },
           });
       } else {
@@ -499,12 +469,7 @@ export class Room {
             name: "receiveMessage",
             data: {
               message:
-                foundPlayer.playerUsername +
-                ' tried to whisper "' +
-                message +
-                '" to ' +
-                foundRecipient.playerUsername +
-                ", but was overheard by the town!",
+                `${foundPlayer.playerUsername} tried to whisper "${message}" to ${foundRecipient.playerUsername}, but was overheard by the town!`,
             },
           });
         } else {
@@ -512,14 +477,14 @@ export class Room {
             name: "receive-whisper-message",
             data: {
               message:
-                "Whisper from " + foundPlayer.playerUsername + ": " + message,
+                `Whisper from ${foundPlayer.playerUsername}: ${message}`,
             },
           });
           this.socketHandler.sendPlayerMessage(foundPlayer.socketId, {
             name: "receive-whisper-message",
             data: {
               message:
-                "Whisper to " + foundRecipient.playerUsername + ": " + message,
+                `Whisper to ${foundRecipient.playerUsername}: ${message}`,
             },
           });
 
@@ -543,12 +508,7 @@ export class Room {
                 name: "receive-whisper-message",
                 data: {
                   message:
-                    foundPlayer.playerUsername +
-                    ' whispered "' +
-                    message +
-                    '" to ' +
-                    foundRecipient.playerUsername +
-                    ".",
+                    `${foundPlayer.playerUsername} whispered "${message}" to ${foundRecipient.playerUsername}.`,
                 },
               },
             );
@@ -562,12 +522,7 @@ export class Room {
                 name: "receive-whisper-message",
                 data: {
                   message:
-                    foundPlayer.playerUsername +
-                    ' whispered "' +
-                    message +
-                    '" to ' +
-                    foundRecipient.playerUsername +
-                    ".",
+                    `${foundPlayer.playerUsername} whispered "${message}" to ${foundRecipient.playerUsername}.`,
                 },
               },
             );
@@ -611,7 +566,7 @@ export class Room {
         return;
 
       if (this.time === Time.Day) {
-        if (foundRecipient !== null && foundRecipient !== undefined)
+        if (foundRecipient !== null)
           foundPlayer.role.handleDayAction(foundRecipient);
         else foundPlayer.role.cancelDayAction();
       } else if (this.time === Time.Night) {
@@ -621,7 +576,7 @@ export class Room {
             data: { message: "You are roleblocked, and cannot call commands." },
           });
         else {
-          if (foundRecipient !== null && foundRecipient !== undefined)
+          if (foundRecipient !== null)
             foundPlayer.role.handleNightAction(foundRecipient);
           else foundPlayer.role.cancelNightAction();
         }
@@ -650,15 +605,12 @@ export class Room {
       const randomInst = this.roleList[randomIndex];
       const currentInst = this.roleList[currentIndex];
 
-      if (randomInst === undefined || currentInst === undefined) {
-        console.error("Invalid role instance!");
-        continue;
+      if (randomInst && currentInst) {
+        [this.roleList[currentIndex], this.roleList[randomIndex]] = [
+          randomInst,
+          currentInst,
+        ];
       }
-
-      [this.roleList[currentIndex], this.roleList[randomIndex]] = [
-        randomInst,
-        currentInst,
-      ];
     }
 
     // Allocate shuffled roles to players
@@ -850,12 +802,12 @@ export class Room {
       if (winningFactionName.endsWith("s"))
         this.socketHandler.sendRoomMessage(this.name, {
           name: "receiveMessage",
-          data: { message: "The " + winningFactionName + " have won!" },
+          data: { message: `The ${winningFactionName} have won!` },
         });
       else
         this.socketHandler.sendRoomMessage(this.name, {
           name: "receiveMessage",
-          data: { message: "The " + winningFactionName + " has won!" },
+          data: { message: `The ${winningFactionName} has won!` },
         });
     }
 

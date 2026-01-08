@@ -32,7 +32,7 @@ export class EventBus {
   publish<T>(event: GameEvent<T>): void {
     const eventWithTimestamp: GameEvent<T> = {
       ...event,
-      timestamp: event.timestamp ?? Date.now(),
+      timestamp: event.timestamp,
     };
 
     // Add to history
@@ -61,7 +61,10 @@ export class EventBus {
     if (!this.listeners.has(eventType)) {
       this.listeners.set(eventType, []);
     }
-    this.listeners.get(eventType)!.push(listener as EventListener);
+    const listeners = this.listeners.get(eventType);
+    if (listeners) {
+        listeners.push(listener as EventListener);
+    }
   }
 
   /**
