@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, Button } from "react-native";
+import { View, Text, FlatList, Button, StyleSheet } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StackParamList } from "../App";
+import { commonStyles } from "../styles/commonStyles";
 
 interface Lobby {
   name: string;
@@ -14,6 +15,16 @@ type PublicGameLobbyScreenProps = NativeStackScreenProps<
   StackParamList,
   "PublicGameLobbyScreen"
 >;
+
+const styles = StyleSheet.create({
+  lobbyContainer: {
+    flexDirection: "row",
+    padding: 5,
+  },
+  lobbyText: {
+    flex: 1,
+  },
+});
 
 export function PublicGameLobbyScreen({
   route,
@@ -39,9 +50,7 @@ export function PublicGameLobbyScreen({
   );
 
   return (
-    <View
-      style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
-    >
+    <View style={commonStyles.container}>
       {roomList.length !== 0 ? (
         <View>
           <FlatList
@@ -63,8 +72,8 @@ const LobbyView = (props: {
   navigate: (name: string) => void;
 }) => {
   return (
-    <View style={{ flexDirection: "row", padding: 5 }}>
-      <Text style={{ flex: 1 }}>
+    <View style={styles.lobbyContainer}>
+      <Text style={styles.lobbyText}>
         Name: {props.lobby.name} ({props.lobby.playerCount}/{props.lobby.size})
       </Text>
 

@@ -1,5 +1,22 @@
 import React, { useState } from "react";
-import { View, Text, FlatList, TouchableNativeFeedback } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableNativeFeedback,
+  StyleSheet,
+} from "react-native";
+import { commonStyles } from "../styles/commonStyles";
+
+const styles = StyleSheet.create({
+  question: {
+    fontWeight: "bold",
+    fontSize: 20,
+  },
+  answer: {
+    fontSize: 14,
+  },
+});
 
 export function HowToPlayScreen() {
   interface htpItem {
@@ -14,9 +31,7 @@ export function HowToPlayScreen() {
   ];
 
   return (
-    <View
-      style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
-    >
+    <View style={commonStyles.container}>
       <FlatList
         data={items}
         renderItem={({ item }) => (
@@ -33,11 +48,9 @@ function HowToPlayItem(props: { question: string; answer: string }) {
   return (
     <View>
       <TouchableNativeFeedback onPress={() => setOpen(!open)}>
-        <Text style={{ fontWeight: "bold", fontSize: 20 }}>
-          {props.question}
-        </Text>
+        <Text style={styles.question}>{props.question}</Text>
       </TouchableNativeFeedback>
-      {open ? <Text style={{ fontSize: 14 }}>{props.answer}</Text> : <></>}
+      {open ? <Text style={styles.answer}>{props.answer}</Text> : <></>}
     </View>
   );
 }
