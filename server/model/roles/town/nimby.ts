@@ -23,7 +23,7 @@ export class Nimby extends Role {
     super(room, player);
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
     if (this.alertSlots == 0)
       io.to(this.player.socketId).emit(

@@ -55,7 +55,7 @@ export type ServerToClientEvents = {
   "update-player-visit": () => void;
 };
 
-export type InterServerEvents = {};
+export type InterServerEvents = Record<string, never>;
 
 export type SocketData = {
   roomObject: Room;

@@ -39,7 +39,7 @@ export class Jailor extends Role {
     }
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Choose if the player who is jailed should be executed, or let go
     if (this.dayVisiting == null) {
       //this.visiting = this;

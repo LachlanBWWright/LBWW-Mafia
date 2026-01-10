@@ -113,7 +113,7 @@ export abstract class Role {
     }
   }
 
-  handleDayAction(recipient: Player) {
+  handleDayAction(_recipient: Player) {
     //Handles the class' daytime action
     io.to(this.player.socketId).emit(
       "receiveMessage",
@@ -130,7 +130,7 @@ export abstract class Role {
     this.dayVisiting = null;
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Handles the class' nighttime action
     io.to(this.player.socketId).emit(
       "receiveMessage",
@@ -138,7 +138,7 @@ export abstract class Role {
     );
   }
 
-  handleNightVote(recipient: Player) {
+  handleNightVote(_recipient: Player) {
     io.to(this.player.socketId).emit(
       "receiveMessage",
       "Your class has no nighttime factional voting.",
@@ -198,7 +198,7 @@ export abstract class Role {
   //These should be overriden by child classes if applicable
   dayVisit() {} //Visit another player (Day)
   visit() {} //Visit another player (Night)
-  receiveDayVisit(role: Role) {} //Called by another player visiting at night
+  receiveDayVisit(_role: Role) {} //Called by another player visiting at night
   handleDayVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
   handleVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
 }

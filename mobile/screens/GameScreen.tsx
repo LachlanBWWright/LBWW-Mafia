@@ -124,11 +124,11 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         this.setState({dayNumber: infoJson.dayNumber});
         this.setState({visiting: null}); //Resets who the player is visiting
         this.setState({votingFor: null}); */
-      let timeLeft = infoJson.timeLeft;
+      let timeLeftLocal = infoJson.timeLeft;
       let countDown = setInterval(() => {
-        if (timeLeft > 0) {
-          setTimeLeft(timeLeft - 1);
-          timeLeft--;
+        if (timeLeftLocal > 0) {
+          setTimeLeft(timeLeftLocal - 1);
+          timeLeftLocal--;
         } else {
           clearInterval(countDown);
         }

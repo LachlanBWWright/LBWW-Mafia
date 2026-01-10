@@ -32,9 +32,7 @@ import { Peacemaker } from "../../roles/neutral/peacemaker.js";
 import { MafiaFaction } from "../../factions/mafiaFaction.js";
 import { LawmanFaction } from "../../factions/lawmanFaction.js";
 
-import { io } from "../../../servers/socket.js";
 import { Player } from "../../player/player.js";
-import { Role } from "../../roles/abstractRole.js";
 import { BlankRole } from "../../roles/blankRole.js";
 
 //This generates the an array of role classes to be used, and then returns it to the room.
