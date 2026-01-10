@@ -9,7 +9,8 @@
     "web": "expo start --web",
     "eject": "expo eject",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@expo/metro-runtime": "^4.0.1",
