@@ -11,11 +11,16 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string()
         : z.string().optional(),
-    AUTH_DISCORD_ID: z.string(),
-    AUTH_DISCORD_SECRET: z.string(),
+    // Discord auth is optional — only required if you configure the Discord provider
+    AUTH_DISCORD_ID: z.string().optional(),
+    AUTH_DISCORD_SECRET: z.string().optional(),
     AUTH_GOOGLE_ID: z.string().optional(),
     AUTH_GOOGLE_SECRET: z.string().optional(),
-    DATABASE_URL: z.string().url(),
+    // DATABASE_URL is required in production, but default to a local sqlite file in development
+    DATABASE_URL:
+      process.env.NODE_ENV === "production"
+        ? z.string()
+        : z.string().optional().default("file:./db.sqlite"),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -27,7 +32,9 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    NEXT_PUBLIC_SOCKET_BACKEND: z.enum(["socketio", "partykit"]),
+    NEXT_PUBLIC_SOCKET_BACKEND: z
+      .enum(["socketio", "partykit"])
+      .default("partykit"),
     NEXT_PUBLIC_PARTYKIT_URL: z.string().url().optional(),
     NEXT_PUBLIC_SOCKETIO_URL: z.string().url().optional(),
   },
