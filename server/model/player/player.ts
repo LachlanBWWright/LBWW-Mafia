@@ -1,11 +1,12 @@
 import { PlayerSocket } from "../../servers/socket.js";
 import { Room } from "../rooms/room.js";
+import { type Role } from "../roles/abstractRole.js";
 
 export class Player {
   socket: PlayerSocket;
   socketId: string;
   playerUsername: string;
-  role: unknown;
+  role: Role | undefined;
   isAlive: boolean;
   hasVoted: boolean;
   votesReceived: number;
