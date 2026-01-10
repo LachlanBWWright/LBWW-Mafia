@@ -27,7 +27,10 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "drizzle-orm": ["./node_modules/drizzle-orm"],
+      "drizzle-orm/*": ["./node_modules/drizzle-orm/*"],
+      "next-auth/*": ["./node_modules/next-auth/*"]
     }
   },
   "include": [
@@ -36,7 +39,8 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.js",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../db/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }
