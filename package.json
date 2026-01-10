@@ -1,0 +1,16 @@
+{
+  "name": "mern-mafia-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "npm run lint:server && npm run lint:nextjs && npm run lint:mobile",
+    "lint:server": "cd server && npm run lint",
+    "lint:nextjs": "cd nextjs && npm run lint",
+    "lint:mobile": "cd mobile && npm run lint",
+    "lint:fix": "npm run lint:fix:server && npm run lint:fix:nextjs && npm run lint:fix:mobile",
+    "lint:fix:server": "cd server && npm run lint:fix",
+    "lint:fix:nextjs": "cd nextjs && npm run lint:fix",
+    "lint:fix:mobile": "cd mobile && npm run lint:fix"
+  },
+  "description": "MERN Mafia monorepo root"
+}
