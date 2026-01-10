@@ -64,6 +64,16 @@ function HeaderLeft() {
   return <Text />;
 }
 
+const homeScreenOptions = (navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">) => ({
+  title: "MERN Mafia",
+  headerRight: () => <HeaderRight navigation={navigation} />,
+});
+
+const gameScreenOptions = (title: string) => ({
+  title: title,
+  headerLeft: HeaderLeft,
+});
+
 export default function App() {
   return (
     <NavigationContainer>
@@ -71,10 +81,7 @@ export default function App() {
         <Stack.Screen
           name="HomeScreen"
           component={HomeScreen}
-          options={({ navigation }) => ({
-            title: "MERN Mafia",
-            headerRight: () => <HeaderRight navigation={navigation} />,
-          })}
+          options={({ navigation }) => homeScreenOptions(navigation)}
         />
         <Stack.Screen
           name="HowToPlayScreen"
@@ -99,10 +106,7 @@ export default function App() {
         <Stack.Screen
           name="GameScreen"
           component={GameScreen}
-          options={({ route }) => ({
-            title: `${route.params.title}`,
-            headerLeft: () => <HeaderLeft />,
-          })}
+          options={({ route }) => gameScreenOptions(route.params.title)}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -22,22 +22,23 @@ type Player = {
 
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 export function GameScreen({ route, navigation }: GameScreenProps) {
-  const [socket, setSocket] = useState(io("http://mern-mafia.herokuapp.com/"));
+  const [socket] = useState(io("http://mern-mafia.herokuapp.com/"));
   const [message, setMessage] = useState("");
   const [playerRole, setPlayerRole] = useState("");
-  const [alive, setAlive] = useState(true);
+  const [alive] = useState(true);
 
-  const [textMessage, setTextMessage] = useState(""); //TODO: Redundant, probably
+  // TODO: These are likely needed for future features
+  const [_textMessage, _setTextMessage] = useState(""); //TODO: Redundant, probably
   const [canTalk, setCanTalk] = useState(true);
   const [time, setTime] = useState("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState<string[]>([]);
   const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
-  const [visiting, setVisiting] = useState<String | null>();
-  const [votingFor, setVotingFor] = useState<String | null>();
+  const [_visiting, setVisiting] = useState<String | null>();
+  const [_votingFor, setVotingFor] = useState<String | null>();
 
-  const [drawerOpened, setDrawerOpened] = useState(false);
+  const [_drawerOpened, _setDrawerOpened] = useState(false);
 
   useEffect(() =>
     navigation.addListener("beforeRemove", (e) => {
@@ -108,7 +109,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       setPlayerList(tempPlayerList);
     });
 
-    socket.on("update-player-visit", (playerJson) => {
+    socket.on("update-player-visit", (_playerJson) => {
       //Updates player to indicate that the player is visiting them TODO: This might be depreciated in the actual game
       //JSON contains player name
       //Get player by name, update properties, update JSON

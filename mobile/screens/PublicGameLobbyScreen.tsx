@@ -19,7 +19,7 @@ export function PublicGameLobbyScreen({
   route,
   navigation,
 }: PublicGameLobbyScreenProps) {
-  const [roomList, setRoomList] = useState(new Array<Lobby>());
+  const [roomList, setRoomList] = useState<Lobby[]>([]);
 
   const navigateToGame = (lobbyId: string) => {
     navigation.navigate("GameScreen", {
@@ -42,7 +42,7 @@ export function PublicGameLobbyScreen({
     <View
       style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
     >
-      {roomList.length != 0 ? (
+      {roomList.length !== 0 ? (
         <View>
           <FlatList
             data={roomList}
