@@ -167,7 +167,7 @@ export class DayPhaseStrategy implements PhaseStrategy {
 
     context.socketHandler.sendRoomMessage(context.roomName, {
       name: "receiveMessage",
-      data: { message: "Day " + dayNumber + " has started." },
+      data: { message: `Day ${String(dayNumber)} has started.` },
     });
 
     // Update living players
@@ -186,7 +186,7 @@ export class DayPhaseStrategy implements PhaseStrategy {
       name: "receiveMessage",
       data: {
         message:
-          "It takes " + votesRequired + " votes for the town to kill a player.",
+          `It takes ${String(votesRequired)} votes for the town to kill a player.`,
       },
     });
 
@@ -268,7 +268,7 @@ export class DayPhaseStrategy implements PhaseStrategy {
 
       context.socketHandler.sendRoomMessage(context.roomName, {
         name: "receiveMessage",
-        data: { message: "Night " + context.dayNumber + " has started." },
+        data: { message: `Night ${String(context.dayNumber)} has started.` },
       });
 
       // Handle day visits

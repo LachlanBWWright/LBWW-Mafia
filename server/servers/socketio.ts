@@ -59,7 +59,7 @@ export interface ServerToClientEvents {
 export type InterServerEvents = Record<string, never>;
 
 export interface SocketData {
-  roomObject: Room;
+  roomObject?: Room;
   position: number;
 }
 
@@ -112,12 +112,12 @@ export function addSocketListeners(
         console.log("playerJoinRoom");
         try {
           const res = await axios.post<RecaptchaResponse>(
-            `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${process.env.CAPTCHA_KEY}`,
+            `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${String(process.env.CAPTCHA_KEY)}`,
           );
           if (res.data.success || process.env.debug === "true") {
             console.log("Captcha Success");
             //Blocks players from joining if ReCaptcha V3 score is too low, allows regardless if debug mode is on
-            if (playRoom.current?.started ?? playRoom.current === undefined)
+            if (!playRoom.current || playRoom.current.started)
               playRoom.current = new Room(roomSize, new SocketIoHandler());
             console.log("playroomCurrent", playRoom.current);
             if (playRoom.current !== undefined) {

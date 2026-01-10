@@ -20,10 +20,6 @@ export class Fortifier extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {

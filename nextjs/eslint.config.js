@@ -33,6 +33,9 @@ export default tseslint.config(
     extends: [
       ...tseslint.configs.recommended,
       ...tseslint.configs.recommendedTypeChecked,
+      ...tseslint.configs.strict,
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylistic,
       ...tseslint.configs.stylisticTypeChecked,
     ],
     rules: {
@@ -40,12 +43,16 @@ export default tseslint.config(
       // also check fragment shorthand (<>...</>) for missing keys
       "react/jsx-key": ["error", { checkFragmentShorthand: true }],
 
+      // React hooks rules
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "error",
+
       "@typescript-eslint/consistent-type-imports": [
-        "warn",
+        "error",
         { prefer: "type-imports", fixStyle: "inline-type-imports" },
       ],
       "@typescript-eslint/no-unused-vars": [
-        "warn",
+        "error",
         { argsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-misused-promises": [
@@ -60,6 +67,23 @@ export default tseslint.config(
         "error",
         { drizzleObjectName: ["db", "ctx.db"] },
       ],
+      // Relax strict rules for existing codebase patterns
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-argument": "error",
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-unsafe-return": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
+      "@typescript-eslint/no-confusing-void-expression": "error",
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/restrict-plus-operands": "error",
+      "@typescript-eslint/no-unnecessary-template-expression": "error",
+      "@typescript-eslint/no-deprecated": "error",
+      "@typescript-eslint/no-invalid-void-type": "error",
+      "@typescript-eslint/require-await": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
     },
   },
   {

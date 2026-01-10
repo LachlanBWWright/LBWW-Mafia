@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { httpBatchLink } from '@trpc/client';
 import { api } from './api';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({

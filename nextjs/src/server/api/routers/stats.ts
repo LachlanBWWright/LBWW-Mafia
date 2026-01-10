@@ -45,7 +45,7 @@ export const statsRouter = createTRPCRouter({
 
     const winRate = stats.totalGames > 0 ? (stats.totalWins / stats.totalGames) * 100 : 0;
 
-    // Get role breakdown
+    // Get role breakdown - note: _sum doesn't work on boolean fields, so we count manually
     const roleStats = await ctx.prisma.gameParticipation.groupBy({
       by: ['role'],
       where: { 
@@ -54,9 +54,6 @@ export const statsRouter = createTRPCRouter({
         role: { not: null },
       },
       _count: { id: true },
-      _sum: {
-        isWinner: true, // This won't work directly, we need a different approach
-      },
     });
 
     return {

@@ -30,10 +30,6 @@ export class MafiaRoleblocker extends RoleMafia {
   nightVisitFaction = false;
   nightVote = true;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   /**
    * Processes night action to select a player to roleblock
    * @param recipient The player to roleblock (cannot be self)
@@ -45,7 +41,7 @@ export class MafiaRoleblocker extends RoleMafia {
         name: "receiveMessage",
         data: { message: "You cannot block yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {

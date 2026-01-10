@@ -34,7 +34,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     gameHasEnded = false;
 
     constructor(size: number) {
-      this.name = `test-room-${Date.now()}`;
+      this.name = `test-room-${String(Date.now())}`;
       this.size = size;
     }
 
@@ -94,7 +94,12 @@ describe("Mafia Game - Core Logic Simulation", () => {
       // Shuffle roles
       for (let i = roles.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [roles[i], roles[j]] = [roles[j]!, roles[i]!];
+        const temp = roles[i];
+        const swap = roles[j];
+        if (temp && swap) {
+            roles[i] = swap;
+            roles[j] = temp;
+        }
       }
 
       return roles;
@@ -141,7 +146,8 @@ describe("Mafia Game - Core Logic Simulation", () => {
     });
 
     if (maxVotes >= requiredVotes && playersWithMaxVotes.length === 1) {
-      return playersWithMaxVotes[0]!;
+      const winner = playersWithMaxVotes[0];
+      return winner ?? null;
     }
 
     return null;
@@ -234,9 +240,9 @@ describe("Mafia Game - Core Logic Simulation", () => {
 
       room.playerList.forEach((player) => {
         expect(player.role).toBeTruthy();
-        expect(player.role!.name).toBeTruthy();
+        expect(player.role?.name).toBeTruthy();
         expect([RoleGroup.Town, RoleGroup.Mafia, RoleGroup.Neutral]).toContain(
-          player.role!.group,
+          player.role?.group,
         );
       });
     });
@@ -256,16 +262,16 @@ describe("Mafia Game - Core Logic Simulation", () => {
         { voter: 3, target: 1 }, // Diana votes Bob
       ]);
 
-      expect(room.playerList[1]!.votesReceived).toBe(3);
-      expect(room.playerList[0]!.hasVoted).toBe(true);
-      expect(room.playerList[2]!.hasVoted).toBe(true);
-      expect(room.playerList[3]!.hasVoted).toBe(true);
+      expect(room.playerList[1]?.votesReceived).toBe(3);
+      expect(room.playerList[0]?.hasVoted).toBe(true);
+      expect(room.playerList[2]?.hasVoted).toBe(true);
+      expect(room.playerList[3]?.hasVoted).toBe(true);
     });
 
     it("should determine elimination target with majority", () => {
       const room = new TestRoom(5);
       for (let i = 0; i < 5; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       // 3 votes out of 5 players (majority)
@@ -282,7 +288,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should not eliminate on tie votes", () => {
       const room = new TestRoom(4);
       for (let i = 0; i < 4; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       // Tie vote: 1 vote each for players 1 and 2
@@ -298,7 +304,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should require majority for elimination", () => {
       const room = new TestRoom(5);
       for (let i = 0; i < 5; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       // Only 2 votes out of 5 (not majority)
@@ -316,7 +322,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should detect town victory", () => {
       const room = new TestRoom(4);
       for (let i = 0; i < 4; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       // Manually eliminate mafia players
@@ -333,7 +339,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should detect mafia victory", () => {
       const room = new TestRoom(4);
       for (let i = 0; i < 4; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       const mafiaPlayers = room.playerList.filter(
@@ -359,7 +365,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should continue game when no win condition met", () => {
       const room = new TestRoom(4);
       for (let i = 0; i < 4; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       const winner = checkWinCondition(room);
@@ -371,7 +377,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should simulate a complete game to victory", () => {
       const room = new TestRoom(5);
       for (let i = 0; i < 5; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       let dayCount = 0;
@@ -387,17 +393,19 @@ describe("Mafia Game - Core Logic Simulation", () => {
         );
 
         if (aliveMafia.length > 0) {
-          const target = aliveMafia[0]!;
-          const votes = aliveTown.map((voter) => ({
-            voter: room.playerList.indexOf(voter),
-            target: room.playerList.indexOf(target),
-          }));
+          const target = aliveMafia[0];
+          if (target) {
+            const votes = aliveTown.map((voter) => ({
+                voter: room.playerList.indexOf(voter),
+                target: room.playerList.indexOf(target),
+            }));
 
-          simulateVoting(room, votes);
-          const eliminationTarget = getEliminationTarget(room);
+            simulateVoting(room, votes);
+            const eliminationTarget = getEliminationTarget(room);
 
-          if (eliminationTarget) {
-            eliminatePlayer(room, eliminationTarget);
+            if (eliminationTarget) {
+                eliminatePlayer(room, eliminationTarget);
+            }
           }
         }
 
@@ -422,7 +430,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should handle multiple eliminations", () => {
       const room = new TestRoom(6);
       for (let i = 0; i < 6; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       const initialAlive = room.playerList.filter((p) => p.isAlive).length;
@@ -448,7 +456,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
       gameSizes.forEach((size) => {
         const room = new TestRoom(size);
         for (let i = 0; i < size; i++) {
-          room.addPlayer(`socket${i}`, `Player${i}`);
+          room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
         }
 
         const roleCounts = room.playerList.reduce<Record<string, number>>(
@@ -494,11 +502,13 @@ describe("Mafia Game - Core Logic Simulation", () => {
     it("should handle voting with dead players", () => {
       const room = new TestRoom(4);
       for (let i = 0; i < 4; i++) {
-        room.addPlayer(`socket${i}`, `Player${i}`);
+        room.addPlayer(`socket${String(i)}`, `Player${String(i)}`);
       }
 
       // Kill one player
-      room.playerList[0]!.isAlive = false;
+      if (room.playerList[0]) {
+          room.playerList[0].isAlive = false;
+      }
 
       // Try to vote with dead player (should be filtered out)
       simulateVoting(room, [
@@ -507,7 +517,7 @@ describe("Mafia Game - Core Logic Simulation", () => {
       ]);
 
       // Only alive player's vote should count
-      expect(room.playerList[1]!.votesReceived).toBe(1);
+      expect(room.playerList[1]?.votesReceived).toBe(1);
     });
 
     it("should handle empty game state", () => {

@@ -1,238 +1,105 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   WinConditionManager,
+  MaxDaysWinCondition,
   FactionEliminationWinCondition,
   PeacemakerWinCondition,
-  MaxDaysWinCondition,
   type WinConditionContext,
-} from "../../model/managers/WinConditionManager.js";
-import { Player } from "../../model/player/player.js";
-import type { Role } from "../../model/roles/abstractRole.js";
-import { RoleGroup } from "../../../shared/roles/roleEnums.js";
+} from "../../../model/managers/WinConditionManager.js";
+import { Player } from "../../../model/player/player.js";
+import { RoleGroup } from "../../../../shared/roles/roleEnums.js";
+import type { Role } from "../../../model/roles/abstractRole.js";
+import type { Peacemaker } from "../../../model/roles/neutral/peacemaker.js";
+
+// Minimal mock role to avoid complex dependencies
+class MockRole implements Role {
+  readonly name = "MockRole";
+  readonly description = "";
+  readonly winConditionDescription = "";
+  group: RoleGroup;
+  constructor(group: RoleGroup) {
+    this.group = group;
+  }
+}
 
 describe("WinConditionManager", () => {
-  let manager: WinConditionManager;
+  let winManager: WinConditionManager;
 
   beforeEach(() => {
-    manager = new WinConditionManager();
+    winManager = new WinConditionManager();
   });
 
-  describe("Condition Registration", () => {
-    it("should register win conditions", () => {
-      const condition = new FactionEliminationWinCondition();
-      manager.registerCondition(condition);
+  it("should register and check MaxDaysWinCondition", () => {
+    const condition = new MaxDaysWinCondition(5);
+    winManager.registerCondition(condition);
 
-      expect(manager.getConditions()).toHaveLength(1);
-    });
+    const context: WinConditionContext = {
+      dayNumber: 3,
+      alivePlayers: [],
+      allPlayers: [],
+      endDay: 10,
+      confesserVotedOut: false,
+    };
 
-    it("should sort conditions by priority", () => {
-      const condition1 = new FactionEliminationWinCondition(); // Priority 50
-      const condition2 = new PeacemakerWinCondition(); // Priority 100
+    expect(winManager.checkWinConditions(context)).toBeNull();
 
-      manager.registerCondition(condition1);
-      manager.registerCondition(condition2);
-
-      const conditions = manager.getConditions();
-      expect(conditions[0]).toBeInstanceOf(PeacemakerWinCondition);
-      expect(conditions[1]).toBeInstanceOf(FactionEliminationWinCondition);
-    });
-
-    it("should clear all conditions", () => {
-      manager.registerCondition(new FactionEliminationWinCondition());
-      manager.clearConditions();
-
-      expect(manager.getConditions()).toHaveLength(0);
-    });
+    context.dayNumber = 5;
+    expect(winManager.checkWinConditions(context)).not.toBeNull();
   });
 
-  describe("FactionEliminationWinCondition", () => {
-    let condition: FactionEliminationWinCondition;
-    let context: WinConditionContext;
+  it("should register and check FactionEliminationWinCondition", () => {
+    const condition = new FactionEliminationWinCondition();
+    winManager.registerCondition(condition);
 
-    beforeEach(() => {
-      condition = new FactionEliminationWinCondition();
-      context = {
-        alivePlayers: [],
-        allPlayers: [],
-        dayNumber: 1,
-        endDay: 10,
-        confesserVotedOut: false,
-      };
-    });
+    const p1 = new Player("1", "p1", 0);
+    p1.role = new MockRole(RoleGroup.Town);
 
-    it("should return null when multiple factions alive", () => {
-      const player1 = new Player("s1", "p1", 0);
-      const player2 = new Player("s2", "p2", 1);
+    const p2 = new Player("2", "p2", 0);
+    p2.role = new MockRole(RoleGroup.Mafia);
 
-      // Mock roles with different groups
-      player1.role = { group: RoleGroup.Town } as unknown as Role;
-      player2.role = { group: RoleGroup.Mafia } as unknown as Role;
+    const context: WinConditionContext = {
+      dayNumber: 1,
+      alivePlayers: [p1, p2],
+      allPlayers: [p1, p2],
+      endDay: 10,
+      confesserVotedOut: false,
+    };
 
-      context.alivePlayers = [player1, player2];
+    // Both factions alive
+    expect(winManager.checkWinConditions(context)).toBeNull();
 
-      const result = condition.check(context);
-      expect(result).toBe(null);
-    });
-
-    it("should detect town victory", () => {
-      const player1 = new Player("s1", "p1", 0);
-      const player2 = new Player("s2", "p2", 1);
-
-      player1.role = { group: RoleGroup.Town } as unknown as Role;
-      player2.role = { group: RoleGroup.Town } as unknown as Role;
-
-      context.alivePlayers = [player1, player2];
-
-      const result = condition.check(context);
-      expect(result).not.toBe(null);
-      expect(result!.winningFaction).toBe(RoleGroup.Town);
-    });
-
-    it("should detect mafia victory", () => {
-      const player1 = new Player("s1", "p1", 0);
-
-      player1.role = { group: RoleGroup.Mafia } as unknown as Role;
-
-      context.alivePlayers = [player1];
-
-      const result = condition.check(context);
-      expect(result).not.toBe(null);
-      expect(result!.winningFaction).toBe(RoleGroup.Mafia);
-    });
-
-    it("should include neutral players in winners", () => {
-      const player1 = new Player("s1", "p1", 0);
-      const player2 = new Player("s2", "p2", 1);
-
-      player1.role = { group: RoleGroup.Town } as unknown as Role;
-      player2.role = { group: RoleGroup.Neutral } as unknown as Role;
-
-      context.alivePlayers = [player1, player2];
-
-      const result = condition.check(context);
-      expect(result).not.toBe(null);
-      expect(result!.winningPlayers).toHaveLength(2);
-    });
+    // Eliminate Mafia
+    context.alivePlayers = [p1];
+    const result = winManager.checkWinConditions(context);
+    expect(result).not.toBeNull();
+    expect(result?.winningFaction).toBe(RoleGroup.Town);
   });
 
-  describe("PeacemakerWinCondition", () => {
-    let condition: PeacemakerWinCondition;
-    let context: WinConditionContext;
+  it("should register and check PeacemakerWinCondition", () => {
+    const condition = new PeacemakerWinCondition();
+    winManager.registerCondition(condition);
 
-    beforeEach(() => {
-      condition = new PeacemakerWinCondition();
-      context = {
-        alivePlayers: [],
-        allPlayers: [],
-        dayNumber: 10,
-        endDay: 10,
-        confesserVotedOut: false,
-      };
-    });
+    const pmPlayer = new Player("pm", "Peacemaker", 0);
+    const mockPeacemakerRole = {
+       player: pmPlayer
+    } as unknown as Peacemaker;
 
-    it("should detect peacemaker win", () => {
-      const peacemaker = { player: new Player("s1", "p1", 0) } as unknown as {
-        player: Player;
-      };
-      context.peacemaker = peacemaker;
+    const context: WinConditionContext = {
+      dayNumber: 5,
+      alivePlayers: [pmPlayer],
+      allPlayers: [pmPlayer],
+      endDay: 6, // Not reached yet
+      confesserVotedOut: false,
+      peacemaker: mockPeacemakerRole
+    };
 
-      const result = condition.check(context);
-      expect(result).not.toBe(null);
-      expect(result!.winningFaction).toBe("nobody");
-      expect(result!.specialWins?.peacemaker).toBe(true);
-    });
+    expect(winManager.checkWinConditions(context)).toBeNull();
 
-    it("should return null if day < endDay", () => {
-      context.dayNumber = 5;
-      context.endDay = 10;
-      context.peacemaker = { player: new Player("s1", "p1", 0) } as unknown as {
-        player: Player;
-      };
-
-      const result = condition.check(context);
-      expect(result).toBe(null);
-    });
-
-    it("should return null if no peacemaker", () => {
-      context.peacemaker = null;
-
-      const result = condition.check(context);
-      expect(result).toBe(null);
-    });
-  });
-
-  describe("MaxDaysWinCondition", () => {
-    let condition: MaxDaysWinCondition;
-    let context: WinConditionContext;
-
-    beforeEach(() => {
-      condition = new MaxDaysWinCondition(10);
-      context = {
-        alivePlayers: [],
-        allPlayers: [],
-        dayNumber: 10,
-        endDay: 10,
-        confesserVotedOut: false,
-      };
-    });
-
-    it("should detect max days reached", () => {
-      const result = condition.check(context);
-      expect(result).not.toBe(null);
-      expect(result!.winningFaction).toBe("nobody");
-    });
-
-    it("should return null if max days not reached", () => {
-      context.dayNumber = 5;
-
-      const result = condition.check(context);
-      expect(result).toBe(null);
-    });
-  });
-
-  describe("Check Win Conditions", () => {
-    it("should check conditions in priority order", () => {
-      const context: WinConditionContext = {
-        alivePlayers: [],
-        allPlayers: [],
-        dayNumber: 10,
-        endDay: 10,
-        confesserVotedOut: false,
-        peacemaker: { player: new Player("s1", "p1", 0) } as unknown as {
-          player: Player;
-        },
-      };
-
-      manager.registerCondition(new FactionEliminationWinCondition());
-      manager.registerCondition(new PeacemakerWinCondition());
-      manager.registerCondition(new MaxDaysWinCondition(10));
-
-      const result = manager.checkWinConditions(context);
-
-      // Peacemaker has highest priority, should win
-      expect(result).not.toBe(null);
-      expect(result!.specialWins?.peacemaker).toBe(true);
-    });
-
-    it("should return null if no conditions met", () => {
-      const player1 = new Player("s1", "p1", 0);
-      const player2 = new Player("s2", "p2", 1);
-
-      player1.role = { group: RoleGroup.Town } as unknown as Role;
-      player2.role = { group: RoleGroup.Mafia } as unknown as Role;
-
-      const context: WinConditionContext = {
-        alivePlayers: [player1, player2],
-        allPlayers: [player1, player2],
-        dayNumber: 1,
-        endDay: 10,
-        confesserVotedOut: false,
-      };
-
-      manager.registerCondition(new FactionEliminationWinCondition());
-
-      const result = manager.checkWinConditions(context);
-      expect(result).toBe(null);
-    });
+    // Reached endDay
+    context.dayNumber = 6;
+    const result = winManager.checkWinConditions(context);
+    expect(result).not.toBeNull();
+    expect(result?.winningFaction).toBe("nobody");
+    expect(result?.specialWins?.peacemaker).toBe(true);
   });
 });

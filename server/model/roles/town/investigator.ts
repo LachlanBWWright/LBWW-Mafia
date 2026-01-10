@@ -1,5 +1,4 @@
 import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
@@ -18,10 +17,6 @@ export class Investigator extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
@@ -29,7 +24,7 @@ export class Investigator extends Role {
         name: "receiveMessage",
         data: { message: "You cannot inspect yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {
@@ -71,14 +66,7 @@ export class Investigator extends Role {
         name: "receiveMessage",
         data: {
           message:
-            this.visiting.player.playerUsername +
-            "'s role might be " +
-            possibleRoles[0] +
-            ", " +
-            possibleRoles[1] +
-            ", or " +
-            possibleRoles[2] +
-            ".",
+            `${this.visiting.player.playerUsername}'s role might be ${possibleRoles.join(", ")}.`,
         },
       });
     }

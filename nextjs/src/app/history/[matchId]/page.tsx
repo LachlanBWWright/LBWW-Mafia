@@ -57,6 +57,14 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ matchId
   const duration = startTime && endTime 
     ? Math.round((endTime.getTime() - startTime.getTime()) / 1000 / 60)
     : null;
+  
+  // Extract result data with type safety - use type assertion to avoid deep type instantiation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const matchData = match as any;
+  const matchResult = (matchData.result !== null && typeof matchData.result === 'object' && !Array.isArray(matchData.result)) 
+    ? matchData.result as Record<string, unknown> 
+    : null;
+  const hasPhases = matchResult !== null && 'phases' in matchResult;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white py-8">
@@ -155,25 +163,25 @@ export default function MatchDetailsPage({ params }: { params: Promise<{ matchId
         </div>
 
         {/* Game Timeline (if available) */}
-        {match.result && typeof match.result === 'object' && 'phases' in match.result && (
+        {hasPhases && matchResult && (
           <div className="bg-gray-800 rounded-lg shadow-lg p-6 mt-6">
             <h2 className="text-2xl font-semibold mb-4">Game Stats</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-700 p-4 rounded-lg text-center">
                 <div className="text-3xl font-bold text-blue-400">
-                  {(match.result as any).phases ?? 'N/A'}
+                  {typeof matchResult.phases === 'number' ? String(matchResult.phases) : 'N/A'}
                 </div>
                 <div className="text-sm text-gray-400">Phases</div>
               </div>
               <div className="bg-gray-700 p-4 rounded-lg text-center">
                 <div className="text-3xl font-bold text-green-400">
-                  {match.participants.filter(p => p.isAlive).length}
+                  {matchData.participants.filter((p: { isAlive: boolean }) => p.isAlive).length}
                 </div>
                 <div className="text-sm text-gray-400">Survived</div>
               </div>
               <div className="bg-gray-700 p-4 rounded-lg text-center">
                 <div className="text-3xl font-bold text-red-400">
-                  {match.participants.filter(p => !p.isAlive).length}
+                  {matchData.participants.filter((p: { isAlive: boolean }) => !p.isAlive).length}
                 </div>
                 <div className="text-sm text-gray-400">Eliminated</div>
               </div>

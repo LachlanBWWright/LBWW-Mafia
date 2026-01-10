@@ -7,18 +7,16 @@ export abstract class Faction {
     for (const member of this.memberList) {
       member.role.assignFaction(this);
       for (const secondMember of this.memberList) {
-        if (secondMember.role.room) {
-          secondMember.role.room.socketHandler.sendPlayerMessage(
-            secondMember.socketId,
-            {
-              name: "update-faction-role",
-              data: {
-                name: member.playerUsername,
-                role: member.role.name,
-              },
+        secondMember.role.room.socketHandler.sendPlayerMessage(
+          secondMember.socketId,
+          {
+            name: "update-faction-role",
+            data: {
+              name: member.playerUsername,
+              role: member.role.name,
             },
-          );
-        }
+          },
+        );
       }
     }
   }

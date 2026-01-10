@@ -1,5 +1,4 @@
 import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { BASIC_ATTACK_DAMAGE } from "../../../constants/gameConstants.js";
 import { RoleGroup } from "../../../../shared/roles/roleEnums.js";
@@ -18,24 +17,15 @@ export abstract class RoleMafia extends Role {
 
   group = RoleGroup.Mafia;
 
-  constructor(room: Room, player: Player) {
-    //Group is kept as a constructor parameter for consistency, but mafia classes will always be in the 'mafia' group.
-    super(room, player);
-  }
-
   handleNightVote(recipient: Player) {
     this.attackVote = recipient;
     if (
-      this.attackVote.playerUsername != undefined &&
       this.attackVote.role.faction != this.faction &&
       this.attackVote.isAlive &&
       this.faction !== undefined
     ) {
       this.faction.sendMessage(
-        this.player.playerUsername +
-          " has voted to attack " +
-          this.attackVote.playerUsername +
-          ".",
+        `${this.player.playerUsername} has voted to attack ${this.attackVote.playerUsername}.`,
       );
       this.attackVote = this.attackVote.role; //uses role for easier visiting
     } else {

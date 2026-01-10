@@ -7,7 +7,8 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  // Connection URL is provided via `prisma.config.ts` (for Migrate and tooling). In development this
+  // defaults to the local sqlite file defined in `prisma.config.ts`.
 }
 
 // ========== AUTH MODELS (NextAuth compatible) ==========
@@ -18,9 +19,9 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String?
-  
+
   // New field for custom display name
-  displayName   String?
+  displayName String?
 
   // Relations
   accounts           Account[]
@@ -71,9 +72,9 @@ model VerificationToken {
 // ========== USER PREFERENCES ==========
 
 model UserPreferences {
-  id                   String  @id @default(cuid())
-  userId               String  @unique
-  
+  id     String @id @default(cuid())
+  userId String @unique
+
   soundEnabled         Boolean @default(true)
   notificationsEnabled Boolean @default(true)
   theme                String  @default("system") // light, dark, system
@@ -95,20 +96,20 @@ enum GameStatus {
 }
 
 model GameSession {
-  id          String      @id @default(cuid())
-  roomId      String      @unique
-  roomCode    String      @unique
-  status      GameStatus  @default(WAITING)
-  startTime   DateTime?
-  endTime     DateTime?
-  maxPlayers  Int         @default(10)
-  settings    Json?       // Game settings like roles, time limits, etc.
-  result      Json?       // Game result including winners, phases, etc.
-  
+  id         String     @id @default(cuid())
+  roomId     String     @unique
+  roomCode   String     @unique
+  status     GameStatus @default(WAITING)
+  startTime  DateTime?
+  endTime    DateTime?
+  maxPlayers Int        @default(10)
+  settings   Json? // Game settings like roles, time limits, etc.
+  result     Json? // Game result including winners, phases, etc.
+
   participants GameParticipation[]
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
@@ -118,9 +119,9 @@ model GameParticipation {
   id            String    @id @default(cuid())
   userId        String
   gameSessionId String
-  role          String?   // Role assigned during game (e.g., "Mafia", "Doctor")
+  role          String? // Role assigned during game (e.g., "Mafia", "Doctor")
   isAlive       Boolean   @default(true)
-  isWinner      Boolean?  // Set when game ends based on faction win
+  isWinner      Boolean? // Set when game ends based on faction win
   joinedAt      DateTime  @default(now())
   leftAt        DateTime?
 
@@ -135,20 +136,20 @@ model GameParticipation {
 // ========== USER STATS CACHE ==========
 
 model UserStats {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  
+  id     String @id @default(cuid())
+  userId String @unique
+
   // Overall stats
-  totalGames   Int      @default(0)
-  totalWins    Int      @default(0)
-  
+  totalGames Int @default(0)
+  totalWins  Int @default(0)
+
   // Faction stats
-  townGames    Int      @default(0)
-  townWins     Int      @default(0)
-  mafiaGames   Int      @default(0)
-  mafiaWins    Int      @default(0)
-  neutralGames Int      @default(0)
-  neutralWins  Int      @default(0)
+  townGames    Int @default(0)
+  townWins     Int @default(0)
+  mafiaGames   Int @default(0)
+  mafiaWins    Int @default(0)
+  neutralGames Int @default(0)
+  neutralWins  Int @default(0)
 
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastUpdated DateTime @default(now())

@@ -6,7 +6,7 @@ export function HowToPlayScreen() {
     question: string;
     answer: string;
   }
-  const items: Array<htpItem> = [
+  const items: htpItem[] = [
     { question: "Question", answer: "Lorem ipsum blah blah blah" },
     { question: "Question", answer: "Lorem ipsum blah blah blah" },
     { question: "Question", answer: "Lorem ipsum blah blah blah" },
@@ -32,7 +32,7 @@ function HowToPlayItem(props: { question: string; answer: string }) {
 
   return (
     <View>
-      <TouchableNativeFeedback onPress={() => setOpen(!open)}>
+      <TouchableNativeFeedback onPress={() => { setOpen(!open); }}>
         <Text style={{ fontWeight: "bold", fontSize: 20 }}>
           {props.question}
         </Text>

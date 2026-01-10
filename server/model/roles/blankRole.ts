@@ -1,5 +1,3 @@
-import { type Player } from "../player/player.js";
-import { type Room } from "../rooms/room.js";
 import { Role } from "./abstractRole.js";
 import { RoleName, RoleGroup } from "../../../shared/roles/roleEnums.js";
 
@@ -18,8 +16,4 @@ export class BlankRole extends Role {
   nightVisitOthers = false;
   nightVisitFaction = false;
   nightVote = false;
-
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
 }

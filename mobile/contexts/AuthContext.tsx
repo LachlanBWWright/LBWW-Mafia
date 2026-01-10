@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
 
 interface User {
@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Load stored auth on mount
-    loadStoredAuth();
+    void loadStoredAuth();
   }, []);
 
   async function loadStoredAuth() {
@@ -42,7 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsGuest(true);
       } else if (storedToken && storedUser) {
         setToken(storedToken);
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser) as User;
+        setUser(parsedUser);
       }
     } catch (error) {
       console.error('Failed to load auth:', error);
@@ -51,18 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  async function signIn(idToken: string) {
-    try {
-      setIsLoading(true);
-      // TODO: Call tRPC googleMobileAuth endpoint
-      // For now, we'll throw an error to direct users to demo mode
-      throw new Error('Google authentication not yet implemented');
-    } catch (error) {
-      console.error('Sign in failed:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+  function signIn(_idToken: string): Promise<void> {
+    setIsLoading(true);
+    // TODO: Call tRPC googleMobileAuth endpoint
+    // For now, we'll throw an error to direct users to demo mode
+    setIsLoading(false);
+    return Promise.reject(new Error('Google authentication not yet implemented'));
   }
 
   async function signOut() {
@@ -80,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function setGuestMode() {
     setIsGuest(true);
-    SecureStore.setItemAsync('guestMode', 'true');
+    void SecureStore.setItemAsync('guestMode', 'true');
     setIsLoading(false);
   }
 

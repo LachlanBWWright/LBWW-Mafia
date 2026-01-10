@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StackParamList } from '../../App';
+import { type NativeStackScreenProps } from '@react-navigation/native-stack';
+import { type StackParamList } from '../../App';
 
 type SignInScreenProps = NativeStackScreenProps<StackParamList, 'SignInScreen'>;
 
@@ -11,7 +11,7 @@ export function SignInScreen({ navigation }: SignInScreenProps) {
 
   const handleGuestMode = () => {
     setGuestMode();
-    navigation.replace('HomeScreen' as any);
+    navigation.replace('HomeScreen');
   };
 
   return (
@@ -59,7 +59,7 @@ export function SignInScreen({ navigation }: SignInScreenProps) {
         <Text style={styles.disclaimer}>
           By continuing, you agree to our Terms of Service and Privacy Policy
         </Text>
-      </div>
+      </View>
     </View>
   );
 }

@@ -1,7 +1,7 @@
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { type NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import { View, Text, Button, TextInput, Alert } from "react-native";
-import { StackParamList } from "../App";
+import { View, Text, Button, TextInput, Alert, ScrollView } from "react-native";
+import { type StackParamList } from "../App";
 import { api } from "../utils/api";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
@@ -41,26 +41,15 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
   };
 
   return (
-    <View
-      style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
-    >
-      <Text
-        style={{
-          justifyContent: "flex-start",
-          alignSelf: "center",
-          fontSize: 25,
-          fontWeight: "bold",
-        }}
-      >
+    <ScrollView contentContainerStyle={{ padding: 20 }} className="flex-1 bg-white">
+      <Text className="text-center text-2xl font-bold mb-5 text-black">
         Welcome To MERN Mafia!
       </Text>
-      <Text
-        style={{ justifyContent: "flex-start", alignSelf: "center", flex: 1 }}
-      >
+      <Text className="text-center mb-5 text-gray-700">
         {name.length != 0 ? `Your name is "${name}"` : ""}
       </Text>
 
-      <View style={{ alignContent: "space-between" }}>
+      <View className="mb-5">
         <TextInput
           onChangeText={(text) => {
             setName(text);
@@ -70,14 +59,9 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
           placeholder={"Enter your username, 3-12 lowercase letters only!"}
           autoComplete={"username"}
           value={name}
-          style={{
-            borderColor: "#0000FF",
-            borderWidth: 1,
-            borderRadius: 10,
-            margin: 4,
-          }}
+          className="border border-blue-600 rounded-lg p-3 my-2 text-base"
         />
-        <View style={{ margin: 4 }}>
+        <View className="my-1">
           <Button
             title="Create New Game"
             disabled={disabled || createGameMutation.isPending}
@@ -85,28 +69,55 @@ export function HomeScreen({ route: _route, navigation }: HomeScreenProps) {
             color={"#00AA00"}
           />
         </View>
-        <View style={{ margin: 4 }}>
+        <View className="my-1">
           <Button
             title="Join Private Game (Enter Code)"
             disabled={disabled}
-            onPress={() => navigation.navigate("PrivateGameLobbyScreen")}
+            onPress={() => { navigation.navigate("PrivateGameLobbyScreen"); }}
             color={"#FF0000"}
           />
         </View>
-        <View style={{ margin: 4 }}>
+        <View className="my-1">
           <Button
             title="Browse Public Games"
             disabled={disabled}
             onPress={() =>
-              navigation.navigate("PublicGameLobbyScreen", {
+              { navigation.navigate("PublicGameLobbyScreen", {
                 name: validateText(name),
-              })
+              }); }
             }
             color={"#3333FF"}
           />
         </View>
       </View>
-    </View>
+
+      <Text className="text-lg font-bold mt-5 mb-3 text-black">
+        More Options
+      </Text>
+
+      <View className="gap-3">
+        <Button
+          title="Match History"
+          onPress={() => navigation.navigate("HistoryScreen")}
+          color="#4B5563"
+        />
+        <Button
+          title="Leaderboard"
+          onPress={() => navigation.navigate("LeaderboardScreen")}
+          color="#4B5563"
+        />
+        <Button
+          title="Roles Wiki"
+          onPress={() => navigation.navigate("RolesScreen")}
+          color="#4B5563"
+        />
+        <Button
+          title="Your Stats"
+          onPress={() => navigation.navigate("StatsScreen")}
+          color="#4B5563"
+        />
+      </View>
+    </ScrollView>
   );
 }
 

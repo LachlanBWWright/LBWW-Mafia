@@ -19,10 +19,6 @@ export class Lawman extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (this.isInsane) {
@@ -39,7 +35,7 @@ export class Lawman extends Role {
         name: "receiveMessage",
         data: { message: "You cannot shoot yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {

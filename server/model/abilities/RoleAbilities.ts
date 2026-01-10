@@ -78,9 +78,7 @@ export class HealAbility implements RoleAbility {
   }
 
   use(target: Player, _context: RoleContext): void {
-    if (target.role) {
-      target.role.defence += this.healPower;
-    }
+    target.role.defence += this.healPower;
   }
 }
 
@@ -107,10 +105,8 @@ export class AttackAbility implements RoleAbility {
   }
 
   use(target: Player, context: RoleContext): void {
-    if (target.role) {
-      target.role.damage = Math.max(target.role.damage, this.attackPower);
-      target.role.attackers.push(context.role);
-    }
+    target.role.damage = Math.max(target.role.damage, this.attackPower);
+    target.role.attackers.push(context.role);
   }
 }
 
@@ -131,10 +127,8 @@ export class RoleblockAbility implements RoleAbility {
   }
 
   use(target: Player, context: RoleContext): void {
-    if (target.role) {
-      target.role.roleblocked = true;
-      context.role.roleblocking = target.role;
-    }
+    target.role.roleblocked = true;
+    context.role.roleblocking = target.role;
   }
 }
 
@@ -204,9 +198,7 @@ export class ProtectAbility implements RoleAbility {
   }
 
   use(target: Player, _context: RoleContext): void {
-    if (target.role) {
-      target.role.defence = Math.max(target.role.defence, this.protectionLevel);
-    }
+    target.role.defence = Math.max(target.role.defence, this.protectionLevel);
   }
 }
 
@@ -229,10 +221,8 @@ export class BulletproofTrait implements PassiveTrait {
   }
 
   apply(context: RoleContext): void {
-    if (context.role) {
-      context.role.baseDefence += this.defenceBonus;
-      context.role.defence += this.defenceBonus;
-    }
+    context.role.baseDefence += this.defenceBonus;
+    context.role.defence += this.defenceBonus;
   }
 }
 

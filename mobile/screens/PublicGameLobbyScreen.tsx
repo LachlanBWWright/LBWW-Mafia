@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, FlatList, Button, ActivityIndicator } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { StackParamList } from "../App";
+import { type NativeStackScreenProps } from "@react-navigation/native-stack";
+import { type StackParamList } from "../App";
 import { api } from "../utils/api";
 
 interface GameSession {
@@ -10,13 +10,13 @@ interface GameSession {
   roomId: string;
   maxPlayers: number;
   status: string;
-  participants: Array<{
+  participants: {
     user: {
       id: string;
       name: string | null;
       image: string | null;
     };
-  }>;
+  }[];
 }
 
 type PublicGameLobbyScreenProps = NativeStackScreenProps<
@@ -105,7 +105,7 @@ const GameSessionView = (props: {
       <Button
         color="#3333FF"
         title="Join"
-        onPress={() => props.navigate(props.session.roomCode)}
+        onPress={() => { props.navigate(props.session.roomCode); }}
         disabled={playerCount >= props.session.maxPlayers}
       />
     </View>

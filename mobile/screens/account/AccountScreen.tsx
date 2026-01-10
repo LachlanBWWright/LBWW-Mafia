@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { StackParamList } from '../../App';
+import { type NativeStackScreenProps } from '@react-navigation/native-stack';
+import { type StackParamList } from '../../App';
 
 type AccountScreenProps = NativeStackScreenProps<StackParamList, 'AccountScreen'>;
 
@@ -11,7 +11,7 @@ export function AccountScreen({ navigation }: AccountScreenProps) {
 
   const handleSignOut = async () => {
     await signOut();
-    navigation.replace('SignInScreen' as any);
+    navigation.replace('SignInScreen');
   };
 
   return (
@@ -68,7 +68,7 @@ export function AccountScreen({ navigation }: AccountScreenProps) {
 
         <TouchableOpacity 
           style={styles.menuItem}
-          onPress={() => navigation.navigate('SettingsScreen' as any)}
+          onPress={() => { navigation.navigate('SettingsScreen'); }}
         >
           <Text style={styles.menuIcon}>⚙️</Text>
           <Text style={styles.menuText}>Settings</Text>
@@ -87,7 +87,7 @@ export function AccountScreen({ navigation }: AccountScreenProps) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+      <TouchableOpacity style={styles.signOutButton} onPress={() => void handleSignOut()}>
         <Text style={styles.signOutText}>
           {isGuest ? 'Exit Guest Mode' : 'Sign Out'}
         </Text>

@@ -1,5 +1,5 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { type NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,24 @@ import {
   DrawerLayoutAndroid,
   Vibration,
 } from 'react-native';
-import { StackParamList } from '../App';
+import { type StackParamList } from '../App';
 import { StackActions } from '@react-navigation/native';
-import io, { Socket } from 'socket.io-client';
+import io, { type Socket } from 'socket.io-client';
 import { config } from '../config';
 import { Time } from '../../shared/socketTypes/socketTypes';
 
-type Player = {
+interface Player {
   name: string;
   isAlive?: boolean;
   role?: string;
   isUser?: boolean;
-};
+}
+
+interface DayTimeInfo {
+  time: Time;
+  dayNumber: number;
+  timeLeft: number;
+}
 
 const socket = io(config.socketUrl);
 type GameScreenProps = NativeStackScreenProps<StackParamList, 'GameScreen'>;
@@ -34,7 +40,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState(new Array<string>());
-  const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
+  const [playerList, setPlayerList] = useState<Player[]>([]);
   const [, setVisiting] = useState<string | null>();
   const [, setVotingFor] = useState<string | null>();
 
@@ -42,19 +48,15 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     navigation.addListener('beforeRemove', e => {
       if (!alive) e.preventDefault();
     })
-  ); //Blocks leaving
+  , [navigation, alive]);
 
   useEffect(() => {
-    //Socket.io Integration - Runs on creation
-    socket.on('connect', () => {});
-
     socket.on('receive-message', (inMsg: string) => {
       addMessage(old => [...old, inMsg]);
     });
 
-    socket.on('receive-player-list', (listJson: Array<Player>) => {
-      //Receive all players upon joining, and the game starting
-      let list = new Array<Player>();
+    socket.on('receive-player-list', (listJson: Player[]) => {
+      const list = new Array<Player>();
       listJson.map(instance => {
         list.push(instance);
       });
@@ -62,65 +64,57 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     });
 
     socket.on('receive-new-player', (playerJson: Player) => {
-      //Called when a new player joins the lobby
       setPlayerList(list => [...list, playerJson]);
     });
 
     socket.on('remove-player', (playerJson: Player) => {
-      //Called when a player leaves the lobby before the game starts
       setPlayerList(list => list.filter(item => item.name !== playerJson.name));
     });
 
     socket.on('assign-player-role', (playerJson: Player) => {
-      //Shows the player their own role, lets the client know that this is who they are playing as
-      let tempPlayerList: Array<Player> = [];
+      let tempPlayerList: Player[] = [];
       setPlayerList(list => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(player => player.name === playerJson.name);
-      tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isUser = true;
-      //TODO: Who player visits at day (living) (0 - Nobody, 1 - Self, 2 - Others, 3 - Everybody)
-      //TODO: Who player visits at day (dead, will apply to almost (or currently) no roles)
-      //TODO: Who player visits at night (living)
-      //TODO: Who player visits at night (dead)
+      const index = tempPlayerList.findIndex(player => player.name === playerJson.name);
+      if (index !== -1) {
+        // Safe updates
+        const p = tempPlayerList[index];
+        if (p) {
+            p.role = playerJson.role;
+            p.isUser = true;
+        }
+      }
       setPlayerRole(playerJson.role ?? '');
       setPlayerList(tempPlayerList);
     });
 
     socket.on('update-player-role', (playerJson: Player) => {
-      //Updates player role upon their death
-      let tempPlayerList: Array<Player> = [];
+      let tempPlayerList: Player[] = [];
       setPlayerList(list => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(player => player.name === playerJson.name);
-      if (playerJson.role !== undefined) tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isAlive = false;
-      if (tempPlayerList[index].isUser) {
-        setCanTalk(false); //Blocks MSGing upon death
-        Vibration.vibrate([500, 200, 500, 200, 500], false); //(3 500ms vibrations with 200ms breaks, does not repeat indefinitely)
+      const index = tempPlayerList.findIndex(player => player.name === playerJson.name);
+      if (index !== -1) {
+        const p = tempPlayerList[index];
+        if (p) {
+            if (playerJson.role !== undefined) p.role = playerJson.role;
+            p.isAlive = false;
+            if (p.isUser) {
+                setCanTalk(false);
+                Vibration.vibrate([500, 200, 500, 200, 500], false);
+            }
+        }
       }
       setPlayerList(tempPlayerList);
     });
 
-    socket.on('update-player-visit', _playerJson => {
-      //Updates player to indicate that the player is visiting them TODO: This might be depreciated in the actual game
-      //JSON contains player name
-      //Get player by name, update properties, update JSON
-    });
-
-    socket.on('update-day-time', infoJson => {
-      //Gets whether it is day or night, and how long there is left in the session
+    socket.on('update-day-time', (infoJson: DayTimeInfo) => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setVisiting(null);
       setVotingFor(null);
-      /*         this.setState({time: infoJson.time});
-        this.setState({dayNumber: infoJson.dayNumber});
-        this.setState({visiting: null}); //Resets who the player is visiting
-        this.setState({votingFor: null}); */
-      let timeLeft = infoJson.timeLeft;
-      let countDown = setInterval(() => {
-        if (timeLeft > 0) {
-          setTimeLeft(timeLeft - 1);
-          timeLeft--;
+      let timeLeftVal = infoJson.timeLeft;
+      const countDown = setInterval(() => {
+        if (timeLeftVal > 0) {
+          setTimeLeft(timeLeftVal - 1);
+          timeLeftVal--;
         } else {
           clearInterval(countDown);
         }
@@ -132,12 +126,10 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     });
 
     socket.emit('playerJoinRoom', route.params.name, route.params.lobbyId, (callback: number) => {
-      //TODO: THis is where the socket is connnected to!
-      if (callback !== 0) navigation.dispatch(StackActions.popToTop()); //TODO: Add reason for connection failure.
+      if (callback !== 0) navigation.dispatch(StackActions.popToTop());
     });
 
     return () => {
-      //Runs Upon close
       socket.off('receive-message');
       socket.off('block-messages');
       socket.off('receive-role');
@@ -148,10 +140,10 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off('update-player-visit');
       socket.disconnect();
     };
-  }, []);
+  }, [navigation, route.params.name, route.params.lobbyId]);
 
-  const flatList: React.RefObject<FlatList> = React.useRef(null);
-  const drawer: React.RefObject<DrawerLayoutAndroid> = React.useRef(null);
+  const flatList = React.useRef<FlatList>(null);
+  const drawer = React.useRef<DrawerLayoutAndroid>(null);
 
   return (
     <DrawerLayoutAndroid
@@ -159,7 +151,6 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       drawerPosition={'right'}
       drawerWidth={300}
       renderNavigationView={() => (
-        //Content of the drawer, should contain the list of players TODO: Make a flatlist
         <FlatList
           data={playerList}
           renderItem={({ item }) => (
@@ -257,7 +248,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
           >
             <Button
               title="Disconnect"
-              onPress={() => navigation.dispatch(StackActions.popToTop())}
+              onPress={() => { navigation.dispatch(StackActions.popToTop()); }}
               color={'#FF0000'}
             />
           </View>
@@ -277,11 +268,11 @@ function PlayerInList(props: {
 
   useEffect(() => {
     if (props.player.isAlive !== undefined) {
-      if (props.player.isAlive === false) setColor('#FF0000');
+      if (!props.player.isAlive) setColor('#FF0000');
       else if (props.player.isUser === true) setColor('#3333FF');
-      else if (props.player.isAlive === true) setColor('#33FF33');
+      else if (props.player.isAlive) setColor('#33FF33');
     }
-  }, [props.player.isAlive]);
+  }, [props.player.isAlive, props.player.isUser]);
 
   return (
     <View
@@ -304,7 +295,7 @@ function PlayerInList(props: {
         {props.player.name} {props.player.role !== undefined ? '(' + props.player.role + ')' : ''}
       </Text>
       {props.player.isAlive === true && props.player.isUser !== true && (
-        <Button title="Whisper" onPress={() => props.setMessage('/w ' + props.player.name)} />
+        <Button title="Whisper" onPress={() => { props.setMessage('/w ' + props.player.name); }} />
       )}
       {props.player.isAlive === true && (
         <Button
