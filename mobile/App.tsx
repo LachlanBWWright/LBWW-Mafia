@@ -1,6 +1,9 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
 import { HomeScreen } from "./screens/HomeScreen";
 import { HowToPlayScreen } from "./screens/HowToPlayScreen";
 import { PrivateGameLobbyScreen } from "./screens/PrivateGameLobbyScreen";
@@ -21,6 +24,46 @@ export type StackParamList = {
 
 const Stack = createNativeStackNavigator<StackParamList>();
 
+const styles = StyleSheet.create({
+  headerRight: {
+    flexDirection: "row",
+  },
+  iconPadding: {
+    paddingHorizontal: 7,
+  },
+});
+
+function HeaderRight({
+  navigation,
+}: {
+  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">;
+}) {
+  return (
+    <View style={styles.headerRight}>
+      <Pressable onPress={() => navigation.navigate("HowToPlayScreen")}>
+        <Icon
+          name="help"
+          size={30}
+          color="#3333FF"
+          style={styles.iconPadding}
+        />
+      </Pressable>
+      <Pressable onPress={() => navigation.navigate("SettingsScreen")}>
+        <Icon
+          name="settings"
+          size={30}
+          color="#3333FF"
+          style={styles.iconPadding}
+        />
+      </Pressable>
+    </View>
+  );
+}
+
+function HeaderLeft() {
+  return <Text />;
+}
+
 export default function App() {
   return (
     <NavigationContainer>
@@ -30,30 +73,7 @@ export default function App() {
           component={HomeScreen}
           options={({ navigation }) => ({
             title: "MERN Mafia",
-            headerRight: () => (
-              <View style={{ flexDirection: "row" }}>
-                <Pressable
-                  onPress={() => navigation.navigate("HowToPlayScreen")}
-                >
-                  <Icon
-                    name="help"
-                    size={30}
-                    color="#3333FF"
-                    style={{ paddingHorizontal: 7 }}
-                  />
-                </Pressable>
-                <Pressable
-                  onPress={() => navigation.navigate("SettingsScreen")}
-                >
-                  <Icon
-                    name="settings"
-                    size={30}
-                    color="#3333FF"
-                    style={{ paddingHorizontal: 7 }}
-                  />
-                </Pressable>
-              </View>
-            ),
+            headerRight: () => <HeaderRight navigation={navigation} />,
           })}
         />
         <Stack.Screen
@@ -81,7 +101,7 @@ export default function App() {
           component={GameScreen}
           options={({ route }) => ({
             title: `${route.params.title}`,
-            headerLeft: () => <Text />,
+            headerLeft: () => <HeaderLeft />,
           })}
         />
       </Stack.Navigator>
