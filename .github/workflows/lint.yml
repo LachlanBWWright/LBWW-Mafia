@@ -1,0 +1,73 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-server:
+    name: Lint Server
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: cd server && npm ci
+      
+    - name: Run linter
+      run: cd server && npm run lint
+
+  lint-nextjs:
+    name: Lint Next.js
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Create dummy .env file
+      run: |
+        cd nextjs
+        echo 'AUTH_SECRET="dummy"' >> .env
+        echo 'AUTH_DISCORD_ID="dummy"' >> .env
+        echo 'AUTH_DISCORD_SECRET="dummy"' >> .env
+        echo 'DATABASE_URL="file:./dev.db"' >> .env
+        
+    - name: Install dependencies
+      run: cd nextjs && npm ci
+      
+    - name: Run linter
+      run: cd nextjs && npm run lint
+      
+    - name: Type check
+      run: cd nextjs && npm run typecheck
+
+  lint-mobile:
+    name: Lint Mobile
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        
+    - name: Install dependencies
+      run: cd mobile && npm ci
+      
+    - name: Run linter
+      run: cd mobile && npm run lint
