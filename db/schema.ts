@@ -1,3 +1,14 @@
+/**
+ * Shared Drizzle Schema
+ * 
+ * This schema is shared between the server and nextjs components.
+ * Location: /db/schema.ts (root of repository)
+ * 
+ * Used by:
+ * - nextjs: Web application authentication and user management
+ * - server: Can import for shared data models (if needed)
+ */
+
 import { relations, sql } from "drizzle-orm";
 import { index, primaryKey, sqliteTableCreator } from "drizzle-orm/sqlite-core";
 import { type AdapterAccount } from "next-auth/adapters";
