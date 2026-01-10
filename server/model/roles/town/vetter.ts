@@ -1,6 +1,5 @@
 import { Role } from "../abstractRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
-import { type Room } from "../../rooms/room.js";
 import { type Player } from "../../player/player.js";
 import {
   VETTER_RESEARCH_SLOTS,
@@ -30,10 +29,6 @@ export class Vetter extends Role {
   nightVisitOthers = false;
   nightVisitFaction = false;
   nightVote = false;
-
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
 
   /**
    * Handles night action to toggle research mode
@@ -102,11 +97,7 @@ export class Vetter extends Role {
           name: "receiveMessage",
           data: {
             message:
-              "You researched into " +
-              randomPlayerOne.playerUsername +
-              " and found out they are " +
-              randomPlayerOne.role.group +
-              ".",
+              `You researched into ${randomPlayerOne.playerUsername} and found out they are ${String(randomPlayerOne.role.group)}.`,
           },
         });
       } else {
@@ -114,18 +105,14 @@ export class Vetter extends Role {
           name: "receiveMessage",
           data: {
             message:
-              "You researched into " +
-              randomPlayerTwo.playerUsername +
-              " and found out they are " +
-              randomPlayerTwo.role.group +
-              ".",
+              `You researched into ${randomPlayerTwo.playerUsername} and found out they are ${String(randomPlayerTwo.role.group)}.`,
           },
         });
       }
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {
-          message: `You have ${this.researchSlots} research sessions left.`,
+          message: `You have ${String(this.researchSlots)} research sessions left.`,
         },
       });
     } catch (error) {

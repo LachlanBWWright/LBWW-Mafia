@@ -1,5 +1,3 @@
-import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
@@ -16,8 +14,4 @@ export class Mafia extends RoleMafia {
   nightVisitOthers = false;
   nightVisitFaction = false;
   nightVote = true;
-
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
 }

@@ -28,6 +28,7 @@
     "expo-secure-store": "^15.0.8",
     "expo-status-bar": "^3.0.9",
     "expo-web-browser": "^15.0.10",
+    "nativewind": "^4.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.83.1",
@@ -51,7 +52,9 @@
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.1.0",
     "metro": "^0.83.3",
+    "postcss": "^8.5.6",
     "prettier": "^3.7.4",
+    "tailwindcss": "^3.4.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.32.1"
   },

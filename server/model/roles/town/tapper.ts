@@ -1,5 +1,4 @@
 import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
@@ -17,10 +16,6 @@ export class Tapper extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   handleDayAction(recipient: Player) {
     //Handles the class' daytime action
     if (recipient == this.player) {
@@ -28,7 +23,7 @@ export class Tapper extends Role {
         name: "receiveMessage",
         data: { message: "You cannot tap yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {
@@ -51,7 +46,7 @@ export class Tapper extends Role {
         name: "receiveMessage",
         data: { message: "You cannot tap yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {
@@ -80,8 +75,7 @@ export class Tapper extends Role {
           },
         },
       );
-      if (this.dayVisiting !== null && this.dayVisiting !== undefined)
-        this.dayVisiting.receiveDayVisit(this);
+      this.dayVisiting.receiveDayVisit(this);
       this.dayVisiting.nightTapped = this;
     }
   }

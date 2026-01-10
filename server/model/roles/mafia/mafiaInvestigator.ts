@@ -19,10 +19,6 @@ export class MafiaInvestigator extends RoleMafia {
   nightVisitFaction = false;
   nightVote = true;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
@@ -30,7 +26,7 @@ export class MafiaInvestigator extends RoleMafia {
         name: "receiveMessage",
         data: { message: "You cannot inspect yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {

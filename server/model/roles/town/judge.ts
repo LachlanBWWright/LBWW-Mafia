@@ -1,5 +1,4 @@
 import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 import {
@@ -27,10 +26,6 @@ export class Judge extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   /**
    * Processes night action to inspect a target player
    * @param recipient The player to investigate
@@ -42,7 +37,7 @@ export class Judge extends Role {
         name: "receiveMessage",
         data: { message: "You cannot inspect your own alignment." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {
@@ -76,16 +71,15 @@ export class Judge extends Role {
           }
         }
 
+        const randomRoleGroup = livingPlayerList[
+            Math.floor(Math.random() * livingPlayerList.length)
+        ]?.role.group;
+
         this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
           name: "receiveMessage",
           data: {
             message:
-              this.visiting.player.playerUsername +
-              "'s alignment is for the " +
-              livingPlayerList[
-                Math.floor(Math.random() * livingPlayerList.length)
-              ]?.role.group +
-              " faction.",
+              `${this.visiting.player.playerUsername}'s alignment is for the ${String(randomRoleGroup)} faction.`,
           },
         });
       } else {
@@ -94,10 +88,7 @@ export class Judge extends Role {
           name: "receiveMessage",
           data: {
             message:
-              this.visiting.player.playerUsername +
-              "'s alignment is for the " +
-              this.visiting.group +
-              " faction.",
+              `${this.visiting.player.playerUsername}'s alignment is for the ${this.visiting.group} faction.`,
           },
         });
       }

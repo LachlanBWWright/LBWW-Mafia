@@ -27,10 +27,6 @@ export class Doctor extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   /**
    * Processes night action to select a player to heal
    * @param recipient The player to heal (cannot be self)
@@ -42,7 +38,7 @@ export class Doctor extends Role {
         name: "receiveMessage",
         data: { message: "You cannot heal yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {

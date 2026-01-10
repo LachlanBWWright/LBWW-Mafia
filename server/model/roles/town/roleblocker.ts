@@ -27,10 +27,6 @@ export class Roleblocker extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
-
   /**
    * Processes night action to select a target to roleblock
    * @param recipient The player to roleblock
@@ -42,7 +38,7 @@ export class Roleblocker extends Role {
         name: "receiveMessage",
         data: { message: "You cannot block yourself." },
       });
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
+    } else if (recipient.isAlive) {
       this.room.socketHandler.sendPlayerMessage(this.player.socketId, {
         name: "receiveMessage",
         data: {

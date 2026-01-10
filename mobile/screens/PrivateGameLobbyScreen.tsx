@@ -18,6 +18,10 @@ export function PrivateGameLobbyScreen({
 
   const joinGameMutation = api.demo.joinDemo.useMutation({
     onSuccess: (data) => {
+      if (!data) {
+        Alert.alert("Error", "Failed to join game: No data returned");
+        return;
+      }
       navigation.navigate("GameScreen", {
         lobbyId: data.roomCode,
         title: data.roomCode,

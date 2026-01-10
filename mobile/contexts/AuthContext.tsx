@@ -52,18 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  function signIn(_idToken: string) {
-    try {
-      setIsLoading(true);
-      // TODO: Call tRPC googleMobileAuth endpoint
-      // For now, we'll throw an error to direct users to demo mode
-      throw new Error('Google authentication not yet implemented');
-    } catch (error) {
-      console.error('Sign in failed:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+  function signIn(_idToken: string): Promise<void> {
+    setIsLoading(true);
+    // TODO: Call tRPC googleMobileAuth endpoint
+    // For now, we'll throw an error to direct users to demo mode
+    setIsLoading(false);
+    return Promise.reject(new Error('Google authentication not yet implemented'));
   }
 
   async function signOut() {

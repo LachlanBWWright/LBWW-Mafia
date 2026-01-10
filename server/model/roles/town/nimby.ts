@@ -1,5 +1,4 @@
 import { type Player } from "../../player/player.js";
-import { type Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleName, RoleGroup } from "../../../../shared/roles/roleEnums.js";
 
@@ -18,10 +17,6 @@ export class Nimby extends Role {
   nightVisitOthers = false;
   nightVisitFaction = false;
   nightVote = false;
-
-  constructor(room: Room, player: Player) {
-    super(room, player);
-  }
 
   handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
@@ -61,7 +56,7 @@ export class Nimby extends Role {
       for (const visitor of this.visiting.visitors) {
         if (!visitor) continue;
         // If the visitor is not the Nimby or the Nimby's target, and the visitor has no damage, set their damage to 1
-        if (visitor != this && visitor != this.visiting) {
+        if (visitor != this) {
           if (visitor.damage == 0) visitor.damage = 1;
           //this.visiting.attackers.push(this); Deliberately excluded at this point
         }
