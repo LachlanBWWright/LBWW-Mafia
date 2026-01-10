@@ -8,10 +8,12 @@ import {
   FlatList,
   DrawerLayoutAndroid,
   Vibration,
+  StyleSheet,
 } from "react-native";
 import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
 import io from "socket.io-client";
+import { commonStyles } from "../styles/commonStyles";
 
 type Player = {
   name: string;
@@ -19,6 +21,52 @@ type Player = {
   role?: string;
   isUser?: boolean;
 };
+
+const styles = StyleSheet.create({
+  messageContainer: {
+    backgroundColor: "#CCCCCC",
+    flex: 1,
+    borderRadius: 10,
+    padding: 10,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignSelf: "stretch",
+    marginTop: "auto",
+    paddingVertical: 4,
+    justifyContent: "space-between",
+  },
+  textInput: {
+    borderColor: "#0000FF",
+    borderWidth: 1,
+    borderRadius: 5,
+    flex: 1,
+    marginRight: 5,
+  },
+  buttonRow: {
+    alignSelf: "stretch",
+    marginTop: "auto",
+    paddingVertical: 4,
+    borderRadius: 10,
+    justifyContent: "flex-end",
+  },
+  playerContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignSelf: "stretch",
+    flex: 1,
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#000000",
+    borderRadius: 5,
+    padding: 5,
+    margin: 2,
+  },
+  playerName: {
+    flexGrow: 1,
+  },
+});
 
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 export function GameScreen({ route, navigation }: GameScreenProps) {
@@ -187,27 +235,13 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         />
       )}
     >
-      <View
-        style={{
-          alignSelf: "stretch",
-          marginTop: "auto",
-          flex: 1,
-          padding: 20,
-        }}
-      >
-        <Text style={{ justifyContent: "flex-start", alignSelf: "center" }}>
+      <View style={commonStyles.container}>
+        <Text style={commonStyles.centeredText}>
           Name: "{route.params.name}"{" "}
           {playerRole !== "" ? "Role: " + playerRole + " | " : " | "}
           {time}: {dayNumber} | Time Left: {timeLeft}
         </Text>
-        <View
-          style={{
-            backgroundColor: "#CCCCCC",
-            flex: 1,
-            borderRadius: 10,
-            padding: 10,
-          }}
-        >
+        <View style={styles.messageContainer}>
           <FlatList
             ref={flatList}
             data={messages}
@@ -219,28 +253,14 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         </View>
 
         {canTalk ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignSelf: "stretch",
-              marginTop: "auto",
-              paddingVertical: 4,
-              justifyContent: "space-between",
-            }}
-          >
+          <View style={styles.inputRow}>
             <TextInput
               onChangeText={(text) => {
                 setMessage(text);
               }}
               placeholder={"Send a message"}
               value={message}
-              style={{
-                borderColor: "#0000FF",
-                borderWidth: 1,
-                borderRadius: 5,
-                flex: 1,
-                marginRight: 5,
-              }}
+              style={styles.textInput}
               numberOfLines={2}
               maxLength={500}
               multiline={true}
@@ -266,15 +286,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
             )}
           </View>
         ) : (
-          <View
-            style={{
-              alignSelf: "stretch",
-              marginTop: "auto",
-              paddingVertical: 4,
-              borderRadius: 10,
-              justifyContent: "flex-end",
-            }}
-          >
+          <View style={styles.buttonRow}>
             <Button
               title="Disconnect"
               onPress={() => navigation.dispatch(StackActions.popToTop())}
@@ -306,22 +318,12 @@ function PlayerInList(props: {
 
   return (
     <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        alignSelf: "stretch",
-        flex: 1,
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: color,
-        borderWidth: 2,
-        borderColor: "#000000",
-        borderRadius: 5,
-        padding: 5,
-        margin: 2,
-      }}
+      style={[
+        styles.playerContainer,
+        { backgroundColor: color },
+      ]}
     >
-      <Text style={{ flexGrow: 1 }}>
+      <Text style={styles.playerName}>
         {props.player.name}{" "}
         {props.player.role !== undefined ? "(" + props.player.role + ")" : ""}
       </Text>
