@@ -32,7 +32,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [time, setTime] = useState("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [messages, addMessage] = useState(new Array<string>());
+  const [messages, addMessage] = useState<string[]>([]);
   const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
   const [visiting, setVisiting] = useState<String | null>();
   const [votingFor, setVotingFor] = useState<String | null>();
@@ -55,11 +55,11 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
     socket.on("receive-player-list", (listJson: Array<Player>) => {
       //Receive all players upon joining, and the game starting
-      let list = new Array<Player>();
+      const list: Player[] = [];
       listJson.map((instance) => {
         list.push(instance);
       });
-      setPlayerList((currentList) => list);
+      setPlayerList(() => list);
     });
 
     socket.on("receive-new-player", (playerJson: Player) => {
@@ -161,7 +161,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off("update-player-visit");
       socket.disconnect();
     };
-  }, []);
+  }, [socket, navigation, route.params.name, route.params.lobbyId]);
 
   const flatList: React.RefObject<FlatList> = React.useRef(null);
   const drawer: React.RefObject<DrawerLayoutAndroid> = React.useRef(null);
@@ -196,7 +196,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       >
         <Text style={{ justifyContent: "flex-start", alignSelf: "center" }}>
           Name: "{route.params.name}"{" "}
-          {playerRole != "" ? "Role: " + playerRole + " | " : " | "}
+          {playerRole !== "" ? "Role: " + playerRole + " | " : " | "}
           {time}: {dayNumber} | Time Left: {timeLeft}
         </Text>
         <View
@@ -245,7 +245,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
               multiline={true}
               returnKeyType={"send"}
             />
-            {message.length != 0 ? (
+            {message.length !== 0 ? (
               <Button
                 title="→"
                 onPress={() => {
@@ -301,7 +301,7 @@ function PlayerInList(props: {
       else if (props.player.isUser === true) setColor("#3333FF");
       else if (props.player.isAlive === true) setColor("#33FF33");
     }
-  }, [props.player.isAlive]);
+  }, [props.player.isAlive, props.player.isUser]);
 
   return (
     <View

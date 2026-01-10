@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { HomeScreen } from "./screens/HomeScreen";
@@ -28,7 +28,7 @@ export default function App() {
         <Stack.Screen
           name="HomeScreen"
           component={HomeScreen}
-          options={({ navigation, route }) => ({
+          options={({ navigation }) => ({
             title: "MERN Mafia",
             headerRight: () => (
               <View style={{ flexDirection: "row" }}>
@@ -79,9 +79,9 @@ export default function App() {
         <Stack.Screen
           name="GameScreen"
           component={GameScreen}
-          options={({ navigation, route }) => ({
+          options={({ route }) => ({
             title: `${route.params.title}`,
-            headerLeft: () => <Text></Text>,
+            headerLeft: () => <Text />,
           })}
         />
       </Stack.Navigator>

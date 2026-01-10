@@ -5,7 +5,7 @@ import { StackParamList } from "../App";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
 
-export function HomeScreen({ route, navigation }: HomeScreenProps) {
+export function HomeScreen({ navigation }: HomeScreenProps) {
   const [name, setName] = useState("");
   const [disabled, setDisabled] = useState(true);
 
@@ -26,7 +26,7 @@ export function HomeScreen({ route, navigation }: HomeScreenProps) {
       <Text
         style={{ justifyContent: "flex-start", alignSelf: "center", flex: 1 }}
       >
-        {name.length != 0 ? `Your name is \"${name}\"` : ""}
+        {name.length !== 0 ? `Your name is "${name}"` : ""}
       </Text>
 
       <View style={{ alignContent: "space-between" }}>

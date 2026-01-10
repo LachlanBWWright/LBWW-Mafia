@@ -19,7 +19,7 @@ export function HowToPlayScreen() {
     >
       <FlatList
         data={items}
-        renderItem={({ item, index, separators }) => (
+        renderItem={({ item }) => (
           <HowToPlayItem question={item.question} answer={item.answer} />
         )}
       />
