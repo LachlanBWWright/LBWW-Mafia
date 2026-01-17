@@ -8,14 +8,15 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { Header } from "~/components/header";
+import { Footer } from "~/components/footer";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <Header />
       
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto flex-1 px-4 py-16">
         <div className="flex flex-col items-center justify-center space-y-8 text-center">
           {/* Title */}
           <div className="space-y-4">
@@ -30,11 +31,11 @@ export default function HomePage() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col gap-4 sm:flex-row">
-            <Button size="lg" className="text-base">
-              Play Now
+            <Button size="lg" className="text-base" asChild>
+              <Link href="/lobby">Play Now</Link>
             </Button>
-            <Button size="lg" variant="outline" className="text-base">
-              Learn More
+            <Button size="lg" variant="outline" className="text-base" asChild>
+              <Link href="/how-to-play">Learn More</Link>
             </Button>
           </div>
         </div>
@@ -143,11 +144,13 @@ export default function HomePage() {
             Join thousands of players in the ultimate game of deception and
             deduction
           </p>
-          <Button size="lg" className="text-base">
-            Start Playing Now
+          <Button size="lg" className="text-base" asChild>
+            <Link href="/lobby">Start Playing Now</Link>
           </Button>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

@@ -13,6 +13,12 @@ export function Header() {
           </Link>
           <nav className="flex items-center gap-6 text-sm">
             <Link
+              href="/lobby"
+              className="transition-colors hover:text-foreground/80 text-foreground/60"
+            >
+              Lobby
+            </Link>
+            <Link
               href="/how-to-play"
               className="transition-colors hover:text-foreground/80 text-foreground/60"
             >
@@ -30,7 +36,9 @@ export function Header() {
           <Button variant="ghost" size="sm">
             Sign In
           </Button>
-          <Button size="sm">Play Now</Button>
+          <Button size="sm" asChild>
+            <Link href="/lobby">Play Now</Link>
+          </Button>
         </div>
       </div>
     </header>
