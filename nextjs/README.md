@@ -1,29 +1,55 @@
-# Create T3 App
+# MERN Mafia - Next.js App
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+This is the Next.js web application for MERN Mafia, built with the [T3 Stack](https://create.t3.gg/).
 
-## What's next? How do I make an app with this?
+## Tech Stack
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+The application uses modern web technologies:
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+- [Next.js](https://nextjs.org) - React framework for production
+- [NextAuth.js](https://next-auth.js.org) - Authentication for Next.js
+- [Drizzle ORM](https://orm.drizzle.team) - TypeScript ORM with SQLite
+- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
+- [shadcn/ui](https://ui.shadcn.com) - Re-usable component library
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+## Getting Started
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Set up your environment variables (copy `.env.example` to `.env` and fill in values)
+
+3. Run database migrations:
+```bash
+npm run db:push
+```
+
+4. Start the development server:
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to see the app.
+
+## Database
+
+The app uses Drizzle ORM with SQLite for local development. The shared schema is located at `/db/schema.ts` in the repository root.
+
+### Database Commands
+
+- `npm run db:generate` - Generate migrations
+- `npm run db:migrate` - Run migrations
+- `npm run db:push` - Push schema to database
+- `npm run db:studio` - Open Drizzle Studio
 
 ## Learn More
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+- [T3 Stack Documentation](https://create.t3.gg/)
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Drizzle Documentation](https://orm.drizzle.team/docs/overview)
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+## Deployment
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+Follow the T3 Stack deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker).
