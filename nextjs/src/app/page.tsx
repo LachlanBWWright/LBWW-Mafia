@@ -7,10 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
+import { Header } from "~/components/header";
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
+      <Header />
+      
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="flex flex-col items-center justify-center space-y-8 text-center">
