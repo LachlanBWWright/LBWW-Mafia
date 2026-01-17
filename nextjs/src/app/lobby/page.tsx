@@ -1,5 +1,4 @@
 import { Header } from "~/components/header";
-import { Footer } from "~/components/footer";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -19,10 +18,10 @@ export default function LobbyPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto flex-1 px-4 py-16">
+      <div className="container mx-auto px-4 py-16">
         <div className="mx-auto max-w-6xl">
           <div className="mb-12">
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
@@ -163,13 +162,6 @@ export default function LobbyPage() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-        </div>
-      </div>
-      
-      <Footer />
     </div>
   );
 }

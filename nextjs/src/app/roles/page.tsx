@@ -232,10 +232,3 @@ export default function RolesPage() {
     </div>
   );
 }
-        </div>
-      </div>
-      
-      <Footer />
-    </div>
-  );
-}
