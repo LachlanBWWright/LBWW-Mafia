@@ -32,6 +32,11 @@ export function Footer() {
                   Roles
                 </Link>
               </li>
+              <li>
+                <Link href="/about" className="hover:text-foreground">
+                  About
+                </Link>
+              </li>
             </ul>
           </div>
 
