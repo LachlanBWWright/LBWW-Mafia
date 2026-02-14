@@ -136,7 +136,7 @@ export function addSocketListeners(
             console.log("END");
           },
           (error) => {
-            console.error("Captcha verification failed: " + error);
+            console.error(`Captcha verification failed: ${String(error)}`);
             cb(2);
           },
         );
