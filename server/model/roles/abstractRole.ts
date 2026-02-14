@@ -5,6 +5,7 @@ import { io } from "../../servers/socket.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Jailor } from "./town/jailor.js";
+import { fromThrowable } from "neverthrow";
 
 export abstract class Role {
   room: Room;
@@ -100,16 +101,20 @@ export abstract class Role {
       );
     } else {
       //Calls the function for handling the night chat.
-      try {
-        this.faction.handleNightMessage(message, this.player.playerUsername);
-        if (this.nightTapped != false && this.nightTapped !== true)
-          io.to(this.nightTapped.player.socketId).emit(
-            "receive-chat-message",
-            this.player.playerUsername + ": " + message,
-          );
-      } catch (error) {
-        console.log(error);
-      }
+      const handleNightMessage = fromThrowable(
+        () => {
+          this.faction.handleNightMessage(message, this.player.playerUsername);
+          if (this.nightTapped != false && this.nightTapped !== true)
+            io.to(this.nightTapped.player.socketId).emit(
+              "receive-chat-message",
+              this.player.playerUsername + ": " + message,
+            );
+        },
+        (error) => error,
+      );
+      const result = handleNightMessage();
+
+      if (result.isErr()) console.error(result.error);
     }
   }
 
