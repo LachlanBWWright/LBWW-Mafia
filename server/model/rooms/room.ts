@@ -9,6 +9,7 @@ import { BlankRole } from "../roles/blankRole.js";
 import { Framer } from "../roles/neutral/framer.js";
 import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { names } from "../player/names/namesList.js";
+import { fromThrowable } from "neverthrow";
 
 const gameSchema = new mongoose.Schema({
   roomName: String,
@@ -164,35 +165,41 @@ export class Room {
     message: string,
     isDay: boolean,
   ) {
-    try {
-      if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        playerSocket.data.position === undefined
-      )
-        return;
+    const handleMessage = fromThrowable(
+      () => {
+        if (
+          (!isDay && this.time === "day") ||
+          (isDay && this.time === "night") ||
+          playerSocket.data.position === undefined
+        )
+          return;
 
-      let foundPlayer = this.playerList[playerSocket.data.position];
-      if (this.started) {
-        //If the game has started, handle the message with the role object
-        if (foundPlayer.isAlive) foundPlayer.role.handleMessage(message);
-        //Doesn't start with either - send as a regular message
-        else
-          io.to(playerSocket.id).emit(
-            "receiveMessage",
-            "You cannot speak, as you are dead.",
-          );
-      } else
-        io.to(this.name).emit(
-          "receive-chat-message",
-          foundPlayer.playerUsername + ": " + message,
-        ); //If the game hasn't started, no roles have been assigned, just send the message directly
-    } catch (error) {
+        let foundPlayer = this.playerList[playerSocket.data.position];
+        if (this.started) {
+          //If the game has started, handle the message with the role object
+          if (foundPlayer.isAlive) foundPlayer.role.handleMessage(message);
+          //Doesn't start with either - send as a regular message
+          else
+            io.to(playerSocket.id).emit(
+              "receiveMessage",
+              "You cannot speak, as you are dead.",
+            );
+        } else
+          io.to(this.name).emit(
+            "receive-chat-message",
+            foundPlayer.playerUsername + ": " + message,
+          ); //If the game hasn't started, no roles have been assigned, just send the message directly
+      },
+      (error) => error,
+    );
+    const result = handleMessage();
+
+    if (result.isErr()) {
       io.to(playerSocket.id).emit(
         "receiveMessage",
         "You cannot speak, as you are dead. Or an error occured.",
       );
-      console.log(error); //Error is thrown if a player cannot be found
+      console.error(result.error); //Error is thrown if a player cannot be found
     }
   }
 
