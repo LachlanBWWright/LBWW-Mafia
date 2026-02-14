@@ -14,6 +14,6 @@ app.use(express.static(path.join(__dirname + "/../client/build"))); //Serves the
 
 export const httpServer = createServer(app);
 
-app.get("*", (_, res) => {
+app.get(/.*/, (_, res) => {
   res.sendFile(path.join(__dirname + "/../client/build/index.html"));
 });

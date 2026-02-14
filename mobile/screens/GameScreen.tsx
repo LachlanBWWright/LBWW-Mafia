@@ -14,6 +14,7 @@ import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
 import io from "socket.io-client";
 import { commonStyles } from "../styles/commonStyles";
+import { colors } from "../styles/colors";
 
 type Player = {
   name: string;
@@ -24,7 +25,7 @@ type Player = {
 
 const styles = StyleSheet.create({
   messageContainer: {
-    backgroundColor: "#CCCCCC",
+    backgroundColor: colors.surface,
     flex: 1,
     borderRadius: 10,
     padding: 10,
@@ -37,11 +38,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   textInput: {
-    borderColor: "#0000FF",
+    borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 5,
     flex: 1,
     marginRight: 5,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceMuted,
   },
   buttonRow: {
     alignSelf: "stretch",
@@ -58,13 +61,17 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#000000",
+    borderColor: colors.border,
     borderRadius: 5,
     padding: 5,
     margin: 2,
   },
   playerName: {
     flexGrow: 1,
+    color: colors.textPrimary,
+  },
+  chatMessage: {
+    color: colors.textPrimary,
   },
 });
 
@@ -83,8 +90,8 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState<string[]>([]);
   const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
-  const [_visiting, setVisiting] = useState<String | null>();
-  const [_votingFor, setVotingFor] = useState<String | null>();
+  const [_visiting, setVisiting] = useState<string | null>();
+  const [_votingFor, setVotingFor] = useState<string | null>();
 
   const [_drawerOpened, _setDrawerOpened] = useState(false);
 
@@ -212,8 +219,8 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     };
   }, [socket, navigation, route.params.name, route.params.lobbyId]);
 
-  const flatList: React.RefObject<FlatList> = React.useRef(null);
-  const drawer: React.RefObject<DrawerLayoutAndroid> = React.useRef(null);
+  const flatList = React.useRef<FlatList<string>>(null);
+  const drawer = React.useRef<DrawerLayoutAndroid>(null);
 
   return (
     <DrawerLayoutAndroid
@@ -245,7 +252,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
           <FlatList
             ref={flatList}
             data={messages}
-            renderItem={({ item }) => <Text>{item}</Text>}
+            renderItem={({ item }) => <Text style={styles.chatMessage}>{item}</Text>}
             onContentSizeChange={() => {
               if (flatList.current) flatList.current.scrollToEnd();
             }}
@@ -261,6 +268,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
               placeholder={"Send a message"}
               value={message}
               style={styles.textInput}
+              placeholderTextColor={colors.textSecondary}
               numberOfLines={2}
               maxLength={500}
               multiline={true}
@@ -273,7 +281,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
                   socket.emit("messageSentByUser", message);
                   setMessage("");
                 }}
-                color={"#3333FF"}
+                color={colors.accent}
               />
             ) : (
               <Button
@@ -281,7 +289,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
                 onPress={() => {
                   if (drawer.current) drawer.current.openDrawer();
                 }}
-                color={"#FF0000"}
+                color={colors.danger}
               />
             )}
           </View>
@@ -290,7 +298,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
             <Button
               title="Disconnect"
               onPress={() => navigation.dispatch(StackActions.popToTop())}
-              color={"#FF0000"}
+              color={colors.danger}
             />
           </View>
         )}
@@ -301,18 +309,17 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
 function PlayerInList(props: {
   player: Player;
-  socket: any;
+  socket: { emit: (event: string, ...args: unknown[]) => void };
   setMessage: Dispatch<SetStateAction<string>>;
   time: string;
 }) {
-  //TODO: Consider fixing the 'any'
-  const [color, setColor] = useState("#FFFFFF");
+  const [color, setColor] = useState(colors.surfaceMuted);
 
   useEffect(() => {
     if (props.player.isAlive !== undefined) {
-      if (props.player.isAlive === false) setColor("#FF0000");
-      else if (props.player.isUser === true) setColor("#3333FF");
-      else if (props.player.isAlive === true) setColor("#33FF33");
+      if (props.player.isAlive === false) setColor(colors.danger);
+      else if (props.player.isUser === true) setColor(colors.accent);
+      else if (props.player.isAlive === true) setColor(colors.success);
     }
   }, [props.player.isAlive, props.player.isUser]);
 

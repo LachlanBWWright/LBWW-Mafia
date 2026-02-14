@@ -7,14 +7,17 @@ import {
   StyleSheet,
 } from "react-native";
 import { commonStyles } from "../styles/commonStyles";
+import { colors } from "../styles/colors";
 
 const styles = StyleSheet.create({
   question: {
     fontWeight: "bold",
     fontSize: 20,
+    color: colors.textPrimary,
   },
   answer: {
     fontSize: 14,
+    color: colors.textSecondary,
   },
 });
 

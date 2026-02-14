@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Button } from "~/components/ui/button";
+import { Separator } from "~/components/ui/separator";
 
 export function Footer() {
   return (
@@ -18,24 +20,24 @@ export function Footer() {
             <h4 className="mb-4 text-sm font-semibold">Game</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/lobby" className="hover:text-foreground">
-                  Play Now
-                </Link>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link href="/lobby">Play Now</Link>
+                </Button>
               </li>
               <li>
-                <Link href="/how-to-play" className="hover:text-foreground">
-                  How to Play
-                </Link>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link href="/how-to-play">How to Play</Link>
+                </Button>
               </li>
               <li>
-                <Link href="/roles" className="hover:text-foreground">
-                  Roles
-                </Link>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link href="/roles">Roles</Link>
+                </Button>
               </li>
               <li>
-                <Link href="/about" className="hover:text-foreground">
-                  About
-                </Link>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link href="/about">About</Link>
+                </Button>
               </li>
             </ul>
           </div>
@@ -44,14 +46,21 @@ export function Footer() {
             <h4 className="mb-4 text-sm font-semibold">Resources</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <a href="https://github.com/LachlanBWWright/MERN-Mafia" className="hover:text-foreground" target="_blank" rel="noopener noreferrer">
-                  GitHub
-                </a>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <a
+                    href="https://github.com/LachlanBWWright/MERN-Mafia"
+                    className="hover:text-foreground"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    GitHub
+                  </a>
+                </Button>
               </li>
               <li>
-                <Link href="/docs" className="hover:text-foreground">
-                  Documentation
-                </Link>
+                <Button variant="link" className="h-auto p-0" asChild>
+                  <Link href="/docs">Documentation</Link>
+                </Button>
               </li>
             </ul>
           </div>
@@ -67,7 +76,8 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t border-border/40 pt-8 text-center text-sm text-muted-foreground">
+        <Separator className="mt-8" />
+        <div className="pt-8 text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} MERN Mafia. Built with ❤️ using modern web technologies.</p>
         </div>
       </div>

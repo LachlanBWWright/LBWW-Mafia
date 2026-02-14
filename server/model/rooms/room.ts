@@ -54,6 +54,15 @@ export class Room {
     this.gameDB = new Game({ name: this.name });
   }
 
+  private runSafely(action: () => void) {
+    const safeAction = fromThrowable(action, (error) => error);
+    const result = safeAction();
+
+    if (result.isErr()) {
+      console.error(result.error);
+    }
+  }
+
   //Adds a new player to the room, and makes the game start if it is full. Returns error code if the user failed to join, or their username
   addPlayer(playerSocket: PlayerSocket) {
     let playerSocketId = playerSocket.id;
@@ -204,7 +213,7 @@ export class Room {
   }
 
   handleVote(playerSocket: PlayerSocket, recipient: number, isDay: boolean) {
-    try {
+    this.runSafely(() => {
       if (
         (!isDay && this.time === "day") ||
         (isDay && this.time === "night") ||
@@ -266,9 +275,7 @@ export class Room {
           );
       } else
         io.to(playerSocket.id).emit("receiveMessage", "Your vote was invalid.");
-    } catch (error) {
-      console.log(error);
-    }
+    });
   }
 
   handleWhisper(
@@ -277,7 +284,7 @@ export class Room {
     message: string,
     isDay: boolean,
   ) {
-    try {
+    this.runSafely(() => {
       if (
         (!isDay && this.time === "day") ||
         (isDay && this.time == "night") ||
@@ -344,9 +351,7 @@ export class Room {
           "receiveMessage",
           "You didn't whisper to a valid recipient, or they are dead.",
         );
-    } catch (error) {
-      console.log(error);
-    }
+    });
   }
 
   handleVisit(
@@ -354,7 +359,7 @@ export class Room {
     recipient: number | null,
     isDay: boolean,
   ) {
-    try {
+    this.runSafely(() => {
       if (
         (!isDay && this.time === "day") ||
         (isDay && this.time === "night") ||
@@ -382,9 +387,7 @@ export class Room {
           else foundPlayer.role.cancelNightAction();
         }
       }
-    } catch (error) {
-      console.log(error);
-    }
+    });
   }
 
   async startGame() {
@@ -451,13 +454,11 @@ export class Room {
       timeLeft: 5,
     });
     setTimeout(() => {
-      try {
+      this.runSafely(() => {
         for (let i = 0; i < this.playerList.length; i++)
           if (this.playerList[i].isAlive) this.playerList[i].role.dayVisit();
         io.to(this.name).emit("receiveMessage", "Night 1 has started.");
-      } catch (error) {
-        console.log(error);
-      }
+      });
       this.startNightSession(1, sessionLength);
     }, 5000); //Starts the first day quicker
   }
@@ -515,7 +516,7 @@ export class Room {
     );
 
     setTimeout(() => {
-      try {
+      this.runSafely(() => {
         if (!this.confesserVotedOut)
           for (let i = 0; i < livingPlayerList.length; i++) {
             //Eliminates the player if they have a majority of the votes.
@@ -574,10 +575,7 @@ export class Room {
             this.playerList[i].hasVoted = false;
           }
         }
-      } catch (error) {
-        //If something goes wrong in the game logic, just start the next period of time
-        console.log(error);
-      }
+      });
 
       //Checks if the game is over, and ends the room, or starts the next night.
       if (dayNumber < 25) {
@@ -603,7 +601,7 @@ export class Room {
     }); //TimeLeft is in seconds
 
     setTimeout(() => {
-      try {
+      this.runSafely(() => {
         this.time = "undefined"; //Prevents users from changing their visits
 
         //This handles factional decisions, and lets the factions assign the members "visiting" variable.
@@ -651,10 +649,7 @@ export class Room {
             this.playerList[i].role.nightTapped = false;
           }
         }
-      } catch (error) {
-        //If something goes wrong, just start the next period of time
-        console.log(error);
-      }
+      });
 
       const winningFaction = this.findWinningFaction();
       if (winningFaction !== null) {

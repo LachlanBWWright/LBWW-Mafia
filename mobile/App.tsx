@@ -1,5 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  DarkTheme,
+  NavigationContainer,
+  Theme,
+} from "@react-navigation/native";
 import {
   createNativeStackNavigator,
   NativeStackNavigationProp,
@@ -12,6 +16,7 @@ import { SettingsScreen } from "./screens/SettingsScreen";
 import { GameScreen } from "./screens/GameScreen";
 import React from "react";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import { colors } from "./styles/colors";
 
 export type StackParamList = {
   HomeScreen: undefined;
@@ -23,6 +28,19 @@ export type StackParamList = {
 };
 
 const Stack = createNativeStackNavigator<StackParamList>();
+
+const appTheme: Theme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.background,
+    card: colors.surface,
+    border: colors.border,
+    text: colors.textPrimary,
+    primary: colors.accent,
+    notification: colors.danger,
+  },
+};
 
 const styles = StyleSheet.create({
   headerRight: {
@@ -44,7 +62,7 @@ function HeaderRight({
         <Icon
           name="help"
           size={30}
-          color="#3333FF"
+          color={colors.accent}
           style={styles.iconPadding}
         />
       </Pressable>
@@ -52,7 +70,7 @@ function HeaderRight({
         <Icon
           name="settings"
           size={30}
-          color="#3333FF"
+          color={colors.accent}
           style={styles.iconPadding}
         />
       </Pressable>
@@ -67,17 +85,27 @@ function HeaderLeft() {
 const homeScreenOptions = (navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">) => ({
   title: "MERN Mafia",
   headerRight: () => <HeaderRight navigation={navigation} />,
+  headerStyle: { backgroundColor: colors.surface },
+  headerTintColor: colors.textPrimary,
 });
 
 const gameScreenOptions = (title: string) => ({
   title: title,
   headerLeft: HeaderLeft,
+  headerStyle: { backgroundColor: colors.surface },
+  headerTintColor: colors.textPrimary,
 });
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
+    <NavigationContainer theme={appTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
         <Stack.Screen
           name="HomeScreen"
           component={HomeScreen}

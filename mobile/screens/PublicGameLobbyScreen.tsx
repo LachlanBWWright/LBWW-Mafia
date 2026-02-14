@@ -3,6 +3,7 @@ import { View, Text, FlatList, Button, StyleSheet } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StackParamList } from "../App";
 import { commonStyles } from "../styles/commonStyles";
+import { colors } from "../styles/colors";
 
 interface Lobby {
   name: string;
@@ -23,6 +24,10 @@ const styles = StyleSheet.create({
   },
   lobbyText: {
     flex: 1,
+    color: colors.textPrimary,
+  },
+  loadingText: {
+    color: colors.textSecondary,
   },
 });
 
@@ -61,7 +66,7 @@ export function PublicGameLobbyScreen({
           />
         </View>
       ) : (
-        <Text>Loading... </Text>
+        <Text style={styles.loadingText}>Loading... </Text>
       )}
     </View>
   );
@@ -78,7 +83,7 @@ const LobbyView = (props: {
       </Text>
 
       <Button
-        color="red"
+        color={colors.danger}
         title="Join"
         onPress={() => props.navigate(props.lobby.name)}
       />

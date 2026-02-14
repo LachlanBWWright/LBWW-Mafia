@@ -12,30 +12,18 @@ export function Header() {
             </span>
           </Link>
           <nav className="flex items-center gap-6 text-sm">
-            <Link
-              href="/lobby"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              Lobby
-            </Link>
-            <Link
-              href="/how-to-play"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              How to Play
-            </Link>
-            <Link
-              href="/roles"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              Roles
-            </Link>
-            <Link
-              href="/about"
-              className="transition-colors hover:text-foreground/80 text-foreground/60"
-            >
-              About
-            </Link>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/lobby">Lobby</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/how-to-play">How to Play</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/roles">Roles</Link>
+            </Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/about">About</Link>
+            </Button>
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
