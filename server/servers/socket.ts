@@ -77,13 +77,16 @@ export const io = new Server<
 const playRoom: { current: Room | undefined } = {
   current: undefined,
 };
+const DEBUG_MODE =
+  process.env.DEBUG?.toLowerCase() === "true" ||
+  process.env.debug?.toLowerCase() === "true";
 
 const runSafely = (context: string, action: () => void) => {
   const safeAction = fromThrowable(action, (error) => error);
   const result = safeAction();
 
   if (result.isErr()) {
-    console.log(`${context}: ${String(result.error)}`);
+    console.error(`${context}: ${String(result.error)}`);
   }
 };
 
@@ -108,15 +111,15 @@ export function addSocketListeners(
     //Handle players joining a room
     socket.on(
       "playerJoinRoom",
-      (captchaToken: string, cb: (code: string | number) => void) => {
-        void ResultAsync.fromPromise(
+      async (captchaToken: string, cb: (code: string | number) => void) => {
+        await ResultAsync.fromPromise(
           axios.post(
             `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${process.env.CAPTCHA_KEY}`,
           ),
           (error) => error,
-        )
-          .map((res) => {
-            if (res.data.success || process.env.debug === "true") {
+        ).match(
+          (res) => {
+            if (res.data.success || DEBUG_MODE) {
               console.log("Captcha Success");
               //Blocks players from joining if ReCaptcha V3 score is too low, allows regardless if debug mode is on
               if (playRoom.current?.started || playRoom.current === undefined)
@@ -131,11 +134,12 @@ export function addSocketListeners(
               }
             } else cb(2);
             console.log("END");
-          })
-          .mapErr((error) => {
-            console.log("CatchTest: " + error);
-            //cb(2); //If a room isn't found, socketio tries to callback null.
-          });
+          },
+          (error) => {
+            console.error("Captcha verification failed: " + error);
+            cb(2);
+          },
+        );
       },
     );
 
