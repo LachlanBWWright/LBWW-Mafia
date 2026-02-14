@@ -2,6 +2,7 @@ import { Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
 import { Room } from "../rooms/room.js";
 import { io } from "../../servers/socket.js";
+import { fromThrowable } from "neverthrow";
 
 export class LawmanFaction extends Faction {
   room?: Room;
@@ -27,18 +28,24 @@ export class LawmanFaction extends Faction {
         //Selects a random person to visit
         for (let f = 0; f < 100; f++) {
           //Uses this instead of a while loop just in case some error occurs
-          try {
-            let randomVictim =
-              this.room.playerList[
-                Math.floor(Math.random() * this.room.playerList.length)
-              ];
-            if (randomVictim.isAlive) {
-              console.log(randomVictim.role.name);
-              this.memberList[i].role.visiting = randomVictim.role;
-              f = 1000;
-            }
-          } catch (error) {
-            console.log(error);
+          const setRandomVisit = fromThrowable(
+            () => {
+              let randomVictim =
+                this.room.playerList[
+                  Math.floor(Math.random() * this.room.playerList.length)
+                ];
+              if (randomVictim.isAlive) {
+                console.log(randomVictim.role.name);
+                this.memberList[i].role.visiting = randomVictim.role;
+                f = 1000;
+              }
+            },
+            (error) => error,
+          );
+          const result = setRandomVisit();
+
+          if (result.isErr()) {
+            console.error(result.error);
           }
         }
       }
