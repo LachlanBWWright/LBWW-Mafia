@@ -128,7 +128,7 @@ export default function HomePage() {
               </div>
               <h3 className="mb-2 text-xl font-semibold">Play & Win</h3>
               <p className="text-muted-foreground">
-                Use strategy and deduction to achieve your faction's victory
+                Use strategy and deduction to achieve your faction&#39;s victory
                 condition
               </p>
             </div>

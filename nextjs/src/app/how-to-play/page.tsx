@@ -36,8 +36,8 @@ export default function HowToPlayPage() {
                 and the <span className="font-semibold text-destructive">Mafia</span> (criminals).
               </p>
               <p className="text-muted-foreground">
-                The Town's goal is to identify and eliminate all Mafia members through voting.
-                The Mafia's goal is to eliminate enough Town members to equal or outnumber them.
+                The Town&#39;s goal is to identify and eliminate all Mafia members through voting.
+                The Mafia&#39;s goal is to eliminate enough Town members to equal or outnumber them.
               </p>
             </CardContent>
           </Card>
@@ -56,7 +56,7 @@ export default function HowToPlayPage() {
                 <p className="text-sm text-muted-foreground">
                   Players discuss suspicions, share information from night actions,
                   and try to identify Mafia members. Use logic and observation
-                  to find inconsistencies in others' claims.
+                  to find inconsistencies in others&#39; claims.
                 </p>
               </div>
               <div>
@@ -142,7 +142,7 @@ export default function HowToPlayPage() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-primary">•</span>
-                  <span>Don't reveal your role too early unless necessary</span>
+                  <span>Don&#39;t reveal your role too early unless necessary</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-primary">•</span>

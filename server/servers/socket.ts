@@ -1,5 +1,6 @@
 import { Server, Socket } from "socket.io";
 import axios from "axios";
+import { fromThrowable, ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
 
@@ -77,6 +78,15 @@ const playRoom: { current: Room | undefined } = {
   current: undefined,
 };
 
+const runSafely = (context: string, action: () => void) => {
+  const safeAction = fromThrowable(action, (error) => error);
+  const result = safeAction();
+
+  if (result.isErr()) {
+    console.log(`${context}: ${String(result.error)}`);
+  }
+};
+
 export type PlayerSocket = Socket<
   ClientToServerEvents,
   ServerToClientEvents,
@@ -98,83 +108,79 @@ export function addSocketListeners(
     //Handle players joining a room
     socket.on(
       "playerJoinRoom",
-      async (captchaToken: string, cb: (code: string | number) => void) => {
-        try {
-          let res = await axios.post(
+      (captchaToken: string, cb: (code: string | number) => void) => {
+        void ResultAsync.fromPromise(
+          axios.post(
             `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${process.env.CAPTCHA_KEY}`,
-          );
-          if (res.data.success || process.env.debug === "true") {
-            console.log("Captcha Success");
-            //Blocks players from joining if ReCaptcha V3 score is too low, allows regardless if debug mode is on
-            if (playRoom.current?.started || playRoom.current === undefined)
-              playRoom.current = new Room(roomSize);
-            console.log("playroomCurrent", playRoom.current);
-            if (playRoom.current !== undefined) {
-              socket.data.roomObject = playRoom.current;
-              socket.join(playRoom.current.name); //Joins room, messages will be received accordingly
-              let result = socket.data.roomObject.addPlayer(socket);
-              console.log("Result: " + result);
-              cb(result);
-            }
-          } else cb(2);
-          console.log("END");
-        } catch (error) {
-          console.log("CatchTest: " + error);
-          //cb(2); //If a room isn't found, socketio tries to callback null.
-        }
+          ),
+          (error) => error,
+        )
+          .map((res) => {
+            if (res.data.success || process.env.debug === "true") {
+              console.log("Captcha Success");
+              //Blocks players from joining if ReCaptcha V3 score is too low, allows regardless if debug mode is on
+              if (playRoom.current?.started || playRoom.current === undefined)
+                playRoom.current = new Room(roomSize);
+              console.log("playroomCurrent", playRoom.current);
+              if (playRoom.current !== undefined) {
+                socket.data.roomObject = playRoom.current;
+                socket.join(playRoom.current.name); //Joins room, messages will be received accordingly
+                const result = socket.data.roomObject.addPlayer(socket);
+                console.log("Result: " + result);
+                cb(result);
+              }
+            } else cb(2);
+            console.log("END");
+          })
+          .mapErr((error) => {
+            console.log("CatchTest: " + error);
+            //cb(2); //If a room isn't found, socketio tries to callback null.
+          });
       },
     );
 
     //Handles users disconnecting from a room
     socket.on("disconnect", () => {
-      try {
+      runSafely("Disconnect error", () => {
         if (socket.data.roomObject !== undefined) {
           socket.data.roomObject.removePlayer(socket.id);
         }
-      } catch (error) {
-        console.log("Disconnect error: " + error);
-      }
+      });
     });
 
     //Handle users sending a chat message to all other players
     socket.on("messageSentByUser", (message, isDay: boolean) => {
-      try {
+      runSafely("messageSentByUser error", () => {
         if (message.length > 0 && message.length <= 150) {
           if (socket.data.roomObject !== undefined)
             socket.data.roomObject.handleSentMessage(socket, message, isDay);
         }
-      } catch (error) {
-        console.log(error);
-      }
+      });
     });
 
     //Handles a player voting for another player - Recipient is the player's position in the array
     socket.on("handleVote", (recipient, isDay: boolean) => {
-      try {
+      runSafely("handleVote error", () => {
         if (typeof recipient === "number") {
           if (socket.data.roomObject !== undefined)
             socket.data.roomObject.handleVote(socket, recipient, isDay);
         }
-      } catch (error) {
-        console.log(error);
-      }
+      });
     });
 
     //Handles a player visiting another player - Recipient is the player's position in the array
     socket.on("handleVisit", (recipient, isDay: boolean) => {
-      try {
+      runSafely("handleVisit error", () => {
         if (typeof recipient === "number" || recipient === null) {
           if (socket.data.roomObject !== undefined)
             socket.data.roomObject.handleVisit(socket, recipient, isDay);
         }
-      } catch (error) {
-        console.log(error);
-      }
+      });
     });
 
     //Handles a player whispering to another player - Recipient is the player's position in the array
     socket.on("handleWhisper", (recipient, message, isDay) => {
-      try {
+      runSafely("handleWhisper error", () => {
         if (
           typeof recipient === "number" &&
           message.length > 0 &&
@@ -188,9 +194,7 @@ export function addSocketListeners(
               isDay,
             );
         }
-      } catch (error) {
-        console.log(error);
-      }
+      });
     });
   });
 }

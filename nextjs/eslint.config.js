@@ -2,6 +2,8 @@ import { FlatCompat } from "@eslint/eslintrc";
 import tseslint from "typescript-eslint";
 // @ts-ignore -- no types for this plugin
 import drizzle from "eslint-plugin-drizzle";
+// @ts-ignore -- no types for this plugin
+import neverthrow from "eslint-plugin-neverthrow";
 
 const compat = new FlatCompat({
   baseDirectory: import.meta.dirname,
@@ -16,6 +18,7 @@ export default tseslint.config(
     files: ["**/*.ts", "**/*.tsx"],
     plugins: {
       drizzle,
+      neverthrow,
     },
     extends: [
       ...tseslint.configs.recommended,

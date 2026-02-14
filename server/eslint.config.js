@@ -1,5 +1,6 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
+import neverthrow from "eslint-plugin-neverthrow";
 
 export default [
   {
@@ -13,6 +14,7 @@ export default [
     },
     plugins: {
       "@typescript-eslint": tseslint,
+      neverthrow,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
