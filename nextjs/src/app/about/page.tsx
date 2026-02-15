@@ -1,13 +1,10 @@
 import { Header } from "~/components/header";
-import { Footer } from "~/components/footer";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Separator } from "~/components/ui/separator";
 
 export default function AboutPage() {
   return (
@@ -40,81 +37,6 @@ export default function AboutPage() {
                 The game features multiple roles with unique abilities, day/night cycles, and
                 strategic gameplay that tests your deduction skills and ability to read others.
               </p>
-            </CardContent>
-          </Card>
-
-          {/* Tech Stack */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="text-2xl">Technology Stack</CardTitle>
-              <CardDescription>Built with modern, production-ready technologies</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                  <h3 className="mb-3 font-semibold text-primary">Frontend</h3>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>Next.js 15</strong> - React framework with App Router</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>React 19</strong> - Latest React with server components</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>Tailwind CSS v4</strong> - Utility-first styling</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>shadcn/ui</strong> - Beautiful, accessible components</span>
-                    </li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="mb-3 font-semibold text-primary">Backend</h3>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>Node.js</strong> - JavaScript runtime</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>Express</strong> - Web application framework</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>Socket.IO</strong> - Real-time bidirectional communication</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-primary">•</span>
-                      <span><strong>MongoDB</strong> - NoSQL database</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              <Separator className="my-6" />
-
-              <div>
-                <h3 className="mb-3 font-semibold text-primary">Database & Auth</h3>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-center gap-2">
-                    <span className="text-primary">•</span>
-                    <span><strong>Drizzle ORM</strong> - Type-safe database toolkit</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-primary">•</span>
-                    <span><strong>SQLite/Turso</strong> - Lightweight, edge-ready database</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span className="text-primary">•</span>
-                    <span><strong>NextAuth.js</strong> - Authentication for Next.js</span>
-                  </li>
-                </ul>
-              </div>
             </CardContent>
           </Card>
 
@@ -177,8 +99,6 @@ export default function AboutPage() {
           </Card>
         </div>
       </div>
-      
-      <Footer />
     </div>
   );
 }

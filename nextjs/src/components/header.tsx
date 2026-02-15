@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { Button } from "~/components/ui/button";
 
 export function Header() {
@@ -16,9 +19,6 @@ export function Header() {
               <Link href="/lobby">Lobby</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/how-to-play">How to Play</Link>
-            </Button>
-            <Button variant="ghost" size="sm" asChild>
               <Link href="/roles">Roles</Link>
             </Button>
             <Button variant="ghost" size="sm" asChild>
@@ -27,11 +27,11 @@ export function Header() {
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
-          <Button variant="ghost" size="sm">
-            Sign In
+          <Button variant="ghost" size="sm" onClick={() => signIn("google")}>
+            Sign In with Google
           </Button>
           <Button size="sm" asChild>
-            <Link href="/lobby">Play Now</Link>
+            <Link href="/lobby">Join Game</Link>
           </Button>
         </div>
       </div>
