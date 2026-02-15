@@ -77,7 +77,8 @@ const styles = StyleSheet.create({
 
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 export function GameScreen({ route, navigation }: GameScreenProps) {
-  const [socket] = useState(io("http://mern-mafia.herokuapp.com/"));
+  const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL ?? "http://localhost:8000";
+  const [socket] = useState(io(socketUrl));
   const [message, setMessage] = useState("");
   const [playerRole, setPlayerRole] = useState("");
   const [alive] = useState(true);
@@ -105,7 +106,15 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     //Socket.io Integration - Runs on creation
     socket.on("connect", () => {});
 
-    socket.on("receive-message", (inMsg: string) => {
+    socket.on("receiveMessage", (inMsg: string) => {
+      addMessage((old) => [...old, inMsg]);
+    });
+
+    socket.on("receive-chat-message", (inMsg: string) => {
+      addMessage((old) => [...old, inMsg]);
+    });
+
+    socket.on("receive-whisper-message", (inMsg: string) => {
       addMessage((old) => [...old, inMsg]);
     });
 
@@ -191,24 +200,26 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       }, 1000);
     });
 
-    socket.on("block-messages", () => {
+    socket.on("blockMessages", () => {
       setCanTalk(false);
     });
 
     socket.emit(
       "playerJoinRoom",
-      route.params.name,
-      route.params.lobbyId,
-      (callback: number) => {
-        //TODO: THis is where the socket is connnected to!
-        if (callback !== 0) navigation.dispatch(StackActions.popToTop()); //TODO: Add reason for connection failure.
+      process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ?? "dev-bypass-token",
+      (callback: string | number) => {
+        if (typeof callback !== "string") {
+          navigation.dispatch(StackActions.popToTop());
+        }
       },
     );
 
     return () => {
       //Runs Upon close
-      socket.off("receive-message");
-      socket.off("block-messages");
+      socket.off("receiveMessage");
+      socket.off("receive-chat-message");
+      socket.off("receive-whisper-message");
+      socket.off("blockMessages");
       socket.off("receive-role");
       socket.off("receive-player-list");
       socket.off("receive-new-player");
@@ -217,7 +228,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off("update-player-visit");
       socket.disconnect();
     };
-  }, [socket, navigation, route.params.name, route.params.lobbyId]);
+  }, [socket, navigation, route.params.name]);
 
   const flatList = React.useRef<FlatList<string>>(null);
   const drawer = React.useRef<DrawerLayoutAndroid>(null);
@@ -278,7 +289,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
               <Button
                 title="→"
                 onPress={() => {
-                  socket.emit("messageSentByUser", message);
+                  socket.emit("messageSentByUser", message, time === "Day");
                   setMessage("");
                 }}
                 color={colors.accent}
@@ -344,7 +355,11 @@ function PlayerInList(props: {
         <Button
           title="Visit"
           onPress={() =>
-            props.socket.emit("messageSentByUser", "/c " + props.player.name)
+            props.socket.emit(
+              "messageSentByUser",
+              "/c " + props.player.name,
+              props.time === "Day",
+            )
           }
         />
       )}
@@ -352,7 +367,11 @@ function PlayerInList(props: {
         <Button
           title="Vote"
           onPress={() =>
-            props.socket.emit("messageSentByUser", "/v " + props.player.name)
+            props.socket.emit(
+              "messageSentByUser",
+              "/v " + props.player.name,
+              props.time === "Day",
+            )
           }
         />
       )}

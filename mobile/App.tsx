@@ -9,7 +9,6 @@ import {
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
 import { HomeScreen } from "./screens/HomeScreen";
-import { HowToPlayScreen } from "./screens/HowToPlayScreen";
 import { PrivateGameLobbyScreen } from "./screens/PrivateGameLobbyScreen";
 import { PublicGameLobbyScreen } from "./screens/PublicGameLobbyScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -20,11 +19,10 @@ import { colors } from "./styles/colors";
 
 export type StackParamList = {
   HomeScreen: undefined;
-  HowToPlayScreen: undefined;
   PrivateGameLobbyScreen: undefined;
   PublicGameLobbyScreen: { name: string };
   SettingsScreen: undefined;
-  GameScreen: { lobbyId: string; title: string; name: string };
+  GameScreen: { title: string; name: string };
 };
 
 const Stack = createNativeStackNavigator<StackParamList>();
@@ -58,14 +56,6 @@ function HeaderRight({
 }) {
   return (
     <View style={styles.headerRight}>
-      <Pressable onPress={() => navigation.navigate("HowToPlayScreen")}>
-        <Icon
-          name="help"
-          size={30}
-          color={colors.accent}
-          style={styles.iconPadding}
-        />
-      </Pressable>
       <Pressable onPress={() => navigation.navigate("SettingsScreen")}>
         <Icon
           name="settings"
@@ -110,11 +100,6 @@ export default function App() {
           name="HomeScreen"
           component={HomeScreen}
           options={({ navigation }) => homeScreenOptions(navigation)}
-        />
-        <Stack.Screen
-          name="HowToPlayScreen"
-          component={HowToPlayScreen}
-          options={{ title: "How To Play" }}
         />
         <Stack.Screen
           name="PrivateGameLobbyScreen"

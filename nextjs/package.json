@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build --webpack",
+    "test": "echo \"No tests configured for nextjs\"",
     "check": "eslint . && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
