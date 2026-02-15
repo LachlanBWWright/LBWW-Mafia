@@ -116,20 +116,17 @@ export class Watchman extends Role {
             }
           } else {
             let visitorList = [];
-            for (let i = 0; i < this.visiting.visitors.length; i++) {
-              if (
-                this.visiting.visitors[i].player.isAlive &&
-                this.visiting.visitors[i] != this
-              ) {
+            for (const visitor of this.visiting.visitors) {
+              if (visitor.player.isAlive && visitor != this) {
                 //Lists all visitors, excluding the watchman itself
-                visitorList.push(this.visiting.visitors[i]);
+                visitorList.push(visitor);
               }
             }
 
             let visitorAnnouncement = "The list of visitors is: ";
-            for (let i = 0; i < visitorList.length - 1; i++) {
+            for (const visitor of visitorList.slice(0, -1)) {
               visitorAnnouncement = visitorAnnouncement.concat(
-                visitorList[i].player.playerUsername + ", ",
+                visitor.player.playerUsername + ", ",
               );
             }
             visitorAnnouncement = visitorAnnouncement.concat(

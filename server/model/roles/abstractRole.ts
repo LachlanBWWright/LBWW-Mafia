@@ -26,6 +26,10 @@ export abstract class Role {
   abstract nightVisitOthers: boolean;
   abstract nightVisitFaction: boolean;
   abstract nightVote: boolean;
+  attackVote?: Player | Role | null;
+  isAttacking?: boolean;
+  isInsane?: boolean;
+  victoryCondition?: boolean;
 
   dayVisiting: Role | null = null;
   roleblocking: Role | null = null;

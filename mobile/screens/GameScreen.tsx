@@ -70,6 +70,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     color: colors.textPrimary,
   },
+  playerActionRow: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  drawerHeader: {
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  drawerHeaderText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
   chatMessage: {
     color: colors.textPrimary,
   },
@@ -88,18 +102,12 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [playerRole, setPlayerRole] = useState("");
   const [alive] = useState(true);
 
-  // TODO: These are likely needed for future features
-  const [_textMessage, _setTextMessage] = useState(""); //TODO: Redundant, probably
   const [canTalk, setCanTalk] = useState(true);
   const [time, setTime] = useState("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, addMessage] = useState<string[]>([]);
   const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
-  const [_visiting, setVisiting] = useState<string | null>();
-  const [_votingFor, setVotingFor] = useState<string | null>();
-
-  const [_drawerOpened, _setDrawerOpened] = useState(false);
 
   useEffect(() =>
     navigation.addListener("beforeRemove", (e) => {
@@ -188,12 +196,6 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       //Gets whether it is day or night, and how long there is left in the session
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
-      setVisiting(null);
-      setVotingFor(null);
-      /*         this.setState({time: infoJson.time});
-        this.setState({dayNumber: infoJson.dayNumber});
-        this.setState({visiting: null}); //Resets who the player is visiting
-        this.setState({votingFor: null}); */
       let timeLeftLocal = infoJson.timeLeft;
       let countDown = setInterval(() => {
         if (timeLeftLocal > 0) {
@@ -248,18 +250,25 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       drawerPosition={"right"}
       drawerWidth={300}
       renderNavigationView={() => (
-        //Content of the drawer, should contain the list of players TODO: Make a flatlist
-        <FlatList
-          data={playerList}
-          renderItem={({ item }) => (
-            <PlayerInList
-              player={item}
-              socket={socket}
-              setMessage={setMessage}
-              time={time}
-            />
-          )}
-        />
+        <View>
+          <View style={styles.drawerHeader}>
+            <Text style={styles.drawerHeaderText}>
+              {time} {dayNumber} • {timeLeft}s left
+            </Text>
+            <Text style={styles.drawerHeaderText}>You joined as {route.params.name}</Text>
+          </View>
+          <FlatList
+            data={playerList}
+            renderItem={({ item }) => (
+              <PlayerInList
+                player={item}
+                socket={socket}
+                setMessage={setMessage}
+                time={time}
+              />
+            )}
+          />
+        </View>
       )}
     >
       <View style={commonStyles.container}>
@@ -355,34 +364,34 @@ function PlayerInList(props: {
         {props.player.role !== undefined ? "(" + props.player.role + ")" : ""}
       </Text>
       {props.player.isAlive === true && props.player.isUser !== true && (
-        <Button
-          title="Whisper"
-          onPress={() => props.setMessage("/w " + props.player.name)}
-        />
-      )}
-      {props.player.isAlive === true && (
-        <Button
-          title="Visit"
-          onPress={() =>
-            props.socket.emit(
-              "messageSentByUser",
-              "/c " + props.player.name,
-              props.time === "Day",
-            )
-          }
-        />
-      )}
-      {props.player.isAlive === true && props.time === "Day" && (
-        <Button
-          title="Vote"
-          onPress={() =>
-            props.socket.emit(
-              "messageSentByUser",
-              "/v " + props.player.name,
-              props.time === "Day",
-            )
-          }
-        />
+        <View style={styles.playerActionRow}>
+          <Button
+            title="💬"
+            onPress={() => props.setMessage("/w " + props.player.name)}
+          />
+          <Button
+            title="👁"
+            onPress={() =>
+              props.socket.emit(
+                "messageSentByUser",
+                "/c " + props.player.name,
+                props.time === "Day",
+              )
+            }
+          />
+          {props.time === "Day" && (
+            <Button
+              title="🗳"
+              onPress={() =>
+                props.socket.emit(
+                  "messageSentByUser",
+                  "/v " + props.player.name,
+                  props.time === "Day",
+                )
+              }
+            />
+          )}
+        </View>
       )}
     </View>
   );

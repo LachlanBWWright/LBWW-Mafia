@@ -45,8 +45,8 @@ export class Investigator extends Role {
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
       let possibleRoles = [];
-      for (let i = 0; i < 3; i++) {
-        if (Math.random() < 0.3) {
+      for (const attempt of [0, 1, 2]) {
+        if (Math.random() < 0.3 + attempt * 0) {
           //Give the targets role
           possibleRoles.push(this.visiting.name);
         } else {

@@ -109,14 +109,13 @@ export class Fortifier extends Role {
   handleVisits() {
     //Attacks the attackers of the fortified person's house
     if (this.playerFortified != null && this.visiting !== null) {
-      for (let i = 0; i < this.playerFortified.attackers.length; i++) {
+      for (const attacker of this.playerFortified.attackers) {
         if (
-          this.visiting.attackers[i] != this &&
-          this.visiting.attackers[i] != this.visiting
+          attacker != this &&
+          attacker != this.visiting
         ) {
-          if (this.visiting.attackers[i].damage == 0)
-            this.visiting.attackers[i].damage = 1;
-          this.visiting.visitors[i].attackers.push(this);
+          if (attacker.damage == 0) attacker.damage = 1;
+          attacker.attackers.push(this);
         }
       }
     }

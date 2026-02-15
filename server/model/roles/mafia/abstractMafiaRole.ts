@@ -4,7 +4,7 @@ import { Role } from "../abstractRole.js";
 import { io } from "../../../servers/socket.js";
 
 export abstract class RoleMafia extends Role {
-  attackVote: Player | null = null;
+  attackVote: Player | Role | null = null;
   isAttacking = false;
 
   group = "mafia";

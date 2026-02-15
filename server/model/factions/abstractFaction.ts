@@ -5,12 +5,12 @@ export abstract class Faction {
   memberList: Player[] = [];
 
   initializeMembers() {
-    for (let i = 0; i < this.memberList.length; i++) {
-      this.memberList[i].role.assignFaction(this);
-      for (let x = 0; x < this.memberList.length; x++) {
-        io.to(this.memberList[x].socketId).emit("update-faction-role", {
-          name: this.memberList[i].playerUsername,
-          role: this.memberList[i].role.name,
+    for (const member of this.memberList) {
+      member.role.assignFaction(this);
+      for (const targetMember of this.memberList) {
+        io.to(targetMember.socketId).emit("update-faction-role", {
+          name: member.playerUsername,
+          role: member.role.name,
         });
       }
     }

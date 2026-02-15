@@ -7,6 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
+import { CheckCircle2, Eye, MessageSquare } from "lucide-react";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ??
@@ -209,14 +210,6 @@ export default function LobbyPage() {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container mx-auto px-4 py-10">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          {playerName ? (
-            <p className="text-sm" aria-label="Assigned player name">
-              You joined as <strong>{playerName}</strong>
-            </p>
-          ) : null}
-        </div>
-
         {!playerName ? (
           <Card className="mx-auto max-w-2xl">
             <CardHeader>
@@ -279,6 +272,9 @@ export default function LobbyPage() {
                   <Badge variant="outline">Day {dayNumber}</Badge>
                   <Badge variant="outline">Time Left: {timeLeft}s</Badge>
                 </div>
+                <p className="text-sm text-muted-foreground" aria-label="Assigned player name">
+                  You joined as <strong>{playerName}</strong>
+                </p>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="max-h-[40vh] space-y-2 overflow-y-auto rounded-md border p-2">
@@ -296,7 +292,7 @@ export default function LobbyPage() {
                       {player.role ? (
                         <p className="mb-2 text-xs text-muted-foreground">Role: {player.role}</p>
                       ) : null}
-                      <div className="grid grid-cols-1 gap-2">
+                      <div className="flex items-center gap-2">
                         <Button
                           onClick={() => visitPlayer(index)}
                           disabled={
@@ -304,9 +300,11 @@ export default function LobbyPage() {
                             player.name === playerName ||
                             player.isAlive === false
                           }
-                          size="sm"
+                          size="icon"
+                          title="Visit"
+                          aria-label="Visit player"
                         >
-                          Visit
+                          <Eye className="h-4 w-4" />
                         </Button>
                         <Button
                           onClick={() => voteForPlayer(index)}
@@ -317,9 +315,11 @@ export default function LobbyPage() {
                             player.isAlive === false
                           }
                           variant="secondary"
-                          size="sm"
+                          size="icon"
+                          title="Vote"
+                          aria-label="Vote player"
                         >
-                          Vote
+                          <CheckCircle2 className="h-4 w-4" />
                         </Button>
                         <Button
                           onClick={() => whisperToPlayer(index)}
@@ -327,9 +327,11 @@ export default function LobbyPage() {
                             !messageDraft.trim() || player.name === playerName
                           }
                           variant="outline"
-                          size="sm"
+                          size="icon"
+                          title="Whisper using draft"
+                          aria-label="Whisper to player"
                         >
-                          Whisper using draft
+                          <MessageSquare className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>

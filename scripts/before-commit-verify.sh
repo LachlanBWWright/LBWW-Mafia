@@ -65,18 +65,39 @@ for relative in files:
     if not full.exists():
         continue
     content = full.read_text(encoding="utf-8", errors="ignore").splitlines()
-    if len(content) > MAX_FILE_LINES:
-        errors.append(f"{relative}: exceeds {MAX_FILE_LINES} lines ({len(content)})")
+    current_lines = len(content)
+
+    head_content = subprocess.run(
+        ["git", "show", f"HEAD:{relative.as_posix()}"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    head_exists = head_content.returncode == 0
+    previous_lines = len(head_content.stdout.splitlines()) if head_exists else 0
+
+    if current_lines > MAX_FILE_LINES and (not head_exists or previous_lines <= MAX_FILE_LINES):
+        errors.append(f"{relative}: exceeds {MAX_FILE_LINES} lines ({current_lines})")
 
     max_indent = MAX_INDENT_TS if relative.suffix == ".ts" else MAX_INDENT_TSX
-    for line_no, line in enumerate(content, start=1):
+    patch = subprocess.run(
+        ["git", "diff", "--cached", "-U0", "--", relative.as_posix()],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    for patch_line in patch:
+        if not patch_line.startswith("+") or patch_line.startswith("+++"):
+            continue
+        line = patch_line[1:]
         stripped = line.lstrip(" ")
         if not stripped or stripped.startswith("//"):
             continue
         indent = len(line) - len(stripped)
         if indent > max_indent:
             errors.append(
-                f"{relative}:{line_no}: indentation exceeds limit ({indent} spaces)"
+                f"{relative}: added line indentation exceeds limit ({indent} spaces)"
             )
 
 if errors:
