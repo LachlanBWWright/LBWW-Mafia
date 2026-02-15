@@ -109,7 +109,7 @@ export class Fortifier extends Role {
   handleVisits() {
     //Attacks the attackers of the fortified person's house
     if (this.playerFortified != null && this.visiting !== null) {
-      for (const attacker of this.playerFortified.attackers) {
+      for (const attacker of this.visiting.attackers) {
         if (
           attacker != this &&
           attacker != this.visiting

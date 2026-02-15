@@ -314,7 +314,11 @@ export class Room {
             "Whisper to " + foundRecipient.playerUsername + ": " + message,
           );
           const foundPlayerDayTap = foundPlayer.role.dayTapped;
-          if (foundPlayerDayTap != false && typeof foundPlayerDayTap === "object")
+          if (
+            foundPlayerDayTap !== false &&
+            foundPlayerDayTap !== null &&
+            typeof foundPlayerDayTap === "object"
+          )
             io.to(foundPlayerDayTap.player.socketId).emit(
               "receive-whisper-message",
               foundPlayer.playerUsername +
@@ -326,7 +330,8 @@ export class Room {
             );
           const foundRecipientDayTap = foundRecipient.role.dayTapped;
           if (
-            foundRecipientDayTap != false &&
+            foundRecipientDayTap !== false &&
+            foundRecipientDayTap !== null &&
             typeof foundRecipientDayTap === "object"
           )
             io.to(foundRecipientDayTap.player.socketId).emit(

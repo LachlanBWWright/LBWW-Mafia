@@ -66,9 +66,10 @@ export class RoleHandler {
     let randomMafiaList = [Mafia, MafiaRoleblocker, MafiaInvestigator];
     let randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
 
-    for (const [slotIndex] of Array.from({ length: this.roomSize }).entries()) {
+    for (const slotToken of Array.from({ length: this.roomSize }, () => true)) {
+      if (!slotToken) continue;
       //
-      let randomiser = Math.random() * 30 - 15 + slotIndex * 0; //Random Integer betweek -15 and 15
+      let randomiser = Math.random() * 30 - 15; //Random Integer between -15 and 15
       //For testing specific roles, comment out otherwise
       /*             if(i == 0) {
                 roleList.push(MafiaInvestigator);

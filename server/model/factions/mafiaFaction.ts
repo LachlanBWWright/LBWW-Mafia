@@ -4,7 +4,7 @@ import { Player } from "../player/player.js";
 import { Role } from "../roles/abstractRole.js";
 
 export class MafiaFaction extends Faction {
-  attackList: Player[] = [];
+  attackList: Role[] = [];
 
   findMembers(playerList: Player[]) {
     //Go through a list of members, add them to the this.memberList
@@ -20,7 +20,7 @@ export class MafiaFaction extends Faction {
   handleNightVote() {
     for (const member of this.memberList) {
       const attackVote = member.role.attackVote;
-      if (attackVote != null && attackVote instanceof Player) {
+      if (attackVote != null) {
         this.attackList.push(attackVote); //Adds the vote to attack to the list
       }
       member.role.attackVote = null;
@@ -30,7 +30,7 @@ export class MafiaFaction extends Faction {
         this.attackList[Math.floor(Math.random() * this.attackList.length)]; //Selects a random item in the list, and uses that.
       const attacker =
         this.memberList[Math.floor(Math.random() * this.memberList.length)].role;
-      attacker.visiting = victim.role;
+      attacker.visiting = victim;
       attacker.isAttacking = true;
 
       //this.memberList[Math.floor(Math.random() * this.memberList.length)].role.visiting = victim; //Selects a random mafia member to make the attack

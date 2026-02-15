@@ -87,9 +87,22 @@ for relative in files:
         text=True,
         check=True,
     ).stdout.splitlines()
+    current_added_line = 0
     for patch_line in patch:
-        if not patch_line.startswith("+") or patch_line.startswith("+++"):
+        if patch_line.startswith("@@"):
+            try:
+                hunk_meta = patch_line.split("+", 1)[1].split(" ", 1)[0]
+                current_added_line = int(hunk_meta.split(",")[0]) - 1
+            except (IndexError, ValueError):
+                current_added_line = 0
             continue
+        if not patch_line.startswith("+") or patch_line.startswith("+++"):
+            if patch_line.startswith("-"):
+                continue
+            if patch_line.startswith(" "):
+                current_added_line += 1
+            continue
+        current_added_line += 1
         line = patch_line[1:]
         stripped = line.lstrip(" ")
         if not stripped or stripped.startswith("//"):
@@ -97,7 +110,7 @@ for relative in files:
         indent = len(line) - len(stripped)
         if indent > max_indent:
             errors.append(
-                f"{relative}: added line indentation exceeds limit ({indent} spaces)"
+                f"{relative}:{current_added_line}: added line indentation exceeds limit ({indent} spaces)"
             )
 
 if errors:
