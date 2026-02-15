@@ -1,5 +1,4 @@
 import Crypto from "crypto";
-import mongoose from "mongoose";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { Player } from "../player/player.js";
 import { PlayerSocket, io } from "../../servers/socket.js";
@@ -10,15 +9,6 @@ import { Framer } from "../roles/neutral/framer.js";
 import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { names } from "../player/names/namesList.js";
 import { fromThrowable } from "neverthrow";
-
-const gameSchema = new mongoose.Schema({
-  roomName: String,
-  players: [{ playerName: String }],
-  messages: [{ message: String }],
-  winningFaction: String,
-  date: { type: Date, default: Date.now },
-});
-const Game = mongoose.model("Game", gameSchema);
 
 export class Room {
   name: string;
@@ -39,8 +29,6 @@ export class Room {
   confesserVotedOut = false; //Confessor role, who wants to get voted out
   peacemaker: Peacemaker | null = null; //Pleacemaker role, who wants to cause a tie by nobody dying for three days
 
-  gameDB;
-
   confesser?: Confesser;
 
   constructor(size: number) {
@@ -50,8 +38,6 @@ export class Room {
 
     //Data relating to the state of the game.
     this.sessionLength = this.size * 4000; //How long the days/nights initially last for. Decreases over time, with nights at half the length of days
-
-    this.gameDB = new Game({ name: this.name });
   }
 
   private runSafely(action: () => void) {
@@ -105,9 +91,7 @@ export class Room {
         "The room is full! Starting the game!",
       );
       this.emitPlayerList(this.name);
-      this.playerList.forEach((player) =>
-        this.gameDB.players.push({ playerName: player.playerUsername }),
-      );
+
       this.startGame();
     }
     return playerUsername; //Successfully joined
@@ -701,7 +685,5 @@ export class Room {
     io.to(this.name).emit("receiveMessage", "Closing the room!");
     io.to(this.name).emit("blockMessages");
     io.in(this.name).disconnectSockets();
-    this.gameDB.winningFaction = winningFactionName;
-    this.gameDB.save();
   }
 }
