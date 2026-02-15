@@ -7,11 +7,78 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 
+type RoleEntry = {
+  name: string;
+  category: string;
+  ability: string;
+};
+
+const townRoles: RoleEntry[] = [
+  { name: "Doctor", category: "Town Protective", ability: "Protect a player from attacks." },
+  { name: "Judge", category: "Town Investigative", ability: "Investigate alignments with uncertainty." },
+  { name: "Watchman", category: "Town Investigative", ability: "See visitors to your target." },
+  { name: "Investigator", category: "Town Investigative", ability: "Inspect faction clues at night." },
+  { name: "Lawman", category: "Town Support", ability: "Coordinate with Lawman faction members." },
+  { name: "Vetter", category: "Town Investigative", ability: "Vet two players to compare identities." },
+  { name: "Tapper", category: "Town Support", ability: "Tap players to expose whispers/actions." },
+  { name: "Tracker", category: "Town Investigative", ability: "Track who a target visits." },
+  { name: "Bodyguard", category: "Town Protective", ability: "Guard a player and counter attackers." },
+  { name: "Nimby", category: "Town Utility", ability: "Punish hostile visits to your target area." },
+  { name: "Sacrificer", category: "Town Protective", ability: "Absorb damage for allies." },
+  { name: "Fortifier", category: "Town Protective", ability: "Increase a target's defense." },
+  { name: "Roleblocker", category: "Town Support", ability: "Prevent a player from acting." },
+  { name: "Jailor", category: "Town Control", ability: "Jail and execute key suspects." },
+];
+
+const mafiaRoles: RoleEntry[] = [
+  { name: "Mafia", category: "Mafia Killing", ability: "Perform faction attacks at night." },
+  { name: "Mafia Roleblocker", category: "Mafia Support", ability: "Roleblock priority targets." },
+  { name: "Mafia Investigator", category: "Mafia Investigative", ability: "Discover threat roles." },
+];
+
+const neutralRoles: RoleEntry[] = [
+  { name: "Maniac", category: "Neutral Killing", ability: "Eliminate players for solo victory." },
+  { name: "Sniper", category: "Neutral Killing", ability: "Take precision shots with constraints." },
+  { name: "Framer", category: "Neutral Evil", ability: "Manipulate voting outcomes around targets." },
+  { name: "Confesser", category: "Neutral Chaos", ability: "Win by being voted out." },
+  { name: "Peacemaker", category: "Neutral Benign", ability: "Force a draw by prolonged peace." },
+];
+
+function RoleSection({
+  title,
+  accentClass,
+  roles,
+}: {
+  title: string;
+  accentClass: string;
+  roles: RoleEntry[];
+}) {
+  return (
+    <section className="mb-12">
+      <h2 className="mb-6 text-3xl font-bold">
+        <span className={accentClass}>{title}</span> Roles
+      </h2>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {roles.map((role) => (
+          <Card key={role.name} className="border-primary/20">
+            <CardHeader>
+              <CardTitle>{role.name}</CardTitle>
+              <CardDescription>{role.category}</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              {role.ability}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function RolesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      
       <div className="container mx-auto flex-1 px-4 py-16">
         <div className="mx-auto max-w-6xl">
           <div className="mb-12 text-center">
@@ -19,213 +86,13 @@ export default function RolesPage() {
               Game <span className="text-primary">Roles</span>
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
-              Discover the unique abilities and win conditions of each role
+              Reference of active roles used by the server role handler.
             </p>
           </div>
 
-          {/* Town Roles */}
-          <div className="mb-12">
-            <h2 className="mb-6 text-3xl font-bold">
-              <span className="text-primary">Town</span> Roles
-            </h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle>Investigator</CardTitle>
-                  <CardDescription>Town Investigative</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Check one player each night to learn their faction
-                  </p>
-                  <p>
-                    Use your investigation skills to identify Mafia members and help the Town make informed decisions.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle>Doctor</CardTitle>
-                  <CardDescription>Town Protective</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Protect one player from death each night
-                  </p>
-                  <p>
-                    Save lives by protecting players from Mafia attacks. Choose wisely who to guard each night.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle>Watchman</CardTitle>
-                  <CardDescription>Town Investigative</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> See who visits your target at night
-                  </p>
-                  <p>
-                    Track player movements to identify suspicious behavior and catch Mafia members in the act.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle>Jailor</CardTitle>
-                  <CardDescription>Town Killing</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Jail and interrogate players, can execute
-                  </p>
-                  <p>
-                    A powerful role that can roleblock and eliminate suspects. Use your executions carefully.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle>Tracker</CardTitle>
-                  <CardDescription>Town Investigative</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> See who your target visits at night
-                  </p>
-                  <p>
-                    Follow players to discover their night actions and uncover hidden information.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-primary/20">
-                <CardHeader>
-                  <CardTitle>Bodyguard</CardTitle>
-                  <CardDescription>Town Protective</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Protect a player and kill their attacker
-                  </p>
-                  <p>
-                    Sacrifice yourself to save important Town members and eliminate Mafia attackers.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Mafia Roles */}
-          <div className="mb-12">
-            <h2 className="mb-6 text-3xl font-bold">
-              <span className="text-destructive">Mafia</span> Roles
-            </h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-destructive/20">
-                <CardHeader>
-                  <CardTitle>Godfather</CardTitle>
-                  <CardDescription>Mafia Leader</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Appears innocent to investigations
-                  </p>
-                  <p>
-                    Lead the Mafia to victory while avoiding detection by investigators.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-destructive/20">
-                <CardHeader>
-                  <CardTitle>Consigliere</CardTitle>
-                  <CardDescription>Mafia Support</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Learn the exact role of a player
-                  </p>
-                  <p>
-                    Gather intelligence on Town roles to help the Mafia make strategic decisions.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-destructive/20">
-                <CardHeader>
-                  <CardTitle>Silencer</CardTitle>
-                  <CardDescription>Mafia Support</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Ability:</span> Prevent a player from talking during the day
-                  </p>
-                  <p>
-                    Silence key Town members to prevent them from sharing important information.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Neutral Roles */}
-          <div>
-            <h2 className="mb-6 text-3xl font-bold">
-              <span className="text-muted-foreground">Neutral</span> Roles
-            </h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="border-muted-foreground/20">
-                <CardHeader>
-                  <CardTitle>Jester</CardTitle>
-                  <CardDescription>Neutral Evil</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Win Condition:</span> Get yourself voted out
-                  </p>
-                  <p>
-                    Act suspicious and manipulate the Town into eliminating you during the day.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-muted-foreground/20">
-                <CardHeader>
-                  <CardTitle>Survivor</CardTitle>
-                  <CardDescription>Neutral Benign</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Win Condition:</span> Stay alive until the end
-                  </p>
-                  <p>
-                    Use your vests to survive attacks and outlast all other players.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-muted-foreground/20">
-                <CardHeader>
-                  <CardTitle>Serial Killer</CardTitle>
-                  <CardDescription>Neutral Killing</CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  <p className="mb-2">
-                    <span className="font-semibold text-foreground">Win Condition:</span> Be the last one standing
-                  </p>
-                  <p>
-                    Kill everyone in your path to achieve solo victory.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <RoleSection title="Town" accentClass="text-primary" roles={townRoles} />
+          <RoleSection title="Mafia" accentClass="text-destructive" roles={mafiaRoles} />
+          <RoleSection title="Neutral" accentClass="text-muted-foreground" roles={neutralRoles} />
         </div>
       </div>
     </div>

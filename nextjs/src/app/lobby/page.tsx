@@ -24,7 +24,6 @@ type Player = {
   name: string;
   isAlive?: boolean;
   role?: string;
-  isUser?: boolean;
 };
 type ChatMessage = {
   id: number;
@@ -38,13 +37,15 @@ export default function LobbyPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
-  const [selectedRecipient, setSelectedRecipient] = useState<number | null>(null);
   const [time, setTime] = useState("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [canTalk, setCanTalk] = useState(true);
   const [canVote, setCanVote] = useState(true);
   const messageIdRef = useRef(0);
+  const isCurrentUserAlive = players.find(
+    (player) => player.name === playerName,
+  )?.isAlive !== false;
 
   const socket = useMemo<Socket | null>(
     () => (SOCKET_URL ? io(SOCKET_URL, { autoConnect: false }) : null),
@@ -106,7 +107,6 @@ export default function LobbyPage() {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setTimeLeft(infoJson.timeLeft);
-      setSelectedRecipient(null);
     });
 
     return () => {
@@ -184,40 +184,32 @@ export default function LobbyPage() {
     setMessageDraft("");
   };
 
-  const voteForPlayer = () => {
-    if (!socket || selectedRecipient === null || !canVote) return;
-    socket.emit("handleVote", selectedRecipient, time === "Day");
+  const voteForPlayer = (index: number) => {
+    if (!socket || !canVote) return;
+    socket.emit("handleVote", index, time === "Day");
   };
 
-  const visitPlayer = () => {
-    if (!socket || selectedRecipient === null) return;
-    socket.emit("handleVisit", selectedRecipient, time === "Day");
+  const visitPlayer = (index: number) => {
+    if (!socket) return;
+    socket.emit("handleVisit", index, time === "Day");
   };
 
-  const whisperToPlayer = () => {
-    if (!socket || selectedRecipient === null || !messageDraft.trim()) return;
+  const whisperToPlayer = (index: number) => {
+    if (!socket || !messageDraft.trim()) return;
     socket.emit(
       "handleWhisper",
-      selectedRecipient,
+      index,
       messageDraft.trim(),
       time === "Day",
     );
     setMessageDraft("");
   };
 
-  const selectedPlayer =
-    selectedRecipient !== null ? players[selectedRecipient] : undefined;
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container mx-auto px-4 py-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">{time}</Badge>
-            <Badge variant="outline">Day {dayNumber}</Badge>
-            <Badge variant="outline">Time Left: {timeLeft}s</Badge>
-          </div>
           {playerName ? (
             <p className="text-sm" aria-label="Assigned player name">
               You joined as <strong>{playerName}</strong>
@@ -225,107 +217,128 @@ export default function LobbyPage() {
           ) : null}
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <Card>
+        {!playerName ? (
+          <Card className="mx-auto max-w-2xl">
             <CardHeader>
-              <CardTitle className="text-2xl">Game Chat</CardTitle>
+              <CardTitle className="text-2xl">Join Lobby</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {!playerName ? (
-                <Button onClick={joinGame} disabled={joining} className="w-full" size="lg">
-                  {joining ? "Joining..." : "Join Game"}
-                </Button>
-              ) : null}
+              <p className="text-sm text-muted-foreground">
+                Join a game room first. Once joined, the full in-game interface will appear.
+              </p>
+              <Button onClick={joinGame} disabled={joining} className="w-full" size="lg">
+                {joining ? "Joining..." : "Join Game"}
+              </Button>
               {joinStatus ? (
                 <p className="text-sm text-muted-foreground">{joinStatus}</p>
               ) : null}
-              <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-md border p-3">
-                {messages.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No messages yet.
-                  </p>
-                ) : (
-                  messages.map((message) => (
-                    <p key={message.id} className="text-sm">
-                      {message.text}
-                    </p>
-                  ))
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder={canTalk ? "Send a message..." : "You cannot talk right now"}
-                  value={messageDraft}
-                  onChange={(event) => setMessageDraft(event.target.value)}
-                  disabled={!canTalk}
-                />
-                <Button onClick={sendMessage} disabled={!canTalk || !messageDraft.trim()}>
-                  Send
-                </Button>
-              </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Players</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="max-h-[34vh] space-y-2 overflow-y-auto rounded-md border p-2">
-                {players.map((player, index) => (
-                  <button
-                    key={player.name}
-                    className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
-                      selectedRecipient === index
-                        ? "border-primary bg-primary/10"
-                        : "border-border"
-                    }`}
-                    onClick={() => setSelectedRecipient(index)}
-                    type="button"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span>
-                        {player.name}
-                        {player.name === playerName ? " (You)" : ""}
-                      </span>
-                      <Badge variant={player.isAlive === false ? "destructive" : "secondary"}>
-                        {player.isAlive === false ? "Dead" : "Alive"}
-                      </Badge>
-                    </div>
-                    {player.role ? (
-                      <p className="mt-1 text-xs text-muted-foreground">Role: {player.role}</p>
-                    ) : null}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  Selected: {selectedPlayer ? selectedPlayer.name : "None"}
-                </p>
-                <div className="grid grid-cols-1 gap-2">
-                  <Button onClick={visitPlayer} disabled={selectedRecipient === null}>
-                    Visit
-                  </Button>
-                  <Button
-                    onClick={voteForPlayer}
-                    disabled={selectedRecipient === null || !canVote}
-                    variant="secondary"
-                  >
-                    Vote
-                  </Button>
-                  <Button
-                    onClick={whisperToPlayer}
-                    disabled={selectedRecipient === null || !messageDraft.trim()}
-                    variant="outline"
-                  >
-                    Whisper using draft
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Game Chat</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {joinStatus ? (
+                  <p className="text-sm text-muted-foreground">{joinStatus}</p>
+                ) : null}
+                <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-md border p-3">
+                  {messages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No messages yet.
+                    </p>
+                  ) : (
+                    messages.map((message) => (
+                      <p key={message.id} className="text-sm">
+                        {message.text}
+                      </p>
+                    ))
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder={canTalk ? "Send a message..." : "You cannot talk right now"}
+                    value={messageDraft}
+                    onChange={(event) => setMessageDraft(event.target.value)}
+                    disabled={!canTalk}
+                  />
+                  <Button onClick={sendMessage} disabled={!canTalk || !messageDraft.trim()}>
+                    Send
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="space-y-2">
+                <CardTitle className="text-2xl">Players</CardTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">{time}</Badge>
+                  <Badge variant="outline">Day {dayNumber}</Badge>
+                  <Badge variant="outline">Time Left: {timeLeft}s</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="max-h-[40vh] space-y-2 overflow-y-auto rounded-md border p-2">
+                  {players.map((player, index) => (
+                    <div key={player.name} className="rounded-md border border-border p-3 text-sm">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <span>
+                          {player.name}
+                          {player.name === playerName ? " (You)" : ""}
+                        </span>
+                        <Badge variant={player.isAlive === false ? "destructive" : "secondary"}>
+                          {player.isAlive === false ? "Dead" : "Alive"}
+                        </Badge>
+                      </div>
+                      {player.role ? (
+                        <p className="mb-2 text-xs text-muted-foreground">Role: {player.role}</p>
+                      ) : null}
+                      <div className="grid grid-cols-1 gap-2">
+                        <Button
+                          onClick={() => visitPlayer(index)}
+                          disabled={
+                            !isCurrentUserAlive ||
+                            player.name === playerName ||
+                            player.isAlive === false
+                          }
+                          size="sm"
+                        >
+                          Visit
+                        </Button>
+                        <Button
+                          onClick={() => voteForPlayer(index)}
+                          disabled={
+                            !canVote ||
+                            !isCurrentUserAlive ||
+                            player.name === playerName ||
+                            player.isAlive === false
+                          }
+                          variant="secondary"
+                          size="sm"
+                        >
+                          Vote
+                        </Button>
+                        <Button
+                          onClick={() => whisperToPlayer(index)}
+                          disabled={
+                            !messageDraft.trim() || player.name === playerName
+                          }
+                          variant="outline"
+                          size="sm"
+                        >
+                          Whisper using draft
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );

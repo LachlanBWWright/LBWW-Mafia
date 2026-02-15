@@ -126,9 +126,9 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     socket.on("receive-player-list", (listJson: Array<Player>) => {
       //Receive all players upon joining, and the game starting
       const list: Player[] = [];
-      listJson.map((instance) => {
+      for (const instance of listJson) {
         list.push(instance);
-      });
+      }
       setPlayerList(() => list);
     });
 
