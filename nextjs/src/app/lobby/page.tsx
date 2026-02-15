@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { Header } from "~/components/header";
 import { Button } from "~/components/ui/button";
@@ -52,21 +52,20 @@ export default function LobbyPage() {
     () => (SOCKET_URL ? io(SOCKET_URL, { autoConnect: false }) : null),
     [],
   );
+  const appendLocalMessage = useCallback((message: string) => {
+    messageIdRef.current += 1;
+    setMessages((current) => [
+      ...current,
+      { id: messageIdRef.current, text: message },
+    ]);
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
 
-    const appendMessage = (message: string) => {
-      messageIdRef.current += 1;
-      setMessages((current) => [
-        ...current,
-        { id: messageIdRef.current, text: message },
-      ]);
-    };
-
-    socket.on("receiveMessage", appendMessage);
-    socket.on("receive-chat-message", appendMessage);
-    socket.on("receive-whisper-message", appendMessage);
+    socket.on("receiveMessage", appendLocalMessage);
+    socket.on("receive-chat-message", appendLocalMessage);
+    socket.on("receive-whisper-message", appendLocalMessage);
     socket.on("blockMessages", () => setCanTalk(false));
     socket.on("disable-voting", () => setCanVote(false));
     socket.on("receive-new-player", (playerJson: { name: string }) => {
@@ -111,9 +110,9 @@ export default function LobbyPage() {
     });
 
     return () => {
-      socket.off("receiveMessage", appendMessage);
-      socket.off("receive-chat-message", appendMessage);
-      socket.off("receive-whisper-message", appendMessage);
+      socket.off("receiveMessage", appendLocalMessage);
+      socket.off("receive-chat-message", appendLocalMessage);
+      socket.off("receive-whisper-message", appendLocalMessage);
       socket.off("blockMessages");
       socket.off("disable-voting");
       socket.off("receive-new-player");
@@ -124,7 +123,7 @@ export default function LobbyPage() {
       socket.off("update-day-time");
       socket.disconnect();
     };
-  }, [socket]);
+  }, [appendLocalMessage, socket]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -134,24 +133,28 @@ export default function LobbyPage() {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  const joinGame = () => {
+  const joinGame = useCallback(() => {
     if (joining) return;
     if (!SOCKET_URL) {
       setJoinStatus("Socket server URL is not configured.");
+      appendLocalMessage("System: Socket server URL is not configured.");
       return;
     }
     if (!CAPTCHA_TOKEN) {
       setJoinStatus("Captcha token is not configured.");
+      appendLocalMessage("System: Captcha token is not configured.");
       return;
     }
     if (!socket) {
       setJoinStatus("Socket client is not ready.");
+      appendLocalMessage("System: Socket client is not ready.");
       return;
     }
     setJoining(true);
-    setJoinStatus("Joining room...");
+    setJoinStatus("Joining game room...");
     const timeout = setTimeout(() => {
       setJoinStatus("Could not connect to the game server.");
+      appendLocalMessage("System: Could not connect to the game server.");
       setJoining(false);
     }, 7000);
 
@@ -163,21 +166,35 @@ export default function LobbyPage() {
         clearTimeout(timeout);
         if (typeof result === "string") {
           setPlayerName(result);
-          setJoinStatus("Joined successfully.");
+          setJoinStatus("");
           setMessages([]);
+          messageIdRef.current = 0;
+          appendLocalMessage(`System: You joined as ${result}.`);
           setCanTalk(true);
           setCanVote(true);
         } else if (result === JOIN_ERROR.ROOM_FULL) {
           setJoinStatus("Room is full right now. Please try joining again.");
+          appendLocalMessage("System: Room is full right now. Please try joining again.");
         } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
           setJoinStatus("Failed captcha verification.");
+          appendLocalMessage("System: Failed captcha verification.");
         } else {
           setJoinStatus("Unable to join room.");
+          appendLocalMessage("System: Unable to join room.");
         }
         setJoining(false);
       },
     );
-  };
+  }, [appendLocalMessage, joining, socket]);
+
+  useEffect(() => {
+    if (!playerName && !joining) {
+      const autoJoin = setTimeout(() => {
+        joinGame();
+      }, 0);
+      return () => clearTimeout(autoJoin);
+    }
+  }, [joinGame, playerName, joining]);
 
   const sendMessage = () => {
     if (!socket || !messageDraft.trim()) return;
@@ -209,35 +226,24 @@ export default function LobbyPage() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <div className="container mx-auto px-4 py-10">
+      <div className="mx-auto h-[calc(100vh-3.5rem)] w-full max-w-7xl px-4 py-3">
         {!playerName ? (
-          <Card className="mx-auto max-w-2xl">
-            <CardHeader>
-              <CardTitle className="text-2xl">Join Lobby</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <Card className="mx-auto mt-16 max-w-2xl">
+            <CardContent className="space-y-3 p-6 text-center">
+              <CardTitle className="text-2xl">Connecting to Game Lobby</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Join a game room first. Once joined, the full in-game interface will appear.
+                {joinStatus || "Attempting to join a room now..."}
               </p>
-              <Button onClick={joinGame} disabled={joining} className="w-full" size="lg">
-                {joining ? "Joining..." : "Join Game"}
+              <Button onClick={joinGame} disabled={joining} className="mx-auto" size="sm">
+                {joining ? "Connecting..." : "Retry Connection"}
               </Button>
-              {joinStatus ? (
-                <p className="text-sm text-muted-foreground">{joinStatus}</p>
-              ) : null}
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl">Game Chat</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {joinStatus ? (
-                  <p className="text-sm text-muted-foreground">{joinStatus}</p>
-                ) : null}
-                <div className="max-h-[50vh] space-y-2 overflow-y-auto rounded-md border p-3">
+          <div className="grid h-full gap-3 lg:grid-cols-[2fr_1fr]">
+            <Card className="h-full">
+              <CardContent className="flex h-full flex-col gap-2 p-3">
+                <div className="themed-scrollbar flex-1 space-y-1 overflow-y-auto rounded-md border p-2">
                   {messages.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No messages yet.
@@ -250,7 +256,7 @@ export default function LobbyPage() {
                     ))
                   )}
                 </div>
-                <div className="flex gap-2">
+                 <div className="flex gap-1">
                   <Input
                     placeholder={canTalk ? "Send a message..." : "You cannot talk right now"}
                     value={messageDraft}
@@ -264,9 +270,8 @@ export default function LobbyPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="space-y-2">
-                <CardTitle className="text-2xl">Players</CardTitle>
+            <Card className="h-full">
+              <CardHeader className="space-y-2 px-3 pb-1 pt-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{time}</Badge>
                   <Badge variant="outline">Day {dayNumber}</Badge>
@@ -276,23 +281,25 @@ export default function LobbyPage() {
                   You joined as <strong>{playerName}</strong>
                 </p>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="max-h-[40vh] space-y-2 overflow-y-auto rounded-md border p-2">
+              <CardContent className="h-[calc(100%-4.75rem)] px-3 pb-3 pt-1">
+                <div className="themed-scrollbar h-full space-y-1 overflow-y-auto rounded-md border p-1.5">
                   {players.map((player, index) => (
-                    <div key={player.name} className="rounded-md border border-border p-3 text-sm">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span>
-                          {player.name}
-                          {player.name === playerName ? " (You)" : ""}
-                        </span>
-                        <Badge variant={player.isAlive === false ? "destructive" : "secondary"}>
-                          {player.isAlive === false ? "Dead" : "Alive"}
-                        </Badge>
-                      </div>
-                      {player.role ? (
-                        <p className="mb-2 text-xs text-muted-foreground">Role: {player.role}</p>
-                      ) : null}
-                      <div className="flex items-center gap-2">
+                    <div
+                      key={player.name}
+                      className={`flex items-center gap-2 rounded-md border border-border p-1.5 text-sm ${
+                        player.isAlive === false
+                          ? "bg-destructive/20"
+                          : "bg-secondary/40"
+                      }`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                           {player.name}
+                           {player.name === playerName ? " (You)" : ""}
+                      </span>
+                      <Badge variant={player.isAlive === false ? "destructive" : "secondary"}>
+                           {player.isAlive === false ? "Dead" : "Alive"}
+                      </Badge>
+                      <div className="flex items-center gap-1">
                         <Button
                           onClick={() => visitPlayer(index)}
                           disabled={
@@ -303,8 +310,9 @@ export default function LobbyPage() {
                           size="icon"
                           title="Visit"
                           aria-label="Visit player"
+                          className="h-7 w-7"
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           onClick={() => voteForPlayer(index)}
@@ -318,8 +326,9 @@ export default function LobbyPage() {
                           size="icon"
                           title="Vote"
                           aria-label="Vote player"
+                          className="h-7 w-7"
                         >
-                          <CheckCircle2 className="h-4 w-4" />
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           onClick={() => whisperToPlayer(index)}
@@ -330,8 +339,9 @@ export default function LobbyPage() {
                           size="icon"
                           title="Whisper using draft"
                           aria-label="Whisper to player"
+                          className="h-7 w-7"
                         >
-                          <MessageSquare className="h-4 w-4" />
+                          <MessageSquare className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     </div>

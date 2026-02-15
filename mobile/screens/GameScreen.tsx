@@ -1,18 +1,17 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useState, useEffect, Dispatch, SetStateAction } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
+  FlatList,
+  Pressable,
+  StyleSheet,
   Text,
   TextInput,
-  Button,
-  FlatList,
-  DrawerLayoutAndroid,
   Vibration,
-  StyleSheet,
+  View,
 } from "react-native";
 import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
-import io from "socket.io-client";
+import io, { type Socket } from "socket.io-client";
 import { commonStyles } from "../styles/commonStyles";
 import { colors } from "../styles/colors";
 
@@ -23,73 +22,142 @@ type Player = {
   isUser?: boolean;
 };
 
+type DayTimeInfo = {
+  time: string;
+  dayNumber: number;
+  timeLeft: number;
+};
+
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    gap: 8,
+  },
+  topMeta: {
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 2,
+  },
+  metaText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  tabRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  tabButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 6,
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.accent,
+  },
+  tabText: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   messageContainer: {
     backgroundColor: colors.surface,
     flex: 1,
     borderRadius: 10,
-    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 8,
+  },
+  chatMessage: {
+    color: colors.textPrimary,
+    marginBottom: 4,
   },
   inputRow: {
     flexDirection: "row",
-    alignSelf: "stretch",
-    marginTop: "auto",
-    paddingVertical: 4,
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 6,
   },
   textInput: {
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 8,
     flex: 1,
-    marginRight: 5,
     color: colors.textPrimary,
     backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
-  buttonRow: {
-    alignSelf: "stretch",
-    marginTop: "auto",
-    paddingVertical: 4,
-    borderRadius: 10,
-    justifyContent: "flex-end",
+  sendButton: {
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  sendButtonText: {
+    color: colors.textPrimary,
+    fontWeight: "700",
   },
   playerContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    alignSelf: "stretch",
-    flex: 1,
-    justifyContent: "space-between",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 5,
-    padding: 5,
-    margin: 2,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 6,
+    gap: 6,
   },
   playerName: {
-    flexGrow: 1,
+    flex: 1,
     color: colors.textPrimary,
+    fontSize: 12,
   },
   playerActionRow: {
     flexDirection: "row",
     gap: 4,
   },
-  drawerHeader: {
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+  iconButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
-  drawerHeaderText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  chatMessage: {
+  iconButtonText: {
     color: colors.textPrimary,
+    fontSize: 11,
+  },
+  deadRow: {
+    backgroundColor: colors.danger,
+  },
+  aliveRow: {
+    backgroundColor: colors.success,
+  },
+  neutralRow: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  disconnectButton: {
+    borderRadius: 8,
+    backgroundColor: colors.danger,
+    alignItems: "center",
+    paddingVertical: 10,
   },
 });
 
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
+
 export function GameScreen({ route, navigation }: GameScreenProps) {
   const SOCKET_URL =
     process.env.EXPO_PUBLIC_SOCKET_URL ??
@@ -97,114 +165,98 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const CAPTCHA_TOKEN =
     process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ??
     (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
-  const [socket] = useState(io(SOCKET_URL));
+
+  const [socket] = useState<Socket>(() => io(SOCKET_URL));
   const [message, setMessage] = useState("");
+  const [joinedAs, setJoinedAs] = useState(route.params.name);
   const [playerRole, setPlayerRole] = useState("");
-  const [alive] = useState(true);
+  const [isAlive, setIsAlive] = useState(true);
+  const [activeTab, setActiveTab] = useState<"chat" | "players">("chat");
 
   const [canTalk, setCanTalk] = useState(true);
   const [time, setTime] = useState("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [messages, addMessage] = useState<string[]>([]);
-  const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
+  const [messages, setMessages] = useState<string[]>([]);
+  const [playerList, setPlayerList] = useState<Player[]>([]);
 
-  useEffect(() =>
-    navigation.addListener("beforeRemove", (e) => {
-      if (!alive) e.preventDefault();
-    }),
-  ); //Blocks leaving
+  const flatList = useRef<FlatList<string>>(null);
+
+  useEffect(
+    () =>
+      navigation.addListener("beforeRemove", (event) => {
+        if (!isAlive) {
+          event.preventDefault();
+        }
+      }),
+    [isAlive, navigation],
+  );
 
   useEffect(() => {
-    //Socket.io Integration - Runs on creation
-    socket.on("connect", () => {});
-
-    socket.on("receiveMessage", (inMsg: string) => {
-      addMessage((old) => [...old, inMsg]);
+    socket.on("receiveMessage", (incomingMessage: string) => {
+      setMessages((current) => [...current, incomingMessage]);
     });
 
-    socket.on("receive-chat-message", (inMsg: string) => {
-      addMessage((old) => [...old, inMsg]);
+    socket.on("receive-chat-message", (incomingMessage: string) => {
+      setMessages((current) => [...current, incomingMessage]);
     });
 
-    socket.on("receive-whisper-message", (inMsg: string) => {
-      addMessage((old) => [...old, inMsg]);
+    socket.on("receive-whisper-message", (incomingMessage: string) => {
+      setMessages((current) => [...current, incomingMessage]);
     });
 
-    socket.on("receive-player-list", (listJson: Array<Player>) => {
-      //Receive all players upon joining, and the game starting
+    socket.on("receive-player-list", (listJson: Player[]) => {
       const list: Player[] = [];
-      for (const instance of listJson) {
-        list.push(instance);
+      for (const player of listJson) {
+        list.push(player);
       }
-      setPlayerList(() => list);
+      setPlayerList(list);
     });
 
     socket.on("receive-new-player", (playerJson: Player) => {
-      //Called when a new player joins the lobby
       setPlayerList((list) => [...list, playerJson]);
     });
 
     socket.on("remove-player", (playerJson: Player) => {
-      //Called when a player leaves the lobby before the game starts
-      setPlayerList((list) =>
-        list.filter((item) => item.name !== playerJson.name),
-      );
+      setPlayerList((list) => list.filter((item) => item.name !== playerJson.name));
     });
 
     socket.on("assign-player-role", (playerJson: Player) => {
-      //Shows the player their own role, lets the client know that this is who they are playing as
-      let tempPlayerList: Array<Player> = [];
-      setPlayerList((list) => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(
-        (player) => player.name === playerJson.name,
+      setPlayerList((list) =>
+        list.map((player) =>
+          player.name === playerJson.name
+            ? { ...player, role: playerJson.role, isUser: true }
+            : player,
+        ),
       );
-      tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isUser = true;
-      //TODO: Who player visits at day (living) (0 - Nobody, 1 - Self, 2 - Others, 3 - Everybody)
-      //TODO: Who player visits at day (dead, will apply to almost (or currently) no roles)
-      //TODO: Who player visits at night (living)
-      //TODO: Who player visits at night (dead)
       setPlayerRole(playerJson.role ?? "");
-      setPlayerList(tempPlayerList);
     });
 
     socket.on("update-player-role", (playerJson: Player) => {
-      //Updates player role upon their death
-      let tempPlayerList: Array<Player> = [];
-      setPlayerList((list) => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(
-        (player) => player.name === playerJson.name,
+      setPlayerList((list) =>
+        list.map((player) => {
+          if (player.name !== playerJson.name) {
+            return player;
+          }
+          const nextPlayer = {
+            ...player,
+            isAlive: false,
+            role: playerJson.role ?? player.role,
+          };
+          if (nextPlayer.isUser) {
+            setCanTalk(false);
+            setIsAlive(false);
+            Vibration.vibrate([500, 200, 500, 200, 500], false);
+          }
+          return nextPlayer;
+        }),
       );
-      if (playerJson.role !== undefined)
-        tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isAlive = false;
-      if (tempPlayerList[index].isUser) {
-        setCanTalk(false); //Blocks MSGing upon death
-        Vibration.vibrate([500, 200, 500, 200, 500], false); //(3 500ms vibrations with 200ms breaks, does not repeat indefinitely)
-      }
-      setPlayerList(tempPlayerList);
     });
 
-    socket.on("update-player-visit", (_playerJson) => {
-      //Updates player to indicate that the player is visiting them TODO: This might be depreciated in the actual game
-      //JSON contains player name
-      //Get player by name, update properties, update JSON
-    });
-
-    socket.on("update-day-time", (infoJson) => {
-      //Gets whether it is day or night, and how long there is left in the session
+    socket.on("update-day-time", (infoJson: DayTimeInfo) => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
-      let timeLeftLocal = infoJson.timeLeft;
-      let countDown = setInterval(() => {
-        if (timeLeftLocal > 0) {
-          setTimeLeft(timeLeftLocal - 1);
-          timeLeftLocal--;
-        } else {
-          clearInterval(countDown);
-        }
-      }, 1000);
+      setTimeLeft(infoJson.timeLeft);
     });
 
     socket.on("blockMessages", () => {
@@ -212,21 +264,19 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     });
 
     if (CAPTCHA_TOKEN) {
-      socket.emit(
-        "playerJoinRoom",
-        CAPTCHA_TOKEN,
-        (callback: string | number) => {
-          if (typeof callback !== "string") {
-            navigation.dispatch(StackActions.popToTop());
-          }
-        },
-      );
+      socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (callback: string | number) => {
+        if (typeof callback === "string") {
+          setJoinedAs(callback);
+          setMessages([`System: You joined as ${callback}.`]);
+          return;
+        }
+        navigation.dispatch(StackActions.popToTop());
+      });
     } else {
       navigation.dispatch(StackActions.popToTop());
     }
 
     return () => {
-      //Runs Upon close
       socket.off("receiveMessage");
       socket.off("receive-chat-message");
       socket.off("receive-whisper-message");
@@ -237,30 +287,65 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off("remove-player");
       socket.off("update-player-role");
       socket.off("update-player-visit");
+      socket.off("update-day-time");
       socket.disconnect();
     };
-  }, [socket, navigation, route.params.name, CAPTCHA_TOKEN]);
+  }, [CAPTCHA_TOKEN, navigation, socket]);
 
-  const flatList = React.useRef<FlatList<string>>(null);
-  const drawer = React.useRef<DrawerLayoutAndroid>(null);
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
 
   return (
-    <DrawerLayoutAndroid
-      ref={drawer}
-      drawerPosition={"right"}
-      drawerWidth={300}
-      renderNavigationView={() => (
-        <View>
-          <View style={styles.drawerHeader}>
-            <Text style={styles.drawerHeaderText}>
-              {time} {dayNumber} • {timeLeft}s left
-            </Text>
-            <Text style={styles.drawerHeaderText}>You joined as {route.params.name}</Text>
-          </View>
+    <View style={[commonStyles.container, styles.root]}>
+      <View style={styles.topMeta}>
+        <Text style={styles.metaText}>
+          {time} {dayNumber} • {timeLeft}s left
+        </Text>
+        <Text style={styles.metaText}>
+          {joinedAs} {playerRole ? `• ${playerRole}` : ""}
+        </Text>
+      </View>
+
+      <View style={styles.tabRow}>
+        <Pressable
+          style={[styles.tabButton, activeTab === "chat" && styles.tabButtonActive]}
+          onPress={() => setActiveTab("chat")}
+        >
+          <Text style={styles.tabText}>Chat</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tabButton, activeTab === "players" && styles.tabButtonActive]}
+          onPress={() => setActiveTab("players")}
+        >
+          <Text style={styles.tabText}>Players</Text>
+        </Pressable>
+      </View>
+
+      {activeTab === "chat" ? (
+        <View style={styles.messageContainer}>
+          <FlatList
+            ref={flatList}
+            data={messages}
+            renderItem={({ item }) => <Text style={styles.chatMessage}>{item}</Text>}
+            onContentSizeChange={() => {
+              flatList.current?.scrollToEnd();
+            }}
+          />
+        </View>
+      ) : (
+        <View style={styles.messageContainer}>
           <FlatList
             data={playerList}
             renderItem={({ item }) => (
               <PlayerInList
+                currentUser={joinedAs}
                 player={item}
                 socket={socket}
                 setMessage={setMessage}
@@ -270,129 +355,101 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
           />
         </View>
       )}
-    >
-      <View style={commonStyles.container}>
-        <Text style={commonStyles.centeredText}>
-          Name: "{route.params.name}"{" "}
-          {playerRole !== "" ? "Role: " + playerRole + " | " : " | "}
-          {time}: {dayNumber} | Time Left: {timeLeft}
-        </Text>
-        <View style={styles.messageContainer}>
-          <FlatList
-            ref={flatList}
-            data={messages}
-            renderItem={({ item }) => <Text style={styles.chatMessage}>{item}</Text>}
-            onContentSizeChange={() => {
-              if (flatList.current) flatList.current.scrollToEnd();
-            }}
-          />
-        </View>
 
-        {canTalk ? (
-          <View style={styles.inputRow}>
-            <TextInput
-              onChangeText={(text) => {
-                setMessage(text);
-              }}
-              placeholder={"Send a message"}
-              value={message}
-              style={styles.textInput}
-              placeholderTextColor={colors.textSecondary}
-              numberOfLines={2}
-              maxLength={500}
-              multiline={true}
-              returnKeyType={"send"}
-            />
-            {message.length !== 0 ? (
-              <Button
-                title="→"
-                onPress={() => {
-                  socket.emit("messageSentByUser", message, time === "Day");
-                  setMessage("");
-                }}
-                color={colors.accent}
-              />
-            ) : (
-              <Button
-                title="←"
-                onPress={() => {
-                  if (drawer.current) drawer.current.openDrawer();
-                }}
-                color={colors.danger}
-              />
-            )}
-          </View>
-        ) : (
-          <View style={styles.buttonRow}>
-            <Button
-              title="Disconnect"
-              onPress={() => navigation.dispatch(StackActions.popToTop())}
-              color={colors.danger}
-            />
-          </View>
-        )}
-      </View>
-    </DrawerLayoutAndroid>
+      {canTalk ? (
+        <View style={styles.inputRow}>
+          <TextInput
+            onChangeText={setMessage}
+            placeholder={
+              activeTab === "chat" ? "Send a message" : "Type /w [name] message"
+            }
+            value={message}
+            style={styles.textInput}
+            placeholderTextColor={colors.textSecondary}
+            numberOfLines={2}
+            maxLength={500}
+            multiline={true}
+            returnKeyType={"send"}
+          />
+          <Pressable
+            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+            disabled={!message.trim()}
+            onPress={() => {
+              socket.emit("messageSentByUser", message, time === "Day");
+              setMessage("");
+            }}
+          >
+            <Text style={styles.sendButtonText}>Send</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          style={styles.disconnectButton}
+          onPress={() => navigation.dispatch(StackActions.popToTop())}
+        >
+          <Text style={styles.sendButtonText}>Disconnect</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 function PlayerInList(props: {
+  currentUser: string;
   player: Player;
-  socket: { emit: (event: string, ...args: unknown[]) => void };
-  setMessage: Dispatch<SetStateAction<string>>;
+  socket: Socket;
+  setMessage: React.Dispatch<React.SetStateAction<string>>;
   time: string;
 }) {
-  const [color, setColor] = useState(colors.surfaceMuted);
-
-  useEffect(() => {
-    if (props.player.isAlive !== undefined) {
-      if (props.player.isAlive === false) setColor(colors.danger);
-      else if (props.player.isUser === true) setColor(colors.accent);
-      else if (props.player.isAlive === true) setColor(colors.success);
-    }
-  }, [props.player.isAlive, props.player.isUser]);
+  const rowStyle =
+    props.player.isAlive === false
+      ? styles.deadRow
+      : props.player.isAlive === true
+        ? styles.aliveRow
+        : styles.neutralRow;
 
   return (
-    <View
-      style={[
-        styles.playerContainer,
-        { backgroundColor: color },
-      ]}
-    >
+    <View style={[styles.playerContainer, rowStyle]}>
       <Text style={styles.playerName}>
-        {props.player.name}{" "}
-        {props.player.role !== undefined ? "(" + props.player.role + ")" : ""}
+        {props.player.name}
+        {props.player.name === props.currentUser ? " (You)" : ""}
       </Text>
-      {props.player.isAlive === true && props.player.isUser !== true && (
+      {props.player.isAlive !== false && props.player.name !== props.currentUser ? (
         <View style={styles.playerActionRow}>
-          <Button
-            title="💬"
-            onPress={() => props.setMessage("/w " + props.player.name)}
-          />
-          <Button
-            title="👁"
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => props.setMessage(`/w ${props.player.name} `)}
+          >
+            <Text style={styles.iconButtonText}>💬</Text>
+          </Pressable>
+          <Pressable
+            style={styles.iconButton}
             onPress={() =>
               props.socket.emit(
                 "messageSentByUser",
-                "/c " + props.player.name,
+                `/c ${props.player.name}`,
                 props.time === "Day",
               )
             }
-          />
-          {props.time === "Day" && (
-            <Button
-              title="🗳"
+          >
+            <Text style={styles.iconButtonText}>👁</Text>
+          </Pressable>
+          {props.time === "Day" ? (
+            <Pressable
+              style={styles.iconButton}
               onPress={() =>
                 props.socket.emit(
                   "messageSentByUser",
-                  "/v " + props.player.name,
+                  `/v ${props.player.name}`,
                   props.time === "Day",
                 )
               }
-            />
-          )}
+            >
+              <Text style={styles.iconButtonText}>🗳</Text>
+            </Pressable>
+          ) : null}
         </View>
-      )}
+      ) : null}
     </View>
   );
 }

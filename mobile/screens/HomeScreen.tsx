@@ -60,10 +60,11 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
         </View>
         <View style={commonStyles.button}>
           <Button
-            title="Play Public Match"
+            title="Join Game"
             disabled={disabled}
             onPress={() =>
-              navigation.navigate("PublicGameLobbyScreen", {
+              navigation.navigate("GameScreen", {
+                title: "MERN Mafia",
                 name: validateText(name),
               })
             }
