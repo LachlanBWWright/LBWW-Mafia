@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { io, type Socket } from "socket.io-client";
 import { Header } from "~/components/header";
 import { Button } from "~/components/ui/button";
@@ -26,13 +26,17 @@ type Player = {
   role?: string;
   isUser?: boolean;
 };
+type ChatMessage = {
+  id: number;
+  text: string;
+};
 
 export default function LobbyPage() {
   const [joinStatus, setJoinStatus] = useState<string>("");
   const [playerName, setPlayerName] = useState<string>("");
   const [joining, setJoining] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
   const [selectedRecipient, setSelectedRecipient] = useState<number | null>(null);
   const [time, setTime] = useState("Day");
@@ -40,6 +44,7 @@ export default function LobbyPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [canTalk, setCanTalk] = useState(true);
   const [canVote, setCanVote] = useState(true);
+  const messageIdRef = useRef(0);
 
   const socket = useMemo<Socket | null>(
     () => (SOCKET_URL ? io(SOCKET_URL, { autoConnect: false }) : null),
@@ -50,7 +55,11 @@ export default function LobbyPage() {
     if (!socket) return;
 
     const appendMessage = (message: string) => {
-      setMessages((current) => [...current, message]);
+      messageIdRef.current += 1;
+      setMessages((current) => [
+        ...current,
+        { id: messageIdRef.current, text: message },
+      ]);
     };
 
     socket.on("receiveMessage", appendMessage);
@@ -69,12 +78,7 @@ export default function LobbyPage() {
     socket.on(
       "receive-player-list",
       (listJson: { name: string; isAlive?: boolean; role?: string }[]) => {
-        setPlayers(
-          listJson.map((player) => ({
-            ...player,
-            isUser: player.name === playerName,
-          })),
-        );
+        setPlayers(listJson);
       },
     );
     socket.on(
@@ -119,7 +123,7 @@ export default function LobbyPage() {
       socket.off("update-day-time");
       socket.disconnect();
     };
-  }, [socket, playerName]);
+  }, [socket]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -241,9 +245,9 @@ export default function LobbyPage() {
                     No messages yet.
                   </p>
                 ) : (
-                  messages.map((message, index) => (
-                    <p key={`${message}-${index}`} className="text-sm">
-                      {message}
+                  messages.map((message) => (
+                    <p key={message.id} className="text-sm">
+                      {message.text}
                     </p>
                   ))
                 )}
@@ -270,7 +274,7 @@ export default function LobbyPage() {
               <div className="max-h-[34vh] space-y-2 overflow-y-auto rounded-md border p-2">
                 {players.map((player, index) => (
                   <button
-                    key={`${player.name}-${index}`}
+                    key={player.name}
                     className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
                       selectedRecipient === index
                         ? "border-primary bg-primary/10"
@@ -282,7 +286,7 @@ export default function LobbyPage() {
                     <div className="flex items-center justify-between gap-2">
                       <span>
                         {player.name}
-                        {player.isUser ? " (You)" : ""}
+                        {player.name === playerName ? " (You)" : ""}
                       </span>
                       <Badge variant={player.isAlive === false ? "destructive" : "secondary"}>
                         {player.isAlive === false ? "Dead" : "Alive"}

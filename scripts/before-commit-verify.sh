@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-ROOT_DIR="/home/runner/work/MERN-Mafia/MERN-Mafia"
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+NEXTJS_PROJECT_DIR="nextjs"
+echo "Using MAX_FILE_LINES=${MAX_FILE_LINES:-500} for staged file guardrails."
 cd "$ROOT_DIR"
 
 run_project_checks() {
@@ -16,7 +18,7 @@ run_project_checks() {
       npm run test
     fi
     if npm run | grep -q " build"; then
-      if [ "$project_dir" = "nextjs" ]; then
+      if [ "$project_dir" = "$NEXTJS_PROJECT_DIR" ]; then
         AUTH_SECRET=dummy \
         AUTH_GOOGLE_ID=dummy \
         AUTH_GOOGLE_SECRET=dummy \
@@ -35,12 +37,16 @@ run_project_checks "nextjs"
 run_project_checks "mobile"
 
 echo "==> Running staged file guardrails"
-python3 - <<'PY'
+ROOT_DIR="$ROOT_DIR" python3 - <<'PY'
 import subprocess
 import sys
+import os
 from pathlib import Path
 
-root = Path("/home/runner/work/MERN-Mafia/MERN-Mafia")
+root = Path(os.environ["ROOT_DIR"])
+MAX_FILE_LINES = int(os.environ.get("MAX_FILE_LINES", "500"))
+MAX_INDENT_TS = 16
+MAX_INDENT_TSX = 28
 result = subprocess.run(
     ["git", "diff", "--cached", "--name-only"],
     cwd=root,
@@ -59,10 +65,10 @@ for relative in files:
     if not full.exists():
         continue
     content = full.read_text(encoding="utf-8", errors="ignore").splitlines()
-    if len(content) > 500:
-        errors.append(f"{relative}: exceeds 500 lines ({len(content)})")
+    if len(content) > MAX_FILE_LINES:
+        errors.append(f"{relative}: exceeds {MAX_FILE_LINES} lines ({len(content)})")
 
-    max_indent = 16 if relative.suffix == ".ts" else 28
+    max_indent = MAX_INDENT_TS if relative.suffix == ".ts" else MAX_INDENT_TSX
     for line_no, line in enumerate(content, start=1):
         stripped = line.lstrip(" ")
         if not stripped or stripped.startswith("//"):

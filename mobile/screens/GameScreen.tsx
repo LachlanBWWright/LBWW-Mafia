@@ -77,8 +77,13 @@ const styles = StyleSheet.create({
 
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 export function GameScreen({ route, navigation }: GameScreenProps) {
-  const socketUrl = process.env.EXPO_PUBLIC_SOCKET_URL ?? "http://localhost:8000";
-  const [socket] = useState(io(socketUrl));
+  const SOCKET_URL =
+    process.env.EXPO_PUBLIC_SOCKET_URL ??
+    (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
+  const CAPTCHA_TOKEN =
+    process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ??
+    (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
+  const [socket] = useState(io(SOCKET_URL));
   const [message, setMessage] = useState("");
   const [playerRole, setPlayerRole] = useState("");
   const [alive] = useState(true);
@@ -204,15 +209,19 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       setCanTalk(false);
     });
 
-    socket.emit(
-      "playerJoinRoom",
-      process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ?? "dev-bypass-token",
-      (callback: string | number) => {
-        if (typeof callback !== "string") {
-          navigation.dispatch(StackActions.popToTop());
-        }
-      },
-    );
+    if (CAPTCHA_TOKEN) {
+      socket.emit(
+        "playerJoinRoom",
+        CAPTCHA_TOKEN,
+        (callback: string | number) => {
+          if (typeof callback !== "string") {
+            navigation.dispatch(StackActions.popToTop());
+          }
+        },
+      );
+    } else {
+      navigation.dispatch(StackActions.popToTop());
+    }
 
     return () => {
       //Runs Upon close
@@ -228,7 +237,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off("update-player-visit");
       socket.disconnect();
     };
-  }, [socket, navigation, route.params.name]);
+  }, [socket, navigation, route.params.name, CAPTCHA_TOKEN]);
 
   const flatList = React.useRef<FlatList<string>>(null);
   const drawer = React.useRef<DrawerLayoutAndroid>(null);
