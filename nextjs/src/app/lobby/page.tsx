@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { CheckCircle2, Eye, MessageSquare } from "lucide-react";
+import {
+  canPerformVisit,
+  defaultVisitCapability,
+  shouldShowDayOnlyActions,
+  shouldShowVisitAction,
+  type VisitCapability,
+} from "../../../../shared/game/playerActionRules";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ??
@@ -26,6 +33,16 @@ type Player = {
   isAlive?: boolean;
   role?: string;
 };
+type RoleAssignment = {
+  name: string;
+  role: string;
+  dayVisitSelf: boolean;
+  dayVisitOthers: boolean;
+  dayVisitFaction: boolean;
+  nightVisitSelf: boolean;
+  nightVisitOthers: boolean;
+  nightVisitFaction: boolean;
+};
 type ChatMessage = {
   id: number;
   text: string;
@@ -43,6 +60,9 @@ export default function LobbyPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [canTalk, setCanTalk] = useState(true);
   const [canVote, setCanVote] = useState(true);
+  const [visitCapability, setVisitCapability] =
+    useState<VisitCapability>(defaultVisitCapability);
+  const [currentUserRole, setCurrentUserRole] = useState<string | undefined>();
   const messageIdRef = useRef(0);
   const isCurrentUserAlive = players.find(
     (player) => player.name === playerName,
@@ -84,7 +104,7 @@ export default function LobbyPage() {
     );
     socket.on(
       "assign-player-role",
-      (playerJson: { name: string; role: string }) => {
+      (playerJson: RoleAssignment) => {
         setPlayers((current) =>
           current.map((player) =>
             player.name === playerJson.name
@@ -92,8 +112,26 @@ export default function LobbyPage() {
               : player,
           ),
         );
+        setCurrentUserRole(playerJson.role);
+        setVisitCapability({
+          dayVisitSelf: playerJson.dayVisitSelf,
+          dayVisitOthers: playerJson.dayVisitOthers,
+          dayVisitFaction: playerJson.dayVisitFaction,
+          nightVisitSelf: playerJson.nightVisitSelf,
+          nightVisitOthers: playerJson.nightVisitOthers,
+          nightVisitFaction: playerJson.nightVisitFaction,
+        });
       },
     );
+    socket.on("update-faction-role", (playerJson: { name: string; role: string }) => {
+      setPlayers((current) =>
+        current.map((player) =>
+          player.name === playerJson.name
+            ? { ...player, role: playerJson.role }
+            : player,
+        ),
+      );
+    });
     socket.on("update-player-role", (playerJson: { name: string; role?: string }) => {
       setPlayers((current) =>
         current.map((player) =>
@@ -120,6 +158,7 @@ export default function LobbyPage() {
       socket.off("receive-player-list");
       socket.off("assign-player-role");
       socket.off("update-player-role");
+      socket.off("update-faction-role");
       socket.off("update-day-time");
       socket.disconnect();
     };
@@ -166,6 +205,8 @@ export default function LobbyPage() {
         clearTimeout(timeout);
         if (typeof result === "string") {
           setPlayerName(result);
+          setCurrentUserRole(undefined);
+          setVisitCapability(defaultVisitCapability);
           setJoinStatus("");
           setMessages([]);
           messageIdRef.current = 0;
@@ -203,7 +244,8 @@ export default function LobbyPage() {
   };
 
   const voteForPlayer = (index: number) => {
-    if (!socket || !canVote) return;
+    if (!socket) return;
+    if (time !== "Day" || !canVote) return;
     socket.emit("handleVote", index, time === "Day");
   };
 
@@ -283,7 +325,31 @@ export default function LobbyPage() {
               </CardHeader>
               <CardContent className="h-[calc(100%-4.75rem)] px-3 pb-3 pt-1">
                 <div className="themed-scrollbar h-full space-y-1 overflow-y-auto rounded-md border p-1.5">
-                  {players.map((player, index) => (
+                  {players.map((player, index) => {
+                    const isDayTime = shouldShowDayOnlyActions(time);
+                    const showVisit = shouldShowVisitAction(time, visitCapability);
+                    const canVisit = canPerformVisit({
+                      time,
+                      isSelf: player.name === playerName,
+                      targetAlive: player.isAlive !== false,
+                      actorAlive: isCurrentUserAlive,
+                      actorRole: currentUserRole,
+                      targetRole: player.role,
+                      capability: visitCapability,
+                    });
+                    const canVoteAction =
+                      isCurrentUserAlive &&
+                      player.name !== playerName &&
+                      player.isAlive !== false &&
+                      isDayTime &&
+                      canVote;
+                    const canWhisperAction =
+                      isDayTime &&
+                      player.name !== playerName &&
+                      player.isAlive !== false &&
+                      !!messageDraft.trim();
+
+                    return (
                     <div
                       key={player.name}
                       className={`flex items-center gap-2 rounded-md border border-border p-1.5 text-sm ${
@@ -293,59 +359,52 @@ export default function LobbyPage() {
                       }`}
                     >
                       <span className="min-w-0 flex-1 truncate">
-                           {player.name}
-                           {player.name === playerName ? " (You)" : ""}
+                            {player.name}
+                            {player.name === playerName ? " (You)" : ""}
                       </span>
-                      <Badge variant={player.isAlive === false ? "destructive" : "secondary"}>
-                           {player.isAlive === false ? "Dead" : "Alive"}
-                      </Badge>
                       <div className="flex items-center gap-1">
-                        <Button
-                          onClick={() => visitPlayer(index)}
-                          disabled={
-                            !isCurrentUserAlive ||
-                            player.name === playerName ||
-                            player.isAlive === false
-                          }
-                          size="icon"
-                          title="Visit"
-                          aria-label="Visit player"
-                          className="h-7 w-7"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          onClick={() => voteForPlayer(index)}
-                          disabled={
-                            !canVote ||
-                            !isCurrentUserAlive ||
-                            player.name === playerName ||
-                            player.isAlive === false
-                          }
-                          variant="secondary"
-                          size="icon"
-                          title="Vote"
-                          aria-label="Vote player"
-                          className="h-7 w-7"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          onClick={() => whisperToPlayer(index)}
-                          disabled={
-                            !messageDraft.trim() || player.name === playerName
-                          }
-                          variant="outline"
-                          size="icon"
-                          title="Whisper using draft"
-                          aria-label="Whisper to player"
-                          className="h-7 w-7"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        </Button>
+                        {showVisit ? (
+                          <Button
+                            onClick={() => visitPlayer(index)}
+                            disabled={!canVisit}
+                            size="icon"
+                            title="Visit"
+                            aria-label="Visit player"
+                            className="h-7 w-7"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                        {shouldShowDayOnlyActions(time) ? (
+                          <Button
+                            onClick={() => voteForPlayer(index)}
+                            disabled={!canVoteAction}
+                            variant="secondary"
+                            size="icon"
+                            title="Vote"
+                            aria-label="Vote player"
+                            className="h-7 w-7"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
+                        {shouldShowDayOnlyActions(time) ? (
+                          <Button
+                            onClick={() => whisperToPlayer(index)}
+                            disabled={!canWhisperAction}
+                            variant="outline"
+                            size="icon"
+                            title="Whisper using draft"
+                            aria-label="Whisper to player"
+                            className="h-7 w-7"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

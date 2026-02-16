@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "eject": "expo eject",
-    "test": "echo \"No tests configured for mobile\"",
+    "test": "tsx --test ../shared/game/*.test.ts",
     "build": "npm run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -50,6 +50,7 @@
     "eslint-plugin-neverthrow": "^1.1.4",
     "metro": "^0.83.3",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "private": true

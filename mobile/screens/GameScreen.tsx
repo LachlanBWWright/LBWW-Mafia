@@ -16,6 +16,13 @@ import { commonStyles } from "../styles/commonStyles";
 import { colors } from "../styles/colors";
 import { trpcClient } from "../lib/trpc";
 import type { RecentMatchSummary } from "../../shared/trpc/appRouter";
+import {
+  canPerformVisit,
+  defaultVisitCapability,
+  shouldShowDayOnlyActions,
+  shouldShowVisitAction,
+  type VisitCapability,
+} from "../../shared/game/playerActionRules";
 
 type Player = {
   name: string;
@@ -29,6 +36,7 @@ type DayTimeInfo = {
   dayNumber: number;
   timeLeft: number;
 };
+type RoleAssignment = Player & VisitCapability;
 
 const styles = StyleSheet.create({
   root: {
@@ -181,6 +189,8 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<string[]>([]);
   const [playerList, setPlayerList] = useState<Player[]>([]);
+  const [visitCapability, setVisitCapability] =
+    useState<VisitCapability>(defaultVisitCapability);
   const [recentMatches, setRecentMatches] = useState<RecentMatchSummary[]>([]);
   const [recentMatchesStatus, setRecentMatchesStatus] = useState("");
 
@@ -225,7 +235,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       setPlayerList((list) => list.filter((item) => item.name !== playerJson.name));
     });
 
-    socket.on("assign-player-role", (playerJson: Player) => {
+    socket.on("assign-player-role", (playerJson: RoleAssignment) => {
       setPlayerList((list) =>
         list.map((player) =>
           player.name === playerJson.name
@@ -234,6 +244,14 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         ),
       );
       setPlayerRole(playerJson.role ?? "");
+      setVisitCapability({
+        dayVisitSelf: playerJson.dayVisitSelf,
+        dayVisitOthers: playerJson.dayVisitOthers,
+        dayVisitFaction: playerJson.dayVisitFaction,
+        nightVisitSelf: playerJson.nightVisitSelf,
+        nightVisitOthers: playerJson.nightVisitOthers,
+        nightVisitFaction: playerJson.nightVisitFaction,
+      });
     });
 
     socket.on("update-player-role", (playerJson: Player) => {
@@ -384,6 +402,9 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
                 socket={socket}
                 setMessage={setMessage}
                 time={time}
+                actorRole={playerRole}
+                actorAlive={isAlive}
+                visitCapability={visitCapability}
               />
             )}
           />
@@ -453,6 +474,9 @@ function PlayerInList(props: {
   socket: Socket;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
   time: string;
+  actorRole: string;
+  actorAlive: boolean;
+  visitCapability: VisitCapability;
 }) {
   const rowStyle =
     props.player.isAlive === false
@@ -469,27 +493,43 @@ function PlayerInList(props: {
       </Text>
       {props.player.isAlive !== false && props.player.name !== props.currentUser ? (
         <View style={styles.playerActionRow}>
-          <Pressable
-            style={styles.iconButton}
-            onPress={() => props.setMessage(`/w ${props.player.name} `)}
-          >
-            <Text style={styles.iconButtonText}>💬</Text>
-          </Pressable>
-          <Pressable
-            style={styles.iconButton}
-            onPress={() =>
-              props.socket.emit(
-                "messageSentByUser",
-                `/c ${props.player.name}`,
-                props.time === "Day",
-              )
-            }
-          >
-            <Text style={styles.iconButtonText}>👁</Text>
-          </Pressable>
-          {props.time === "Day" ? (
+          {shouldShowDayOnlyActions(props.time) ? (
             <Pressable
               style={styles.iconButton}
+              onPress={() => props.setMessage(`/w ${props.player.name} `)}
+            >
+              <Text style={styles.iconButtonText}>💬</Text>
+            </Pressable>
+          ) : null}
+          {shouldShowVisitAction(props.time, props.visitCapability) ? (
+            <Pressable
+              style={styles.iconButton}
+              disabled={
+                !canPerformVisit({
+                  time: props.time,
+                  isSelf: props.player.name === props.currentUser,
+                  targetAlive: true,
+                  actorAlive: props.actorAlive,
+                  actorRole: props.actorRole,
+                  targetRole: props.player.role,
+                  capability: props.visitCapability,
+                })
+              }
+              onPress={() =>
+                props.socket.emit(
+                  "messageSentByUser",
+                  `/c ${props.player.name}`,
+                  props.time === "Day",
+                )
+              }
+            >
+              <Text style={styles.iconButtonText}>👁</Text>
+            </Pressable>
+          ) : null}
+          {shouldShowDayOnlyActions(props.time) ? (
+            <Pressable
+              style={styles.iconButton}
+              disabled={!props.actorAlive}
               onPress={() =>
                 props.socket.emit(
                   "messageSentByUser",

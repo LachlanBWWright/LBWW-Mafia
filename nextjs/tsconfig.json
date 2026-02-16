@@ -54,6 +54,7 @@
     "**/*.js",
     ".next/types/**/*.ts",
     "../db/**/*.ts",
+    "../shared/game/**/*.ts",
     "../shared/trpc/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
