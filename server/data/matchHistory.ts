@@ -44,6 +44,10 @@ export async function persistMatchHistory(input: MatchHistoryInput) {
 
   const matchId = inserted[0]?.id;
   if (!matchId) {
+    console.error("Match history insert did not return an ID", {
+      roomName: input.roomName,
+      endedAt: input.endedAt.toISOString(),
+    });
     return;
   }
 
