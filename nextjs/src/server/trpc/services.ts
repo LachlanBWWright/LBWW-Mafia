@@ -28,8 +28,8 @@ const parseArray = (value: string): string[] => {
     if (Array.isArray(parsed)) {
       return parsed.filter((entry): entry is string => typeof entry === "string");
     }
-  } catch {
-    // ignore malformed json
+  } catch (error) {
+    console.error("Failed to parse winningRoles JSON", error);
   }
   return [];
 };
@@ -40,8 +40,8 @@ const parseCount = (value: string): number => {
     if (Array.isArray(parsed)) {
       return parsed.length;
     }
-  } catch {
-    // ignore malformed json
+  } catch (error) {
+    console.error("Failed to parse history JSON", error);
   }
   return 0;
 };

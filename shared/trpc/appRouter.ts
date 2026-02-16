@@ -51,7 +51,10 @@ const t = initTRPC.context<AppRouterContext>().create({
 
 const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.sessionUser) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "You must be signed in to use this endpoint.",
+    });
   }
   return next({
     ctx: {
@@ -63,7 +66,10 @@ const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.sessionUser.isAdmin) {
-    throw new TRPCError({ code: "FORBIDDEN" });
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Admin access required.",
+    });
   }
   return next();
 });
