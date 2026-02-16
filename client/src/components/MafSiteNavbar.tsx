@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Navbar, Nav } from "react-bootstrap";
+import { Navbar, Nav } from "../ui/bootstrap-shim";
 import { Outlet, Link } from "react-router-dom";
 
 export function MafSiteNavbar() {

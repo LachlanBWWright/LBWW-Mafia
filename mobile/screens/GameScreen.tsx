@@ -17,6 +17,7 @@ import { colors } from "../styles/colors";
 import { trpcClient } from "../lib/trpc";
 import type { RecentMatchSummary } from "../../shared/trpc/appRouter";
 import {
+  type DayTime,
   canVoteTarget,
   canWhisperTarget,
   canPerformVisit,
@@ -34,7 +35,7 @@ type Player = {
 };
 
 type DayTimeInfo = {
-  time: string;
+  time: DayTime;
   dayNumber: number;
   timeLeft: number;
 };
@@ -187,7 +188,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
   const [canTalk, setCanTalk] = useState(true);
   const [canVote, setCanVote] = useState(true);
-  const [time, setTime] = useState("Day");
+  const [time, setTime] = useState<DayTime>("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<string[]>([]);
@@ -482,7 +483,7 @@ function PlayerInList(props: {
   player: Player;
   socket: Socket;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
-  time: string;
+  time: DayTime;
   actorRole: string;
   actorAlive: boolean;
   visitCapability: VisitCapability;

@@ -36,6 +36,16 @@ run_project_checks "server"
 run_project_checks "nextjs"
 run_project_checks "mobile"
 
+echo "==> Checking for disallowed styling imports"
+if grep -R "react-bootstrap" -n \
+  --exclude-dir=node_modules \
+  --exclude-dir=.next \
+  --exclude-dir=.git \
+  "$ROOT_DIR/client/src" "$ROOT_DIR/nextjs/src" "$ROOT_DIR/mobile" "$ROOT_DIR/server" "$ROOT_DIR/shared" "$ROOT_DIR/db"; then
+  echo "Verification failed: react-bootstrap references are not allowed."
+  exit 1
+fi
+
 echo "==> Running staged file guardrails"
 ROOT_DIR="$ROOT_DIR" python3 - <<'PY'
 import subprocess

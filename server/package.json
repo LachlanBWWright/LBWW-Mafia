@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "start": "tsx server.ts",
-    "test": "tsx --test ../shared/game/*.test.ts",
+    "test": "tsx --test ../shared/**/*.test.ts",
     "build": "npm run typecheck",
     "heroku-postbuild": "cd client && npm install --only=dev && npm install && npm run build",
     "lint": "eslint .",

@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "eject": "expo eject",
-    "test": "tsx --test ../shared/game/*.test.ts",
+    "test": "tsx --test ../shared/**/*.test.ts",
     "build": "npm run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

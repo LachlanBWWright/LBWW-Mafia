@@ -9,6 +9,7 @@ import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { CheckCircle2, Eye, MessageSquare } from "lucide-react";
 import {
+  type DayTime,
   canVoteTarget,
   canWhisperTarget,
   canPerformVisit,
@@ -57,7 +58,7 @@ export default function LobbyPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
-  const [time, setTime] = useState("Day");
+  const [time, setTime] = useState<DayTime>("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [canTalk, setCanTalk] = useState(true);
@@ -143,7 +144,7 @@ export default function LobbyPage() {
         ),
       );
     });
-    socket.on("update-day-time", (infoJson: { time: string; dayNumber: number; timeLeft: number }) => {
+    socket.on("update-day-time", (infoJson: { time: DayTime; dayNumber: number; timeLeft: number }) => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setTimeLeft(infoJson.timeLeft);

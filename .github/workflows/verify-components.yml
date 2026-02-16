@@ -32,7 +32,7 @@ jobs:
 
       - name: Check styling stack policy
         run: |
-          if grep -R "react-bootstrap" -n ../nextjs ../mobile ../server ../shared ../db; then
+          if grep -R "react-bootstrap" -n --exclude-dir=node_modules --exclude-dir=.git ../client/src ../nextjs/src ../mobile ../server ../shared ../db; then
             echo "react-bootstrap references are not allowed in major components."
             exit 1
           fi

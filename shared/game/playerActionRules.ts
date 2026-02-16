@@ -1,4 +1,4 @@
-export type DayTime = "Day" | "Night" | string;
+export type DayTime = "Day" | "Night";
 
 export type VisitCapability = {
   dayVisitSelf: boolean;

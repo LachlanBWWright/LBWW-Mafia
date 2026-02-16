@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Card, Tooltip, OverlayTrigger, Button } from "react-bootstrap";
+import { Card, Tooltip, OverlayTrigger, Button } from "../ui/bootstrap-shim";
 import { useOutletContext } from "react-router-dom";
 import { Room } from "./Room";
 import { roles } from "../info/roles";
@@ -40,7 +40,7 @@ export function PlayPage({ debug }: { debug: boolean }) {
               <OverlayTrigger
                 placement="right"
                 delay={{ show: 250, hide: 400 }}
-                overlay={(props) => (
+                overlay={(props: React.HTMLAttributes<HTMLDivElement>) => (
                   <Tooltip id="button-tooltip" {...props}>
                     {roles.get(playerRole)}
                   </Tooltip>

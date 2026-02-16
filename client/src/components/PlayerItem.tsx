@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ListGroup, Row, Col, Button, ButtonGroup } from "react-bootstrap";
+import { ListGroup, Row, Col, Button, ButtonGroup } from "../ui/bootstrap-shim";
 
 export function PlayerItem({
   index,
