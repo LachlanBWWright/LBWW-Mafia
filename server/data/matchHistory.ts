@@ -1,5 +1,4 @@
-import { matchParticipants, matches } from "../../db/schema.js";
-import { sharedDb } from "./sharedDb.js";
+import { sharedDbClient } from "./sharedDb";
 
 export type MatchHistoryEvent = {
   time: number;
@@ -28,22 +27,26 @@ export type MatchHistoryInput = {
 };
 
 export async function persistMatchHistory(input: MatchHistoryInput) {
-  const inserted = await sharedDb
-    .insert(matches)
-    .values({
-      roomName: input.roomName,
-      startedAt: input.startedAt,
-      endedAt: input.endedAt,
-      winningFaction: input.winningFaction,
-      winningRoles: JSON.stringify(input.winningRoles),
-      playerCount: input.participants.length,
-      conversationHistory: JSON.stringify(input.conversationHistory),
-      actionHistory: JSON.stringify(input.actionHistory),
-    })
-    .returning({ id: matches.id });
+  const insertMatchResult = await sharedDbClient.execute({
+    sql: `
+      INSERT INTO nextjs_match
+      (roomName, startedAt, endedAt, winningFaction, winningRoles, playerCount, conversationHistory, actionHistory)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    args: [
+      input.roomName,
+      input.startedAt.getTime(),
+      input.endedAt.getTime(),
+      input.winningFaction,
+      JSON.stringify(input.winningRoles),
+      input.participants.length,
+      JSON.stringify(input.conversationHistory),
+      JSON.stringify(input.actionHistory),
+    ],
+  });
 
-  const matchId = inserted[0]?.id;
-  if (!matchId) {
+  const insertedMatchId = Number(insertMatchResult.lastInsertRowid ?? 0);
+  if (!insertedMatchId) {
     console.error("Match history insert did not return an ID", {
       roomName: input.roomName,
       endedAt: input.endedAt.toISOString(),
@@ -51,13 +54,20 @@ export async function persistMatchHistory(input: MatchHistoryInput) {
     return;
   }
 
-  await sharedDb.insert(matchParticipants).values(
-    input.participants.map((participant) => ({
-      matchId,
-      userId: participant.userId,
-      username: participant.username,
-      role: participant.role,
-      won: participant.won,
-    })),
-  );
+  for (const participant of input.participants) {
+    await sharedDbClient.execute({
+      sql: `
+        INSERT INTO nextjs_match_participant
+        (matchId, userId, username, role, won)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      args: [
+        insertedMatchId,
+        participant.userId ?? null,
+        participant.username,
+        participant.role,
+        participant.won ? 1 : 0,
+      ],
+    });
+  }
 }

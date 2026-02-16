@@ -1,7 +1,4 @@
 import { createClient, type Client } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-
-import * as schema from "../../db/schema.js";
 
 const globalForDb = globalThis as unknown as {
   client?: Client;
@@ -10,14 +7,12 @@ const globalForDb = globalThis as unknown as {
 const defaultDatabaseUrl = "file:../nextjs/dev.db";
 const databaseUrl = process.env.DATABASE_URL ?? defaultDatabaseUrl;
 
-const client =
+export const sharedDbClient =
   globalForDb.client ??
   createClient({
     url: databaseUrl,
   });
 
 if (process.env.NODE_ENV !== "production") {
-  globalForDb.client = client;
+  globalForDb.client = sharedDbClient;
 }
-
-export const sharedDb = drizzle(client, { schema });
