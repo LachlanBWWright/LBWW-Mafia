@@ -30,6 +30,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Check styling stack policy
+        run: |
+          if grep -R "react-bootstrap" -n ../nextjs ../mobile ../server ../shared ../db; then
+            echo "react-bootstrap references are not allowed in major components."
+            exit 1
+          fi
+
       - name: Lint
         run: npm run lint
 

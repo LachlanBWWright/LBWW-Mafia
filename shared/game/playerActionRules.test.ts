@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   canPerformVisit,
+  canVoteTarget,
+  canWhisperTarget,
   defaultVisitCapability,
   shouldShowDayOnlyActions,
   shouldShowVisitAction,
@@ -84,4 +86,67 @@ test("visit respects self-visit capability", () => {
 
   assert.equal(withoutSelfVisit, false);
   assert.equal(withSelfVisit, true);
+});
+
+test("voting is day-only and disallows self/invalid targets", () => {
+  assert.equal(
+    canVoteTarget({
+      time: "Night",
+      actorAlive: true,
+      targetAlive: true,
+      isSelf: false,
+      canVote: true,
+    }),
+    false,
+  );
+  assert.equal(
+    canVoteTarget({
+      time: "Day",
+      actorAlive: true,
+      targetAlive: true,
+      isSelf: false,
+      canVote: true,
+    }),
+    true,
+  );
+  assert.equal(
+    canVoteTarget({
+      time: "Day",
+      actorAlive: true,
+      targetAlive: true,
+      isSelf: true,
+      canVote: true,
+    }),
+    false,
+  );
+});
+
+test("whispering requires day, target, and draft message", () => {
+  assert.equal(
+    canWhisperTarget({
+      time: "Night",
+      targetAlive: true,
+      isSelf: false,
+      hasMessage: true,
+    }),
+    false,
+  );
+  assert.equal(
+    canWhisperTarget({
+      time: "Day",
+      targetAlive: true,
+      isSelf: false,
+      hasMessage: true,
+    }),
+    true,
+  );
+  assert.equal(
+    canWhisperTarget({
+      time: "Day",
+      targetAlive: true,
+      isSelf: false,
+      hasMessage: false,
+    }),
+    false,
+  );
 });

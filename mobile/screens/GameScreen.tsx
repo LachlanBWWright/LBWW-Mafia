@@ -17,6 +17,8 @@ import { colors } from "../styles/colors";
 import { trpcClient } from "../lib/trpc";
 import type { RecentMatchSummary } from "../../shared/trpc/appRouter";
 import {
+  canVoteTarget,
+  canWhisperTarget,
   canPerformVisit,
   defaultVisitCapability,
   shouldShowDayOnlyActions,
@@ -184,6 +186,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [activeTab, setActiveTab] = useState<"chat" | "players" | "history">("chat");
 
   const [canTalk, setCanTalk] = useState(true);
+  const [canVote, setCanVote] = useState(true);
   const [time, setTime] = useState("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
@@ -284,6 +287,9 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     socket.on("blockMessages", () => {
       setCanTalk(false);
     });
+    socket.on("disable-voting", () => {
+      setCanVote(false);
+    });
 
     if (CAPTCHA_TOKEN) {
       socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (callback: string | number) => {
@@ -303,6 +309,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       socket.off("receive-chat-message");
       socket.off("receive-whisper-message");
       socket.off("blockMessages");
+      socket.off("disable-voting");
       socket.off("receive-role");
       socket.off("receive-player-list");
       socket.off("receive-new-player");
@@ -405,6 +412,8 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
                 actorRole={playerRole}
                 actorAlive={isAlive}
                 visitCapability={visitCapability}
+                canVote={canVote}
+                hasDraftMessage={message.trim().length > 0}
               />
             )}
           />
@@ -477,6 +486,8 @@ function PlayerInList(props: {
   actorRole: string;
   actorAlive: boolean;
   visitCapability: VisitCapability;
+  canVote: boolean;
+  hasDraftMessage: boolean;
 }) {
   const rowStyle =
     props.player.isAlive === false
@@ -484,6 +495,7 @@ function PlayerInList(props: {
       : props.player.isAlive === true
         ? styles.aliveRow
         : styles.neutralRow;
+  const targetIsAlive = props.player.isAlive !== false;
 
   return (
     <View style={[styles.playerContainer, rowStyle]}>
@@ -496,6 +508,14 @@ function PlayerInList(props: {
           {shouldShowDayOnlyActions(props.time) ? (
             <Pressable
               style={styles.iconButton}
+              disabled={
+                !canWhisperTarget({
+                  time: props.time,
+                  targetAlive: targetIsAlive,
+                  isSelf: props.player.name === props.currentUser,
+                  hasMessage: props.hasDraftMessage,
+                })
+              }
               onPress={() => props.setMessage(`/w ${props.player.name} `)}
             >
               <Text style={styles.iconButtonText}>💬</Text>
@@ -508,7 +528,7 @@ function PlayerInList(props: {
                 !canPerformVisit({
                   time: props.time,
                   isSelf: props.player.name === props.currentUser,
-                  targetAlive: true,
+                  targetAlive: targetIsAlive,
                   actorAlive: props.actorAlive,
                   actorRole: props.actorRole,
                   targetRole: props.player.role,
@@ -529,7 +549,15 @@ function PlayerInList(props: {
           {shouldShowDayOnlyActions(props.time) ? (
             <Pressable
               style={styles.iconButton}
-              disabled={!props.actorAlive}
+              disabled={
+                !canVoteTarget({
+                  time: props.time,
+                  actorAlive: props.actorAlive,
+                  targetAlive: targetIsAlive,
+                  isSelf: props.player.name === props.currentUser,
+                  canVote: props.canVote,
+                })
+              }
               onPress={() =>
                 props.socket.emit(
                   "messageSentByUser",

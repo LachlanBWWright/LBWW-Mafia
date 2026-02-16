@@ -101,3 +101,30 @@ export const shouldShowVisitAction = (
 
 export const shouldShowDayOnlyActions = (time: DayTime) =>
   normalizeTime(time) === "day";
+
+export const canVoteTarget = (input: {
+  time: DayTime;
+  actorAlive: boolean;
+  targetAlive: boolean;
+  isSelf: boolean;
+  canVote: boolean;
+}) => {
+  if (!shouldShowDayOnlyActions(input.time)) {
+    return false;
+  }
+  return (
+    input.actorAlive && input.targetAlive && !input.isSelf && input.canVote
+  );
+};
+
+export const canWhisperTarget = (input: {
+  time: DayTime;
+  targetAlive: boolean;
+  isSelf: boolean;
+  hasMessage: boolean;
+}) => {
+  if (!shouldShowDayOnlyActions(input.time)) {
+    return false;
+  }
+  return input.targetAlive && !input.isSelf && input.hasMessage;
+};

@@ -9,6 +9,8 @@ import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { CheckCircle2, Eye, MessageSquare } from "lucide-react";
 import {
+  canVoteTarget,
+  canWhisperTarget,
   canPerformVisit,
   defaultVisitCapability,
   shouldShowDayOnlyActions,
@@ -338,20 +340,26 @@ export default function LobbyPage() {
                       capability: visitCapability,
                     });
                     const canVoteAction =
-                      isCurrentUserAlive &&
-                      player.name !== playerName &&
-                      player.isAlive !== false &&
-                      isDayTime &&
-                      canVote;
-                    const canWhisperAction =
-                      isDayTime &&
-                      player.name !== playerName &&
-                      player.isAlive !== false &&
-                      !!messageDraft.trim();
+                      canVoteTarget({
+                        time,
+                        actorAlive: isCurrentUserAlive,
+                        targetAlive: player.isAlive !== false,
+                        isSelf: player.name === playerName,
+                        canVote,
+                      }) && isDayTime;
+                    const canWhisperAction = canWhisperTarget({
+                      time,
+                      targetAlive: player.isAlive !== false,
+                      isSelf: player.name === playerName,
+                      hasMessage: !!messageDraft.trim(),
+                    });
 
                     return (
                     <div
                       key={player.name}
+                      aria-label={`${player.name} is ${
+                        player.isAlive === false ? "dead" : "alive"
+                      }`}
                       className={`flex items-center gap-2 rounded-md border border-border p-1.5 text-sm ${
                         player.isAlive === false
                           ? "bg-destructive/20"
