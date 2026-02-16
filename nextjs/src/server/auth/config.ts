@@ -20,6 +20,7 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
+      isAdmin: boolean;
       // ...other properties
       // role: UserRole;
     } & DefaultSession["user"];
@@ -56,12 +57,20 @@ export const authConfig = {
     verificationTokensTable: verificationTokens,
   }),
   callbacks: {
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-      },
-    }),
+    session: ({ session, user }) => {
+      const isAdmin =
+        typeof (user as { isAdmin?: unknown }).isAdmin === "boolean"
+          ? (user as unknown as { isAdmin: boolean }).isAdmin
+          : false;
+
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: user.id,
+          isAdmin,
+        },
+      };
+    },
   },
 } satisfies NextAuthConfig;

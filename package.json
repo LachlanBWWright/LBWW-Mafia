@@ -12,5 +12,12 @@
     "lint:fix:nextjs": "cd nextjs && npm run lint:fix",
     "lint:fix:mobile": "cd mobile && npm run lint:fix"
   },
-  "description": "MERN Mafia monorepo root"
+  "description": "MERN Mafia monorepo root",
+  "dependencies": {
+    "@libsql/client": "^0.17.0",
+    "@trpc/server": "^11.10.0",
+    "drizzle-orm": "^0.45.1",
+    "superjson": "^2.2.6",
+    "zod": "^4.3.6"
+  }
 }

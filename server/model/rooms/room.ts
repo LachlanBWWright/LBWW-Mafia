@@ -9,6 +9,10 @@ import { Framer } from "../roles/neutral/framer.js";
 import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { names } from "../player/names/namesList.js";
 import { fromThrowable } from "neverthrow";
+import {
+  persistMatchHistory,
+  type MatchHistoryEvent,
+} from "../../data/matchHistory.js";
 
 export class Room {
   name: string;
@@ -30,6 +34,9 @@ export class Room {
   peacemaker: Peacemaker | null = null; //Pleacemaker role, who wants to cause a tie by nobody dying for three days
 
   confesser?: Confesser;
+  startedAt = new Date();
+  conversationHistory: MatchHistoryEvent[] = [];
+  actionHistory: MatchHistoryEvent[] = [];
 
   constructor(size: number) {
     //Data relating to the players in the room
@@ -38,6 +45,31 @@ export class Room {
 
     //Data relating to the state of the game.
     this.sessionLength = this.size * 4000; //How long the days/nights initially last for. Decreases over time, with nights at half the length of days
+  }
+
+  private recordConversation(
+    content: string,
+    actor?: string,
+    target?: string,
+    type: MatchHistoryEvent["type"] = "chat",
+  ) {
+    this.conversationHistory.push({
+      time: Date.now(),
+      type,
+      actor,
+      target,
+      content,
+    });
+  }
+
+  private recordAction(content: string, actor?: string, target?: string) {
+    this.actionHistory.push({
+      time: Date.now(),
+      type: "action",
+      actor,
+      target,
+      content,
+    });
   }
 
   private runSafely(action: () => void) {
@@ -77,6 +109,7 @@ export class Room {
       "receiveMessage",
       playerUsername + " has joined the room!",
     );
+    this.recordConversation(`${playerUsername} has joined the room!`, playerUsername);
     playerSocket.data.position =
       this.playerList.push(
         new Player(playerSocket, playerSocketId, playerUsername, this),
@@ -118,6 +151,7 @@ export class Room {
         "receiveMessage",
         player.playerUsername + " has left the room!",
       );
+      this.recordConversation(`${player.playerUsername} has left the room!`, player.playerUsername);
       this.playerList.splice(playerIndex, 1);
       for (const [index, currentPlayer] of this.playerList.entries()) {
         currentPlayer.socket.data.position = index; //Updates positions
@@ -186,6 +220,7 @@ export class Room {
             "receive-chat-message",
             foundPlayer.playerUsername + ": " + message,
           ); //If the game hasn't started, no roles have been assigned, just send the message directly
+        this.recordConversation(message, foundPlayer.playerUsername);
       },
       (error) => error,
     );
@@ -237,6 +272,7 @@ export class Room {
           "The town voted out a confessor, disabling voting.",
         );
       else if (foundRecipient.isAlive && !foundPlayer.hasVoted) {
+        this.recordAction("vote", foundPlayer.playerUsername, foundRecipient.playerUsername);
         foundPlayer.hasVoted = true;
         foundRecipient.votesReceived++;
         if (foundRecipient.votesReceived > 1)
@@ -289,6 +325,7 @@ export class Room {
           "You cannot whisper at night.",
         );
       else if (this.time === "day" && foundRecipient.isAlive) {
+        this.recordAction("whisper", foundPlayer.playerUsername, foundRecipient.playerUsername);
         if (0.1 > Math.random()) {
           //10% chance of the whisper being overheard by the town.
           io.to(foundPlayer.socketId).emit(
@@ -308,6 +345,12 @@ export class Room {
           io.to(foundRecipient.socketId).emit(
             "receive-whisper-message",
             "Whisper from " + foundPlayer.playerUsername + ": " + message,
+          );
+          this.recordConversation(
+            message,
+            foundPlayer.playerUsername,
+            foundRecipient.playerUsername,
+            "whisper",
           );
           io.to(foundPlayer.socketId).emit(
             "receive-whisper-message",
@@ -370,6 +413,13 @@ export class Room {
         recipient !== null ? this.playerList[recipient] : null;
 
       if (this.time === "day") {
+        if (foundRecipient !== null) {
+          this.recordAction(
+            "day-visit",
+            foundPlayer.playerUsername,
+            foundRecipient.playerUsername,
+          );
+        }
         if (foundRecipient !== null)
           foundPlayer.role.handleDayAction(foundRecipient);
         else foundPlayer.role.cancelDayAction();
@@ -380,6 +430,12 @@ export class Room {
             "You are roleblocked, and cannot call commands.",
           );
         else {
+          if (foundRecipient !== null)
+            this.recordAction(
+              "night-visit",
+              foundPlayer.playerUsername,
+              foundRecipient.playerUsername,
+            );
           if (foundRecipient !== null)
             foundPlayer.role.handleNightAction(foundRecipient);
           else foundPlayer.role.cancelNightAction();
@@ -663,6 +719,40 @@ export class Room {
 
   endGame(winningFactionName: string) {
     this.gameHasEnded = true;
+    const winningRoles = this.playerList
+      .filter((player) => {
+        if (winningFactionName === "nobody") {
+          return false;
+        }
+        if (winningFactionName === "neutral") {
+          return player.role.group === "neutral";
+        }
+        return player.role.group === winningFactionName;
+      })
+      .map((player) => player.role.name);
+
+    void persistMatchHistory({
+      roomName: this.name,
+      startedAt: this.startedAt,
+      endedAt: new Date(),
+      winningFaction: winningFactionName,
+      winningRoles,
+      participants: this.playerList.map((player) => ({
+        username: player.playerUsername,
+        role: player.role.name,
+        won:
+          winningFactionName === "nobody"
+            ? false
+            : winningFactionName === "neutral"
+              ? player.role.group === "neutral"
+              : player.role.group === winningFactionName,
+      })),
+      conversationHistory: this.conversationHistory,
+      actionHistory: this.actionHistory,
+    }).catch((error) => {
+      console.error("Failed to persist match history", error);
+    });
+
     if (winningFactionName == "nobody")
       io.to(this.name).emit(
         "receiveMessage",

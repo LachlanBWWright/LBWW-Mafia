@@ -31,13 +31,13 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const [disabled, setDisabled] = useState(true);
 
   return (
-    <View style={commonStyles.container}>
+    <View style={commonStyles.container} className="bg-slate-950">
       <Text style={styles.title}>Welcome To MERN Mafia!</Text>
       <Text style={styles.nameText}>
         {name.length !== 0 ? `Your name is "${name}"` : ""}
       </Text>
 
-      <View style={styles.formContainer}>
+      <View style={styles.formContainer} className="gap-2">
         <TextInput
           onChangeText={(text) => {
             setName(text);

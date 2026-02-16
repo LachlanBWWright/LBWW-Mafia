@@ -18,23 +18,29 @@
     "@expo/metro-runtime": "^6.1.2",
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.12.0",
+    "@trpc/client": "^11.10.0",
     "axios": "^1.13.5",
     "expo": "^54.0.33",
     "expo-status-bar": "~3.0.9",
+    "nativewind": "^4.2.1",
     "neverthrow": "^8.2.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-native": "0.84.0",
+    "react-native-css-interop": "^0.2.1",
+    "react-native-reanimated": "^4.2.1",
     "react-native-svg": "15.15.3",
     "react-native-svg-transformer": "^1.5.3",
     "react-native-vector-icons": "^10.3.0",
     "react-native-web": "~0.21.2",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "superjson": "^2.2.6"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@react-native/eslint-config": "^0.84.0",
+    "@trpc/server": "^11.10.0",
     "@types/react": "~19.2.14",
     "@types/react-native": "~0.73.0",
     "@types/react-native-vector-icons": "^6.4.18",
@@ -43,6 +49,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-neverthrow": "^1.1.4",
     "metro": "^0.83.3",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.9.3"
   },
   "private": true

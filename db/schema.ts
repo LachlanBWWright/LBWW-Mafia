@@ -11,7 +11,6 @@
 
 import { relations, sql } from "drizzle-orm";
 import { index, primaryKey, sqliteTableCreator } from "drizzle-orm/sqlite-core";
-import { type AdapterAccount } from "next-auth/adapters";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -52,6 +51,7 @@ export const users = createTable("user", (d) => ({
   email: d.text({ length: 255 }).notNull(),
   emailVerified: d.integer({ mode: "timestamp" }).default(sql`(unixepoch())`),
   image: d.text({ length: 255 }),
+  isAdmin: d.integer({ mode: "boolean" }).notNull().default(false),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -65,7 +65,7 @@ export const accounts = createTable(
       .text({ length: 255 })
       .notNull()
       .references(() => users.id),
-    type: d.text({ length: 255 }).$type<AdapterAccount["type"]>().notNull(),
+    type: d.text({ length: 255 }).notNull(),
     provider: d.text({ length: 255 }).notNull(),
     providerAccountId: d.text({ length: 255 }).notNull(),
     refresh_token: d.text(),
@@ -113,4 +113,42 @@ export const verificationTokens = createTable(
     expires: d.integer({ mode: "timestamp" }).notNull(),
   }),
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
+);
+
+export const matches = createTable(
+  "match",
+  (d) => ({
+    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    roomName: d.text({ length: 255 }).notNull(),
+    startedAt: d.integer({ mode: "timestamp" }).notNull(),
+    endedAt: d.integer({ mode: "timestamp" }).notNull(),
+    winningFaction: d.text({ length: 255 }).notNull(),
+    winningRoles: d.text().notNull(),
+    playerCount: d.integer({ mode: "number" }).notNull(),
+    conversationHistory: d.text().notNull(),
+    actionHistory: d.text().notNull(),
+  }),
+  (t) => [index("match_endedAt_idx").on(t.endedAt)],
+);
+
+export const matchParticipants = createTable(
+  "match_participant",
+  (d) => ({
+    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
+    matchId: d
+      .integer({ mode: "number" })
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    userId: d.text({ length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    username: d.text({ length: 255 }).notNull(),
+    role: d.text({ length: 255 }).notNull(),
+    won: d.integer({ mode: "boolean" }).notNull().default(false),
+  }),
+  (t) => [
+    index("match_participant_match_idx").on(t.matchId),
+    index("match_participant_user_idx").on(t.userId),
+    index("match_participant_username_idx").on(t.username),
+  ],
 );

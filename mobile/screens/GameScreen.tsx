@@ -14,6 +14,8 @@ import { StackActions } from "@react-navigation/native";
 import io, { type Socket } from "socket.io-client";
 import { commonStyles } from "../styles/commonStyles";
 import { colors } from "../styles/colors";
+import { trpcClient } from "../lib/trpc";
+import type { RecentMatchSummary } from "../../shared/trpc/appRouter";
 
 type Player = {
   name: string;
@@ -171,7 +173,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [joinedAs, setJoinedAs] = useState(route.params.name);
   const [playerRole, setPlayerRole] = useState("");
   const [isAlive, setIsAlive] = useState(true);
-  const [activeTab, setActiveTab] = useState<"chat" | "players">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "players" | "history">("chat");
 
   const [canTalk, setCanTalk] = useState(true);
   const [time, setTime] = useState("Day");
@@ -179,6 +181,8 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<string[]>([]);
   const [playerList, setPlayerList] = useState<Player[]>([]);
+  const [recentMatches, setRecentMatches] = useState<RecentMatchSummary[]>([]);
+  const [recentMatchesStatus, setRecentMatchesStatus] = useState("");
 
   const flatList = useRef<FlatList<string>>(null);
 
@@ -302,9 +306,33 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
+  useEffect(() => {
+    if (!joinedAs.trim()) {
+      return;
+    }
+
+    setRecentMatchesStatus("Loading recent matches...");
+    void trpcClient.match.recentByUsername
+      .query({
+        username: joinedAs,
+        limit: 8,
+      })
+      .then((historyRows: RecentMatchSummary[]) => {
+        setRecentMatches(historyRows);
+        setRecentMatchesStatus(
+          historyRows.length === 0 ? "No recent matches found." : "",
+        );
+      })
+      .catch((error: unknown) => {
+        setRecentMatchesStatus(
+          error instanceof Error ? error.message : "Failed to load recent matches.",
+        );
+      });
+  }, [joinedAs]);
+
   return (
-    <View style={[commonStyles.container, styles.root]}>
-      <View style={styles.topMeta}>
+    <View style={[commonStyles.container, styles.root]} className="bg-slate-950">
+      <View style={styles.topMeta} className="rounded-xl">
         <Text style={styles.metaText}>
           {time} {dayNumber} • {timeLeft}s left
         </Text>
@@ -313,7 +341,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         </Text>
       </View>
 
-      <View style={styles.tabRow}>
+      <View style={styles.tabRow} className="mb-1">
         <Pressable
           style={[styles.tabButton, activeTab === "chat" && styles.tabButtonActive]}
           onPress={() => setActiveTab("chat")}
@@ -326,10 +354,16 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         >
           <Text style={styles.tabText}>Players</Text>
         </Pressable>
+        <Pressable
+          style={[styles.tabButton, activeTab === "history" && styles.tabButtonActive]}
+          onPress={() => setActiveTab("history")}
+        >
+          <Text style={styles.tabText}>History</Text>
+        </Pressable>
       </View>
 
       {activeTab === "chat" ? (
-        <View style={styles.messageContainer}>
+        <View style={styles.messageContainer} className="rounded-xl">
           <FlatList
             ref={flatList}
             data={messages}
@@ -339,8 +373,8 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
             }}
           />
         </View>
-      ) : (
-        <View style={styles.messageContainer}>
+      ) : activeTab === "players" ? (
+        <View style={styles.messageContainer} className="rounded-xl">
           <FlatList
             data={playerList}
             renderItem={({ item }) => (
@@ -351,6 +385,25 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
                 setMessage={setMessage}
                 time={time}
               />
+            )}
+          />
+        </View>
+      ) : (
+        <View style={styles.messageContainer} className="rounded-xl">
+          <FlatList
+            data={recentMatches}
+            ListEmptyComponent={
+              <Text style={styles.chatMessage}>
+                {recentMatchesStatus || "No recent matches found."}
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <View style={[styles.playerContainer, styles.neutralRow]}>
+                <Text style={styles.playerName}>
+                  #{item.id} • {item.winningFaction} won •{" "}
+                  {new Date(item.endedAt).toLocaleDateString()}
+                </Text>
+              </View>
             )}
           />
         </View>

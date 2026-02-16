@@ -1,3 +1,5 @@
+import "react-native-reanimated";
+import "./global.css";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   DarkTheme,
