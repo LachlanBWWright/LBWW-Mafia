@@ -1,4 +1,4 @@
-# UI Redesign Summary - MERN Mafia
+# UI Redesign Summary - LBWW Mafia
 
 ## Session Information
 - **Date**: January 17, 2026

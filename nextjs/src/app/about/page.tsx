@@ -15,7 +15,7 @@ export default function AboutPage() {
         <div className="mx-auto max-w-4xl">
           <div className="mb-12 text-center">
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              About <span className="text-primary">MERN Mafia</span>
+              About <span className="text-primary">LBWW Mafia</span>
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
               A modern take on the classic social deduction game
@@ -29,7 +29,7 @@ export default function AboutPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-muted-foreground">
-                MERN Mafia is an online multiplayer implementation of the classic Mafia social
+                LBWW Mafia is an online multiplayer implementation of the classic Mafia social
                 deduction game. Built with modern web technologies, it allows players from around
                 the world to connect and play together in real-time.
               </p>

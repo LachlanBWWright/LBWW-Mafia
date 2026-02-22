@@ -72,7 +72,7 @@ export function PlayPage({ debug }: { debug: boolean }) {
             This game was created by Lachlan Wright, you can view my GitHub
             profile <a href="http://www.github.com/LachlanBWWright">here,</a> or
             the repository for this game{" "}
-            <a href="https://github.com/LachlanBWWright/MERN-Mafia">here.</a>
+            <a href="https://github.com/LachlanBWWright/LBWW-Mafia">here.</a>
           </Card.Text>
           <Card.Text>
             This is an online game similar to the 'mafia' party game. Most

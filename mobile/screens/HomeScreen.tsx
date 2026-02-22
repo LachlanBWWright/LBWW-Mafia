@@ -32,7 +32,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
 
   return (
     <View style={commonStyles.container} className="bg-slate-950">
-      <Text style={styles.title}>Welcome To MERN Mafia!</Text>
+      <Text style={styles.title}>Welcome To LBWW Mafia!</Text>
       <Text style={styles.nameText}>
         {name.length !== 0 ? `Your name is "${name}"` : ""}
       </Text>
@@ -64,7 +64,7 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
             disabled={disabled}
             onPress={() =>
               navigation.navigate("GameScreen", {
-                title: "MERN Mafia",
+                title: "LBWW Mafia",
                 name: validateText(name),
               })
             }

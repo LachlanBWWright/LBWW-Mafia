@@ -1,5 +1,5 @@
 {
-  "name": "mern-mafia-monorepo",
+  "name": "lbww-mafia-monorepo",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,7 @@
     "lint:fix:nextjs": "cd nextjs && npm run lint:fix",
     "lint:fix:mobile": "cd mobile && npm run lint:fix"
   },
-  "description": "MERN Mafia monorepo root",
+  "description": "LBWW Mafia monorepo root",
   "dependencies": {
     "@libsql/client": "^0.17.0",
     "@trpc/server": "^11.10.0",

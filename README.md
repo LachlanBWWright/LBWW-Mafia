@@ -1,8 +1,8 @@
-# MERN Mafia
+# LBWW Mafia
 
 A multiplayer online mafia/werewolf game implementation.
 
-Playable at: https://mern-mafia.herokuapp.com/
+Playable at: https://lbww-mafia.herokuapp.com/
 
 ## Project Structure
 

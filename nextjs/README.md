@@ -1,6 +1,6 @@
-# MERN Mafia - Next.js App
+# LBWW Mafia - Next.js App
 
-This is the Next.js web application for MERN Mafia, built with the [T3 Stack](https://create.t3.gg/).
+This is the Next.js web application for LBWW Mafia, built with the [T3 Stack](https://create.t3.gg/).
 
 ## Tech Stack
 

@@ -1,6 +1,6 @@
-# Contributing to MERN Mafia
+# Contributing to LBWW Mafia
 
-Thank you for your interest in contributing to MERN Mafia!
+Thank you for your interest in contributing to LBWW Mafia!
 
 ## Development Guidelines
 

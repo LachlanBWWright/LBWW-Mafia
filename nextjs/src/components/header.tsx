@@ -11,7 +11,7 @@ export function Header() {
         <div className="mr-4 flex items-center">
           <Link href="/" className="mr-4 flex items-center space-x-2 pl-3">
             <span className="font-bold text-xl">
-              MERN <span className="text-primary">Mafia</span>
+              LBWW <span className="text-primary">Mafia</span>
             </span>
           </Link>
           <nav className="flex items-center gap-6 text-sm">

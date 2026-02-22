@@ -10,7 +10,7 @@ export default function HomePage() {
         <div className="grid w-full items-center gap-8 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-5">
             <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
-              MERN <span className="text-primary">Mafia</span>
+              LBWW <span className="text-primary">Mafia</span>
             </h1>
             <p className="max-w-[700px] text-lg text-muted-foreground sm:text-xl">
               Enter a live game instantly, coordinate through chat, and make your

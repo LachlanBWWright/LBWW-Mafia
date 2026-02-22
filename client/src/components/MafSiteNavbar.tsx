@@ -18,7 +18,7 @@ export function MafSiteNavbar() {
       <Navbar className="navbar-dark" bg="danger" expand="lg" sticky="top">
         <Nav>
           <Navbar.Brand as={Link} to="/" /* disabled={inGame} */>
-            MERN Mafia
+            LBWW Mafia
           </Navbar.Brand>
         </Nav>
 

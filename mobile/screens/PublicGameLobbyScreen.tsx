@@ -34,7 +34,7 @@ export function PublicGameLobbyScreen({
         color={colors.accent}
         onPress={() =>
           navigation.navigate("GameScreen", {
-            title: "MERN Mafia",
+            title: "LBWW Mafia",
             name: route.params.name,
           })
         }

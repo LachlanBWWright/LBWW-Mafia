@@ -75,8 +75,8 @@ function HeaderLeft() {
 }
 
 const homeScreenOptions = (navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">) => ({
-  title: "MERN Mafia",
-  headerRight: () => <HeaderRight navigation={navigation} />,
+  title: "LBWW Mafia",
+  headerRight: () => <HeaderRight navigation={navigation} />, 
   headerStyle: { backgroundColor: colors.surface },
   headerTintColor: colors.textPrimary,
 });
