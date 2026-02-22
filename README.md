@@ -30,7 +30,7 @@ npm start
 
 ```bash
 cd nextjs
-npm install  # or pnpm install
+npm install
 npm run dev
 ```
 
