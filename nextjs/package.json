@@ -24,7 +24,7 @@
     "@libsql/client": "^0.14.0",
     "@t3-oss/env-nextjs": "^0.12.0",
     "drizzle-orm": "^0.41.0",
-    "next": "^15.2.3",
+    "next": "15.2.8",
     "next-auth": "5.0.0-beta.25",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
