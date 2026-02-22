@@ -74,9 +74,11 @@ function HeaderLeft() {
   return <Text />;
 }
 
-const homeScreenOptions = (navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">) => ({
+const homeScreenOptions = (
+  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">,
+) => ({
   title: "LBWW Mafia",
-  headerRight: () => <HeaderRight navigation={navigation} />, 
+  headerRight: () => <HeaderRight navigation={navigation} />,
   headerStyle: { backgroundColor: colors.surface },
   headerTintColor: colors.textPrimary,
 });

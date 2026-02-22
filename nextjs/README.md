@@ -15,6 +15,7 @@ The application uses modern web technologies:
 ## Getting Started
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -22,11 +23,13 @@ npm install
 2. Set up your environment variables (copy `.env.example` to `.env` and fill in values)
 
 3. Run database migrations:
+
 ```bash
 npm run db:push
 ```
 
 4. Start the development server:
+
 ```bash
 npm run dev
 ```

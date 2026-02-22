@@ -19,6 +19,7 @@ This is a monorepo containing three main components:
 ## Development
 
 ### Server
+
 ```bash
 cd server
 npm install
@@ -26,6 +27,7 @@ npm start
 ```
 
 ### Next.js Web App
+
 ```bash
 cd nextjs
 npm install  # or pnpm install
@@ -33,6 +35,7 @@ npm run dev
 ```
 
 ### Mobile App
+
 ```bash
 cd mobile
 npm install
@@ -57,12 +60,14 @@ cd mobile && npm run lint
 ## Tech Stack
 
 ### Server
+
 - Node.js with Express
 - MongoDB with Mongoose
 - Socket.IO for real-time communication
 - TypeScript
 
 ### Next.js
+
 - Next.js 15
 - Drizzle ORM with SQLite
 - NextAuth.js for authentication
@@ -70,6 +75,7 @@ cd mobile && npm run lint
 - TypeScript
 
 ### Mobile
+
 - React Native
 - Expo
 - Socket.IO Client

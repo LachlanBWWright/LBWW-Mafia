@@ -5,7 +5,8 @@ import { Geist } from "next/font/google";
 
 export const metadata: Metadata = {
   title: "LBWW Mafia - Online Multiplayer Mafia Game",
-  description: "Play Mafia online with friends in real-time. A multiplayer social deduction game.",
+  description:
+    "Play Mafia online with friends in real-time. A multiplayer social deduction game.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
