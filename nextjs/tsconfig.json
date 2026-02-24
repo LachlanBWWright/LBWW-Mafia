@@ -43,6 +43,12 @@
       ],
       "next-auth/*": [
         "./node_modules/next-auth/*"
+      ],
+      "@trpc/server": [
+        "./node_modules/@trpc/server"
+      ],
+      "@trpc/server/*": [
+        "./node_modules/@trpc/server/*"
       ]
     }
   },
