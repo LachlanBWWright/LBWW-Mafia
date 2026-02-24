@@ -35,20 +35,9 @@
       "~/*": [
         "./src/*"
       ],
-      "drizzle-orm": [
-        "./node_modules/drizzle-orm"
-      ],
-      "drizzle-orm/*": [
-        "./node_modules/drizzle-orm/*"
-      ],
-      "next-auth/*": [
-        "./node_modules/next-auth/*"
-      ],
-      "@trpc/server": [
-        "./node_modules/@trpc/server"
-      ],
-      "@trpc/server/*": [
-        "./node_modules/@trpc/server/*"
+      "*": [
+        "./node_modules/*",
+        "./node_modules/@types/*"
       ]
     }
   },
