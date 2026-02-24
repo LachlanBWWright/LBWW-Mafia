@@ -49,6 +49,12 @@
       ],
       "zod/*": [
         "./node_modules/zod/*"
+      ],
+      "drizzle-orm": [
+        "./node_modules/drizzle-orm"
+      ],
+      "drizzle-orm/*": [
+        "./node_modules/drizzle-orm/*"
       ]
     }
   },
