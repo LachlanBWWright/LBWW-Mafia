@@ -23,7 +23,7 @@ const handler = (req: Request) =>
     req,
     router: appRouter,
     createContext,
-    onError({ error, path }) {
+    onError({ error, path }: { error: unknown; path: string | undefined }) {
       console.error(`tRPC failed on ${path ?? "unknown"}:`, error);
     },
   });
