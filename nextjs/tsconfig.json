@@ -35,9 +35,20 @@
       "~/*": [
         "./src/*"
       ],
-      "*": [
-        "./node_modules/*",
-        "./node_modules/@types/*"
+      "@trpc/server": [
+        "./node_modules/@trpc/server"
+      ],
+      "@trpc/server/*": [
+        "./node_modules/@trpc/server/*"
+      ],
+      "superjson": [
+        "./node_modules/superjson"
+      ],
+      "zod": [
+        "./node_modules/zod"
+      ],
+      "zod/*": [
+        "./node_modules/zod/*"
       ]
     }
   },
