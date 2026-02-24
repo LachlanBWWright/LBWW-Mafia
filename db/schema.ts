@@ -1,39 +1,24 @@
-/**
- * Shared Drizzle Schema
- * 
- * This schema is shared between the server and nextjs components.
- * Location: /db/schema.ts (root of repository)
- * 
- * Used by:
- * - nextjs: Web application authentication and user management
- * - server: Can import for shared data models (if needed)
- */
-
 import { relations, sql } from "drizzle-orm";
-import { index, primaryKey, sqliteTableCreator } from "drizzle-orm/sqlite-core";
+import { index, integer, pgTableCreator, primaryKey, serial, text, timestamp, boolean, varchar } from "drizzle-orm/pg-core";
 
 /**
- * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
- * database instance for multiple projects.
- *
+ * Multi-project schema prefix for shared Postgres instance.
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = sqliteTableCreator((name) => `nextjs_${name}`);
+export const createTable = pgTableCreator((name) => `nextjs_${name}`);
 
 export const posts = createTable(
   "post",
-  (d) => ({
-    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
-    name: d.text({ length: 256 }),
-    createdById: d
-      .text({ length: 255 })
+  () => ({
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 256 }),
+    createdById: varchar("created_by_id", { length: 255 })
       .notNull()
       .references(() => users.id),
-    createdAt: d
-      .integer({ mode: "timestamp" })
-      .default(sql`(unixepoch())`)
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`now()`)
       .notNull(),
-    updatedAt: d.integer({ mode: "timestamp" }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
   }),
   (t) => [
     index("created_by_idx").on(t.createdById),
@@ -41,17 +26,16 @@ export const posts = createTable(
   ],
 );
 
-export const users = createTable("user", (d) => ({
-  id: d
-    .text({ length: 255 })
+export const users = createTable("user", () => ({
+  id: varchar("id", { length: 255 })
     .notNull()
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
-  name: d.text({ length: 255 }),
-  email: d.text({ length: 255 }).notNull(),
-  emailVerified: d.integer({ mode: "timestamp" }).default(sql`(unixepoch())`),
-  image: d.text({ length: 255 }),
-  isAdmin: d.integer({ mode: "boolean" }).notNull().default(false),
+  name: varchar("name", { length: 255 }),
+  email: varchar("email", { length: 255 }).notNull(),
+  emailVerified: timestamp("email_verified", { withTimezone: true }).default(sql`now()`),
+  image: varchar("image", { length: 255 }),
+  isAdmin: boolean("is_admin").notNull().default(false),
 }));
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -60,26 +44,23 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const accounts = createTable(
   "account",
-  (d) => ({
-    userId: d
-      .text({ length: 255 })
+  () => ({
+    userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => users.id),
-    type: d.text({ length: 255 }).notNull(),
-    provider: d.text({ length: 255 }).notNull(),
-    providerAccountId: d.text({ length: 255 }).notNull(),
-    refresh_token: d.text(),
-    access_token: d.text(),
-    expires_at: d.integer(),
-    token_type: d.text({ length: 255 }),
-    scope: d.text({ length: 255 }),
-    id_token: d.text(),
-    session_state: d.text({ length: 255 }),
+    type: varchar("type", { length: 255 }).notNull(),
+    provider: varchar("provider", { length: 255 }).notNull(),
+    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    refresh_token: text("refresh_token"),
+    access_token: text("access_token"),
+    expires_at: integer("expires_at"),
+    token_type: varchar("token_type", { length: 255 }),
+    scope: varchar("scope", { length: 255 }),
+    id_token: text("id_token"),
+    session_state: varchar("session_state", { length: 255 }),
   }),
   (t) => [
-    primaryKey({
-      columns: [t.provider, t.providerAccountId],
-    }),
+    primaryKey({ columns: [t.provider, t.providerAccountId] }),
     index("account_user_id_idx").on(t.userId),
   ],
 );
@@ -90,15 +71,14 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 
 export const sessions = createTable(
   "session",
-  (d) => ({
-    sessionToken: d.text({ length: 255 }).notNull().primaryKey(),
-    userId: d
-      .text({ length: 255 })
+  () => ({
+    sessionToken: varchar("session_token", { length: 255 }).notNull().primaryKey(),
+    userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => users.id),
-    expires: d.integer({ mode: "timestamp" }).notNull(),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
   }),
-  (t) => [index("session_userId_idx").on(t.userId)],
+  (t) => [index("session_user_id_idx").on(t.userId)],
 );
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -107,44 +87,43 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 
 export const verificationTokens = createTable(
   "verification_token",
-  (d) => ({
-    identifier: d.text({ length: 255 }).notNull(),
-    token: d.text({ length: 255 }).notNull(),
-    expires: d.integer({ mode: "timestamp" }).notNull(),
+  () => ({
+    identifier: varchar("identifier", { length: 255 }).notNull(),
+    token: varchar("token", { length: 255 }).notNull(),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
   }),
   (t) => [primaryKey({ columns: [t.identifier, t.token] })],
 );
 
 export const matches = createTable(
   "match",
-  (d) => ({
-    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
-    roomName: d.text({ length: 255 }).notNull(),
-    startedAt: d.integer({ mode: "timestamp" }).notNull(),
-    endedAt: d.integer({ mode: "timestamp" }).notNull(),
-    winningFaction: d.text({ length: 255 }).notNull(),
-    winningRoles: d.text().notNull(),
-    playerCount: d.integer({ mode: "number" }).notNull(),
-    conversationHistory: d.text().notNull(),
-    actionHistory: d.text().notNull(),
+  () => ({
+    id: serial("id").primaryKey(),
+    roomName: varchar("room_name", { length: 255 }).notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    endedAt: timestamp("ended_at", { withTimezone: true }).notNull(),
+    winningFaction: varchar("winning_faction", { length: 255 }).notNull(),
+    winningRoles: text("winning_roles").notNull(),
+    playerCount: integer("player_count").notNull(),
+    conversationHistory: text("conversation_history").notNull(),
+    actionHistory: text("action_history").notNull(),
   }),
-  (t) => [index("match_endedAt_idx").on(t.endedAt)],
+  (t) => [index("match_ended_at_idx").on(t.endedAt)],
 );
 
 export const matchParticipants = createTable(
   "match_participant",
-  (d) => ({
-    id: d.integer({ mode: "number" }).primaryKey({ autoIncrement: true }),
-    matchId: d
-      .integer({ mode: "number" })
+  () => ({
+    id: serial("id").primaryKey(),
+    matchId: integer("match_id")
       .notNull()
       .references(() => matches.id, { onDelete: "cascade" }),
-    userId: d.text({ length: 255 }).references(() => users.id, {
+    userId: varchar("user_id", { length: 255 }).references(() => users.id, {
       onDelete: "set null",
     }),
-    username: d.text({ length: 255 }).notNull(),
-    role: d.text({ length: 255 }).notNull(),
-    won: d.integer({ mode: "boolean" }).notNull().default(false),
+    username: varchar("username", { length: 255 }).notNull(),
+    role: varchar("role", { length: 255 }).notNull(),
+    won: boolean("won").notNull().default(false),
   }),
   (t) => [
     index("match_participant_match_idx").on(t.matchId),
