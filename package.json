@@ -2,6 +2,12 @@
   "name": "lbww-mafia-monorepo",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "nextjs",
+    "server",
+    "shared",
+    "db"
+  ],
   "scripts": {
     "dev": "docker compose up -d && wait-on tcp:5432 && concurrently --names \"next,server\" --prefix-colors \"cyan,yellow\" \"cd nextjs && npm run dev\" \"cd server && npm start\"",
     "dev:down": "docker compose down",
@@ -15,13 +21,6 @@
     "lint:fix:mobile": "cd mobile && npm run lint:fix"
   },
   "description": "LBWW Mafia monorepo root",
-  "dependencies": {
-    "@libsql/client": "^0.17.0",
-    "@trpc/server": "^11.10.0",
-    "drizzle-orm": "^0.45.1",
-    "superjson": "^2.2.6",
-    "zod": "^4.3.6"
-  },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "wait-on": "^9.0.4"

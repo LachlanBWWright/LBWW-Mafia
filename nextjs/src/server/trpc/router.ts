@@ -1,7 +1,7 @@
 import {
   createAppRouter,
   type AppRouter as SharedAppRouter,
-} from "../../../../shared/trpc/appRouter";
+} from "@mernmafia/shared/trpc/appRouter";
 import { trpcServices } from "./services";
 
 export const appRouter: SharedAppRouter = createAppRouter(trpcServices);

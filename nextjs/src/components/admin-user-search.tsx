@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "~/server/trpc/router";
-import type { UserSummary } from "../../../shared/trpc/appRouter";
+import type { UserSummary } from "@mernmafia/shared/trpc/appRouter";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 

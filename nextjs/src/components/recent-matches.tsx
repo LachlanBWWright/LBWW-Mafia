@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "~/server/trpc/router";
-import type { RecentMatchSummary } from "../../../shared/trpc/appRouter";
+import type { RecentMatchSummary } from "@mernmafia/shared/trpc/appRouter";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 
 type RecentMatchesProps = {

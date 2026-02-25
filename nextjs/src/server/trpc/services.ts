@@ -4,13 +4,13 @@ import {
   matchParticipants,
   matches,
   users,
-} from "../../../../db/schema";
+} from "@mernmafia/db/schema";
 import type {
   MatchParticipantSummary,
   RecentMatchSummary,
   RouterServices,
   UserSummary,
-} from "../../../../shared/trpc/appRouter";
+} from "@mernmafia/shared/trpc/appRouter";
 
 type MatchRow = {
   id: number;

@@ -34,27 +34,6 @@
     "paths": {
       "~/*": [
         "./src/*"
-      ],
-      "@trpc/server": [
-        "./node_modules/@trpc/server"
-      ],
-      "@trpc/server/*": [
-        "./node_modules/@trpc/server/*"
-      ],
-      "superjson": [
-        "./node_modules/superjson"
-      ],
-      "zod": [
-        "./node_modules/zod"
-      ],
-      "zod/*": [
-        "./node_modules/zod/*"
-      ],
-      "drizzle-orm": [
-        "./node_modules/drizzle-orm"
-      ],
-      "drizzle-orm/*": [
-        "./node_modules/drizzle-orm/*"
       ]
     }
   },
@@ -65,9 +44,6 @@
     "**/*.cjs",
     "**/*.js",
     ".next/types/**/*.ts",
-    "../db/**/*.ts",
-    "../shared/game/**/*.ts",
-    "../shared/trpc/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [

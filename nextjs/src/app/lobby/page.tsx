@@ -17,7 +17,7 @@ import {
   shouldShowDayOnlyActions,
   shouldShowVisitAction,
   type VisitCapability,
-} from "../../../../shared/game/playerActionRules";
+} from "@mernmafia/shared/game/playerActionRules";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ??
