@@ -1,17 +1,31 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useState, useEffect, Dispatch, SetStateAction } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
+  FlatList,
+  Pressable,
+  StyleSheet,
   Text,
   TextInput,
-  Button,
-  FlatList,
-  DrawerLayoutAndroid,
   Vibration,
+  View,
 } from "react-native";
 import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
-import io from "socket.io-client";
+import io, { type Socket } from "socket.io-client";
+import { commonStyles } from "../styles/commonStyles";
+import { colors } from "../styles/colors";
+import { trpcClient } from "../lib/trpc";
+import type { RecentMatchSummary } from "../../shared/trpc/appRouter";
+import {
+  type DayTime,
+  canVoteTarget,
+  canWhisperTarget,
+  canPerformVisit,
+  defaultVisitCapability,
+  shouldShowDayOnlyActions,
+  shouldShowVisitAction,
+  type VisitCapability,
+} from "../../shared/game/playerActionRules";
 
 type Player = {
   name: string;
@@ -20,332 +34,544 @@ type Player = {
   isUser?: boolean;
 };
 
-type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
-export function GameScreen({ route, navigation }: GameScreenProps) {
-  const [socket, setSocket] = useState(io("http://mern-mafia.herokuapp.com/"));
-  const [message, setMessage] = useState("");
-  const [playerRole, setPlayerRole] = useState("");
-  const [alive, setAlive] = useState(true);
+type DayTimeInfo = {
+  time: DayTime;
+  dayNumber: number;
+  timeLeft: number;
+};
+type RoleAssignment = Player & VisitCapability;
 
-  const [textMessage, setTextMessage] = useState(""); //TODO: Redundant, probably
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    gap: 8,
+  },
+  topMeta: {
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 2,
+  },
+  metaText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  tabRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  tabButton: {
+    flex: 1,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 6,
+    alignItems: "center",
+    backgroundColor: colors.surfaceMuted,
+  },
+  tabButtonActive: {
+    backgroundColor: colors.accent,
+  },
+  tabText: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  messageContainer: {
+    backgroundColor: colors.surface,
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 8,
+  },
+  chatMessage: {
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  textInput: {
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    flex: 1,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  sendButton: {
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  sendButtonText: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  playerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 6,
+    gap: 6,
+  },
+  playerName: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 12,
+  },
+  playerActionRow: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  iconButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  iconButtonText: {
+    color: colors.textPrimary,
+    fontSize: 11,
+  },
+  deadRow: {
+    backgroundColor: colors.danger,
+  },
+  aliveRow: {
+    backgroundColor: colors.success,
+  },
+  neutralRow: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  disconnectButton: {
+    borderRadius: 8,
+    backgroundColor: colors.danger,
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+});
+
+type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
+
+export function GameScreen({ route, navigation }: GameScreenProps) {
+  const SOCKET_URL =
+    process.env.EXPO_PUBLIC_SOCKET_URL ??
+    (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
+  const CAPTCHA_TOKEN =
+    process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ??
+    (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
+
+  const [socket] = useState<Socket>(() => io(SOCKET_URL));
+  const [message, setMessage] = useState("");
+  const [joinedAs, setJoinedAs] = useState(route.params.name);
+  const [playerRole, setPlayerRole] = useState("");
+  const [isAlive, setIsAlive] = useState(true);
+  const [activeTab, setActiveTab] = useState<"chat" | "players" | "history">("chat");
+
   const [canTalk, setCanTalk] = useState(true);
-  const [time, setTime] = useState("Day");
+  const [canVote, setCanVote] = useState(true);
+  const [time, setTime] = useState<DayTime>("Day");
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [messages, addMessage] = useState(new Array<string>());
-  const [playerList, setPlayerList] = useState<Array<Player>>([]); //TODO: Update this!
-  const [visiting, setVisiting] = useState<String | null>();
-  const [votingFor, setVotingFor] = useState<String | null>();
+  const [messages, setMessages] = useState<string[]>([]);
+  const [playerList, setPlayerList] = useState<Player[]>([]);
+  const [visitCapability, setVisitCapability] =
+    useState<VisitCapability>(defaultVisitCapability);
+  const [recentMatches, setRecentMatches] = useState<RecentMatchSummary[]>([]);
+  const [recentMatchesStatus, setRecentMatchesStatus] = useState("");
 
-  const [drawerOpened, setDrawerOpened] = useState(false);
+  const flatList = useRef<FlatList<string>>(null);
 
-  useEffect(() =>
-    navigation.addListener("beforeRemove", (e) => {
-      if (!alive) e.preventDefault();
-    }),
-  ); //Blocks leaving
+  useEffect(
+    () =>
+      navigation.addListener("beforeRemove", (event) => {
+        if (!isAlive) {
+          event.preventDefault();
+        }
+      }),
+    [isAlive, navigation],
+  );
 
   useEffect(() => {
-    //Socket.io Integration - Runs on creation
-    socket.on("connect", () => {});
-
-    socket.on("receive-message", (inMsg: string) => {
-      addMessage((old) => [...old, inMsg]);
+    socket.on("receiveMessage", (incomingMessage: string) => {
+      setMessages((current) => [...current, incomingMessage]);
     });
 
-    socket.on("receive-player-list", (listJson: Array<Player>) => {
-      //Receive all players upon joining, and the game starting
-      let list = new Array<Player>();
-      listJson.map((instance) => {
-        list.push(instance);
-      });
-      setPlayerList((currentList) => list);
+    socket.on("receive-chat-message", (incomingMessage: string) => {
+      setMessages((current) => [...current, incomingMessage]);
+    });
+
+    socket.on("receive-whisper-message", (incomingMessage: string) => {
+      setMessages((current) => [...current, incomingMessage]);
+    });
+
+    socket.on("receive-player-list", (listJson: Player[]) => {
+      const list: Player[] = [];
+      for (const player of listJson) {
+        list.push(player);
+      }
+      setPlayerList(list);
     });
 
     socket.on("receive-new-player", (playerJson: Player) => {
-      //Called when a new player joins the lobby
       setPlayerList((list) => [...list, playerJson]);
     });
 
     socket.on("remove-player", (playerJson: Player) => {
-      //Called when a player leaves the lobby before the game starts
-      setPlayerList((list) =>
-        list.filter((item) => item.name !== playerJson.name),
-      );
+      setPlayerList((list) => list.filter((item) => item.name !== playerJson.name));
     });
 
-    socket.on("assign-player-role", (playerJson: Player) => {
-      //Shows the player their own role, lets the client know that this is who they are playing as
-      let tempPlayerList: Array<Player> = [];
-      setPlayerList((list) => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(
-        (player) => player.name === playerJson.name,
+    socket.on("assign-player-role", (playerJson: RoleAssignment) => {
+      setPlayerList((list) =>
+        list.map((player) =>
+          player.name === playerJson.name
+            ? { ...player, role: playerJson.role, isUser: true }
+            : player,
+        ),
       );
-      tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isUser = true;
-      //TODO: Who player visits at day (living) (0 - Nobody, 1 - Self, 2 - Others, 3 - Everybody)
-      //TODO: Who player visits at day (dead, will apply to almost (or currently) no roles)
-      //TODO: Who player visits at night (living)
-      //TODO: Who player visits at night (dead)
       setPlayerRole(playerJson.role ?? "");
-      setPlayerList(tempPlayerList);
+      setVisitCapability({
+        dayVisitSelf: playerJson.dayVisitSelf,
+        dayVisitOthers: playerJson.dayVisitOthers,
+        dayVisitFaction: playerJson.dayVisitFaction,
+        nightVisitSelf: playerJson.nightVisitSelf,
+        nightVisitOthers: playerJson.nightVisitOthers,
+        nightVisitFaction: playerJson.nightVisitFaction,
+      });
     });
 
     socket.on("update-player-role", (playerJson: Player) => {
-      //Updates player role upon their death
-      let tempPlayerList: Array<Player> = [];
-      setPlayerList((list) => (tempPlayerList = [...list]));
-      let index = tempPlayerList.findIndex(
-        (player) => player.name === playerJson.name,
+      setPlayerList((list) =>
+        list.map((player) => {
+          if (player.name !== playerJson.name) {
+            return player;
+          }
+          const nextPlayer = {
+            ...player,
+            isAlive: false,
+            role: playerJson.role ?? player.role,
+          };
+          if (nextPlayer.isUser) {
+            setCanTalk(false);
+            setIsAlive(false);
+            Vibration.vibrate([500, 200, 500, 200, 500], false);
+          }
+          return nextPlayer;
+        }),
       );
-      if (playerJson.role !== undefined)
-        tempPlayerList[index].role = playerJson.role;
-      tempPlayerList[index].isAlive = false;
-      if (tempPlayerList[index].isUser) {
-        setCanTalk(false); //Blocks MSGing upon death
-        Vibration.vibrate([500, 200, 500, 200, 500], false); //(3 500ms vibrations with 200ms breaks, does not repeat indefinitely)
-      }
-      setPlayerList(tempPlayerList);
     });
 
-    socket.on("update-player-visit", (playerJson) => {
-      //Updates player to indicate that the player is visiting them TODO: This might be depreciated in the actual game
-      //JSON contains player name
-      //Get player by name, update properties, update JSON
-    });
-
-    socket.on("update-day-time", (infoJson) => {
-      //Gets whether it is day or night, and how long there is left in the session
+    socket.on("update-day-time", (infoJson: DayTimeInfo) => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
-      setVisiting(null);
-      setVotingFor(null);
-      /*         this.setState({time: infoJson.time});
-        this.setState({dayNumber: infoJson.dayNumber});
-        this.setState({visiting: null}); //Resets who the player is visiting
-        this.setState({votingFor: null}); */
-      let timeLeft = infoJson.timeLeft;
-      let countDown = setInterval(() => {
-        if (timeLeft > 0) {
-          setTimeLeft(timeLeft - 1);
-          timeLeft--;
-        } else {
-          clearInterval(countDown);
-        }
-      }, 1000);
+      setTimeLeft(infoJson.timeLeft);
     });
 
-    socket.on("block-messages", () => {
+    socket.on("blockMessages", () => {
       setCanTalk(false);
     });
+    socket.on("disable-voting", () => {
+      setCanVote(false);
+    });
 
-    socket.emit(
-      "playerJoinRoom",
-      route.params.name,
-      route.params.lobbyId,
-      (callback: number) => {
-        //TODO: THis is where the socket is connnected to!
-        if (callback !== 0) navigation.dispatch(StackActions.popToTop()); //TODO: Add reason for connection failure.
-      },
-    );
+    if (CAPTCHA_TOKEN) {
+      socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (callback: string | number) => {
+        if (typeof callback === "string") {
+          setJoinedAs(callback);
+          setMessages([`System: You joined as ${callback}.`]);
+          return;
+        }
+        navigation.dispatch(StackActions.popToTop());
+      });
+    } else {
+      navigation.dispatch(StackActions.popToTop());
+    }
 
     return () => {
-      //Runs Upon close
-      socket.off("receive-message");
-      socket.off("block-messages");
+      socket.off("receiveMessage");
+      socket.off("receive-chat-message");
+      socket.off("receive-whisper-message");
+      socket.off("blockMessages");
+      socket.off("disable-voting");
       socket.off("receive-role");
       socket.off("receive-player-list");
       socket.off("receive-new-player");
       socket.off("remove-player");
       socket.off("update-player-role");
       socket.off("update-player-visit");
+      socket.off("update-day-time");
       socket.disconnect();
     };
-  }, []);
+  }, [CAPTCHA_TOKEN, navigation, socket]);
 
-  const flatList: React.RefObject<FlatList> = React.useRef(null);
-  const drawer: React.RefObject<DrawerLayoutAndroid> = React.useRef(null);
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      return;
+    }
+    const timer = setInterval(() => {
+      setTimeLeft((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  useEffect(() => {
+    if (!joinedAs.trim()) {
+      return;
+    }
+
+    setRecentMatchesStatus("Loading recent matches...");
+    void trpcClient.match.recentByUsername
+      .query({
+        username: joinedAs,
+        limit: 8,
+      })
+      .then((historyRows: RecentMatchSummary[]) => {
+        setRecentMatches(historyRows);
+        setRecentMatchesStatus(
+          historyRows.length === 0 ? "No recent matches found." : "",
+        );
+      })
+      .catch((error: unknown) => {
+        setRecentMatchesStatus(
+          error instanceof Error ? error.message : "Failed to load recent matches.",
+        );
+      });
+  }, [joinedAs]);
 
   return (
-    <DrawerLayoutAndroid
-      ref={drawer}
-      drawerPosition={"right"}
-      drawerWidth={300}
-      renderNavigationView={() => (
-        //Content of the drawer, should contain the list of players TODO: Make a flatlist
-        <FlatList
-          data={playerList}
-          renderItem={({ item }) => (
-            <PlayerInList
-              player={item}
-              socket={socket}
-              setMessage={setMessage}
-              time={time}
-            />
-          )}
-        />
-      )}
-    >
-      <View
-        style={{
-          alignSelf: "stretch",
-          marginTop: "auto",
-          flex: 1,
-          padding: 20,
-        }}
-      >
-        <Text style={{ justifyContent: "flex-start", alignSelf: "center" }}>
-          Name: "{route.params.name}"{" "}
-          {playerRole != "" ? "Role: " + playerRole + " | " : " | "}
-          {time}: {dayNumber} | Time Left: {timeLeft}
+    <View style={[commonStyles.container, styles.root]} className="bg-slate-950">
+      <View style={styles.topMeta} className="rounded-xl">
+        <Text style={styles.metaText}>
+          {time} {dayNumber} • {timeLeft}s left
         </Text>
-        <View
-          style={{
-            backgroundColor: "#CCCCCC",
-            flex: 1,
-            borderRadius: 10,
-            padding: 10,
-          }}
+        <Text style={styles.metaText}>
+          {joinedAs} {playerRole ? `• ${playerRole}` : ""}
+        </Text>
+      </View>
+
+      <View style={styles.tabRow} className="mb-1">
+        <Pressable
+          style={[styles.tabButton, activeTab === "chat" && styles.tabButtonActive]}
+          onPress={() => setActiveTab("chat")}
         >
+          <Text style={styles.tabText}>Chat</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tabButton, activeTab === "players" && styles.tabButtonActive]}
+          onPress={() => setActiveTab("players")}
+        >
+          <Text style={styles.tabText}>Players</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.tabButton, activeTab === "history" && styles.tabButtonActive]}
+          onPress={() => setActiveTab("history")}
+        >
+          <Text style={styles.tabText}>History</Text>
+        </Pressable>
+      </View>
+
+      {activeTab === "chat" ? (
+        <View style={styles.messageContainer} className="rounded-xl">
           <FlatList
             ref={flatList}
             data={messages}
-            renderItem={({ item }) => <Text>{item}</Text>}
+            renderItem={({ item }) => <Text style={styles.chatMessage}>{item}</Text>}
             onContentSizeChange={() => {
-              if (flatList.current) flatList.current.scrollToEnd();
+              flatList.current?.scrollToEnd();
             }}
           />
         </View>
-
-        {canTalk ? (
-          <View
-            style={{
-              flexDirection: "row",
-              alignSelf: "stretch",
-              marginTop: "auto",
-              paddingVertical: 4,
-              justifyContent: "space-between",
-            }}
-          >
-            <TextInput
-              onChangeText={(text) => {
-                setMessage(text);
-              }}
-              placeholder={"Send a message"}
-              value={message}
-              style={{
-                borderColor: "#0000FF",
-                borderWidth: 1,
-                borderRadius: 5,
-                flex: 1,
-                marginRight: 5,
-              }}
-              numberOfLines={2}
-              maxLength={500}
-              multiline={true}
-              returnKeyType={"send"}
-            />
-            {message.length != 0 ? (
-              <Button
-                title="→"
-                onPress={() => {
-                  socket.emit("messageSentByUser", message);
-                  setMessage("");
-                }}
-                color={"#3333FF"}
-              />
-            ) : (
-              <Button
-                title="←"
-                onPress={() => {
-                  if (drawer.current) drawer.current.openDrawer();
-                }}
-                color={"#FF0000"}
+      ) : activeTab === "players" ? (
+        <View style={styles.messageContainer} className="rounded-xl">
+          <FlatList
+            data={playerList}
+            renderItem={({ item }) => (
+              <PlayerInList
+                currentUser={joinedAs}
+                player={item}
+                socket={socket}
+                setMessage={setMessage}
+                time={time}
+                actorRole={playerRole}
+                actorAlive={isAlive}
+                visitCapability={visitCapability}
+                canVote={canVote}
+                hasDraftMessage={message.trim().length > 0}
               />
             )}
-          </View>
-        ) : (
-          <View
-            style={{
-              alignSelf: "stretch",
-              marginTop: "auto",
-              paddingVertical: 4,
-              borderRadius: 10,
-              justifyContent: "flex-end",
+          />
+        </View>
+      ) : (
+        <View style={styles.messageContainer} className="rounded-xl">
+          <FlatList
+            data={recentMatches}
+            ListEmptyComponent={
+              <Text style={styles.chatMessage}>
+                {recentMatchesStatus || "No recent matches found."}
+              </Text>
+            }
+            renderItem={({ item }) => (
+              <View style={[styles.playerContainer, styles.neutralRow]}>
+                <Text style={styles.playerName}>
+                  #{item.id} • {item.winningFaction} won •{" "}
+                  {new Date(item.endedAt).toLocaleDateString()}
+                </Text>
+              </View>
+            )}
+          />
+        </View>
+      )}
+
+      {canTalk ? (
+        <View style={styles.inputRow}>
+          <TextInput
+            onChangeText={setMessage}
+            placeholder={
+              activeTab === "chat" ? "Send a message" : "Type /w [name] message"
+            }
+            value={message}
+            style={styles.textInput}
+            placeholderTextColor={colors.textSecondary}
+            numberOfLines={2}
+            maxLength={500}
+            multiline={true}
+            returnKeyType={"send"}
+          />
+          <Pressable
+            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+            disabled={!message.trim()}
+            onPress={() => {
+              socket.emit("messageSentByUser", message, time === "Day");
+              setMessage("");
             }}
           >
-            <Button
-              title="Disconnect"
-              onPress={() => navigation.dispatch(StackActions.popToTop())}
-              color={"#FF0000"}
-            />
-          </View>
-        )}
-      </View>
-    </DrawerLayoutAndroid>
+            <Text style={styles.sendButtonText}>Send</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          style={styles.disconnectButton}
+          onPress={() => navigation.dispatch(StackActions.popToTop())}
+        >
+          <Text style={styles.sendButtonText}>Disconnect</Text>
+        </Pressable>
+      )}
+    </View>
   );
 }
 
 function PlayerInList(props: {
+  currentUser: string;
   player: Player;
-  socket: any;
-  setMessage: Dispatch<SetStateAction<string>>;
-  time: string;
+  socket: Socket;
+  setMessage: React.Dispatch<React.SetStateAction<string>>;
+  time: DayTime;
+  actorRole: string;
+  actorAlive: boolean;
+  visitCapability: VisitCapability;
+  canVote: boolean;
+  hasDraftMessage: boolean;
 }) {
-  //TODO: Consider fixing the 'any'
-  const [color, setColor] = useState("#FFFFFF");
-
-  useEffect(() => {
-    if (props.player.isAlive !== undefined) {
-      if (props.player.isAlive === false) setColor("#FF0000");
-      else if (props.player.isUser === true) setColor("#3333FF");
-      else if (props.player.isAlive === true) setColor("#33FF33");
-    }
-  }, [props.player.isAlive]);
+  const rowStyle =
+    props.player.isAlive === false
+      ? styles.deadRow
+      : props.player.isAlive === true
+        ? styles.aliveRow
+        : styles.neutralRow;
+  const targetIsAlive = props.player.isAlive !== false;
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        flexWrap: "wrap",
-        alignSelf: "stretch",
-        flex: 1,
-        justifyContent: "space-between",
-        alignItems: "center",
-        backgroundColor: color,
-        borderWidth: 2,
-        borderColor: "#000000",
-        borderRadius: 5,
-        padding: 5,
-        margin: 2,
-      }}
-    >
-      <Text style={{ flexGrow: 1 }}>
-        {props.player.name}{" "}
-        {props.player.role !== undefined ? "(" + props.player.role + ")" : ""}
+    <View style={[styles.playerContainer, rowStyle]}>
+      <Text style={styles.playerName}>
+        {props.player.name}
+        {props.player.name === props.currentUser ? " (You)" : ""}
       </Text>
-      {props.player.isAlive === true && props.player.isUser !== true && (
-        <Button
-          title="Whisper"
-          onPress={() => props.setMessage("/w " + props.player.name)}
-        />
-      )}
-      {props.player.isAlive === true && (
-        <Button
-          title="Visit"
-          onPress={() =>
-            props.socket.emit("messageSentByUser", "/c " + props.player.name)
-          }
-        />
-      )}
-      {props.player.isAlive === true && props.time === "Day" && (
-        <Button
-          title="Vote"
-          onPress={() =>
-            props.socket.emit("messageSentByUser", "/v " + props.player.name)
-          }
-        />
-      )}
+      {props.player.isAlive !== false && props.player.name !== props.currentUser ? (
+        <View style={styles.playerActionRow}>
+          {shouldShowDayOnlyActions(props.time) ? (
+            <Pressable
+              style={styles.iconButton}
+              disabled={
+                !canWhisperTarget({
+                  time: props.time,
+                  targetAlive: targetIsAlive,
+                  isSelf: props.player.name === props.currentUser,
+                  hasMessage: props.hasDraftMessage,
+                })
+              }
+              onPress={() => props.setMessage(`/w ${props.player.name} `)}
+            >
+              <Text style={styles.iconButtonText}>💬</Text>
+            </Pressable>
+          ) : null}
+          {shouldShowVisitAction(props.time, props.visitCapability) ? (
+            <Pressable
+              style={styles.iconButton}
+              disabled={
+                !canPerformVisit({
+                  time: props.time,
+                  isSelf: props.player.name === props.currentUser,
+                  targetAlive: targetIsAlive,
+                  actorAlive: props.actorAlive,
+                  actorRole: props.actorRole,
+                  targetRole: props.player.role,
+                  capability: props.visitCapability,
+                })
+              }
+              onPress={() =>
+                props.socket.emit(
+                  "messageSentByUser",
+                  `/c ${props.player.name}`,
+                  props.time === "Day",
+                )
+              }
+            >
+              <Text style={styles.iconButtonText}>👁</Text>
+            </Pressable>
+          ) : null}
+          {shouldShowDayOnlyActions(props.time) ? (
+            <Pressable
+              style={styles.iconButton}
+              disabled={
+                !canVoteTarget({
+                  time: props.time,
+                  actorAlive: props.actorAlive,
+                  targetAlive: targetIsAlive,
+                  isSelf: props.player.name === props.currentUser,
+                  canVote: props.canVote,
+                })
+              }
+              onPress={() =>
+                props.socket.emit(
+                  "messageSentByUser",
+                  `/v ${props.player.name}`,
+                  props.time === "Day",
+                )
+              }
+            >
+              <Text style={styles.iconButtonText}>🗳</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }

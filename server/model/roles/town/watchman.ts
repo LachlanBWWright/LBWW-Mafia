@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { io } from "../../../servers/socket.js";
+import { fromThrowable } from "neverthrow";
 
 export class Watchman extends Role {
   name = "Watchman";
@@ -47,102 +48,105 @@ export class Watchman extends Role {
   }
 
   handleVisits() {
-    try {
-      if (this.visiting != null) {
-        let allVisitors = this.visiting.visitors.length;
-        if (allVisitors == 1) {
-          //Tells the player that nobody's visited their target - The one visiter being the watchman themself.
-          io.to(this.player.socketId).emit(
-            "receiveMessage",
-            "Nobody visited your target.",
-          );
-        } else if (allVisitors == 2) {
-          let alibi =
-            this.room.playerList[
-              Math.floor(Math.random() * this.room.playerList.length)
-            ].role;
-          if (
-            !alibi.player.isAlive ||
-            alibi == this.visiting.visitors[0] ||
-            alibi == this.visiting.visitors[1] ||
-            alibi == this.visiting
-          ) {
-            //Reveals the only player visited if the random selection is dead, visitor, the person being watched, or the watchman
-            if (this.visiting.visitors[0] == this) {
-              io.to(this.player.socketId).emit(
-                "receiveMessage",
-                "Your target was visited by " +
-                  this.visiting.visitors[1].player.playerUsername +
-                  ".",
-              );
+    const handleVisits = fromThrowable(
+      () => {
+        if (this.visiting != null) {
+          let allVisitors = this.visiting.visitors.length;
+          if (allVisitors == 1) {
+            //Tells the player that nobody's visited their target - The one visiter being the watchman themself.
+            io.to(this.player.socketId).emit(
+              "receiveMessage",
+              "Nobody visited your target.",
+            );
+          } else if (allVisitors == 2) {
+            let alibi =
+              this.room.playerList[
+                Math.floor(Math.random() * this.room.playerList.length)
+              ].role;
+            if (
+              !alibi.player.isAlive ||
+              alibi == this.visiting.visitors[0] ||
+              alibi == this.visiting.visitors[1] ||
+              alibi == this.visiting
+            ) {
+              //Reveals the only player visited if the random selection is dead, visitor, the person being watched, or the watchman
+              if (this.visiting.visitors[0] == this) {
+                io.to(this.player.socketId).emit(
+                  "receiveMessage",
+                  "Your target was visited by " +
+                    this.visiting.visitors[1].player.playerUsername +
+                    ".",
+                );
+              } else {
+                io.to(this.player.socketId).emit(
+                  "receiveMessage",
+                  "Your target was visited by " +
+                    this.visiting.visitors[0].player.playerUsername +
+                    ".",
+                );
+              }
             } else {
-              io.to(this.player.socketId).emit(
-                "receiveMessage",
-                "Your target was visited by " +
-                  this.visiting.visitors[0].player.playerUsername +
-                  ".",
-              );
+              //Reveals the visitor, alongside the 'red herring' alibi.
+              let realVisitor;
+              if (this.visiting.visitors[0] == this) {
+                realVisitor = this.visiting.visitors[1];
+              } else {
+                realVisitor = this.visiting.visitors[0];
+              }
+
+              if (Math.random() > 0.5) {
+                io.to(this.player.socketId).emit(
+                  "receiveMessage",
+                  "Your target was visited by " +
+                    realVisitor.player.playerUsername +
+                    " or " +
+                    alibi.player.playerUsername +
+                    ".",
+                );
+              } else {
+                io.to(this.player.socketId).emit(
+                  "receiveMessage",
+                  "Your target was visited by " +
+                    alibi.player.playerUsername +
+                    " or " +
+                    realVisitor.player.playerUsername +
+                    ".",
+                );
+              }
             }
           } else {
-            //Reveals the visitor, alongside the 'red herring' alibi.
-            let realVisitor;
-            if (this.visiting.visitors[0] == this) {
-              realVisitor = this.visiting.visitors[1];
-            } else {
-              realVisitor = this.visiting.visitors[0];
+            let visitorList = [];
+            for (const visitor of this.visiting.visitors) {
+              if (visitor.player.isAlive && visitor != this) {
+                //Lists all visitors, excluding the watchman itself
+                visitorList.push(visitor);
+              }
             }
 
-            if (Math.random() > 0.5) {
-              io.to(this.player.socketId).emit(
-                "receiveMessage",
-                "Your target was visited by " +
-                  realVisitor.player.playerUsername +
-                  " or " +
-                  alibi.player.playerUsername +
-                  ".",
-              );
-            } else {
-              io.to(this.player.socketId).emit(
-                "receiveMessage",
-                "Your target was visited by " +
-                  alibi.player.playerUsername +
-                  " or " +
-                  realVisitor.player.playerUsername +
-                  ".",
+            let visitorAnnouncement = "The list of visitors is: ";
+            for (const visitor of visitorList.slice(0, -1)) {
+              visitorAnnouncement = visitorAnnouncement.concat(
+                visitor.player.playerUsername + ", ",
               );
             }
-          }
-        } else {
-          let visitorList = [];
-          for (let i = 0; i < this.visiting.visitors.length; i++) {
-            if (
-              this.visiting.visitors[i].player.isAlive &&
-              this.visiting.visitors[i] != this
-            ) {
-              //Lists all visitors, excluding the watchman itself
-              visitorList.push(this.visiting.visitors[i]);
-            }
-          }
-
-          let visitorAnnouncement = "The list of visitors is: ";
-          for (let i = 0; i < visitorList.length - 1; i++) {
             visitorAnnouncement = visitorAnnouncement.concat(
-              visitorList[i].player.playerUsername + ", ",
+              "and " +
+                visitorList[visitorList.length - 1].player.playerUsername +
+                ".",
+            );
+            io.to(this.player.socketId).emit(
+              "receiveMessage",
+              visitorAnnouncement,
             );
           }
-          visitorAnnouncement = visitorAnnouncement.concat(
-            "and " +
-              visitorList[visitorList.length - 1].player.playerUsername +
-              ".",
-          );
-          io.to(this.player.socketId).emit(
-            "receiveMessage",
-            visitorAnnouncement,
-          );
         }
-      }
-    } catch (error) {
-      console.log(error);
+      },
+      (error) => error,
+    );
+    const result = handleVisits();
+
+    if (result.isErr()) {
+      console.error(result.error);
     }
   }
 }

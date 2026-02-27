@@ -5,6 +5,7 @@ import { io } from "../../servers/socket.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Jailor } from "./town/jailor.js";
+import { fromThrowable } from "neverthrow";
 
 export abstract class Role {
   room: Room;
@@ -25,6 +26,10 @@ export abstract class Role {
   abstract nightVisitOthers: boolean;
   abstract nightVisitFaction: boolean;
   abstract nightVote: boolean;
+  attackVote?: Role | null;
+  isAttacking?: boolean;
+  isInsane?: boolean;
+  victoryCondition?: boolean;
 
   dayVisiting: Role | null = null;
   roleblocking: Role | null = null;
@@ -100,20 +105,24 @@ export abstract class Role {
       );
     } else {
       //Calls the function for handling the night chat.
-      try {
-        this.faction.handleNightMessage(message, this.player.playerUsername);
-        if (this.nightTapped != false && this.nightTapped !== true)
-          io.to(this.nightTapped.player.socketId).emit(
-            "receive-chat-message",
-            this.player.playerUsername + ": " + message,
-          );
-      } catch (error) {
-        console.log(error);
-      }
+      const handleNightMessage = fromThrowable(
+        () => {
+          this.faction.handleNightMessage(message, this.player.playerUsername);
+          if (this.nightTapped != false && this.nightTapped !== true)
+            io.to(this.nightTapped.player.socketId).emit(
+              "receive-chat-message",
+              this.player.playerUsername + ": " + message,
+            );
+        },
+        (error) => error,
+      );
+      const result = handleNightMessage();
+
+      if (result.isErr()) console.error(result.error);
     }
   }
 
-  handleDayAction(recipient: Player) {
+  handleDayAction(_recipient: Player) {
     //Handles the class' daytime action
     io.to(this.player.socketId).emit(
       "receiveMessage",
@@ -130,7 +139,7 @@ export abstract class Role {
     this.dayVisiting = null;
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Handles the class' nighttime action
     io.to(this.player.socketId).emit(
       "receiveMessage",
@@ -138,7 +147,7 @@ export abstract class Role {
     );
   }
 
-  handleNightVote(recipient: Player) {
+  handleNightVote(_recipient: Player) {
     io.to(this.player.socketId).emit(
       "receiveMessage",
       "Your class has no nighttime factional voting.",
@@ -198,7 +207,7 @@ export abstract class Role {
   //These should be overriden by child classes if applicable
   dayVisit() {} //Visit another player (Day)
   visit() {} //Visit another player (Night)
-  receiveDayVisit(role: Role) {} //Called by another player visiting at night
+  receiveDayVisit(_role: Role) {} //Called by another player visiting at night
   handleDayVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
   handleVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
 }

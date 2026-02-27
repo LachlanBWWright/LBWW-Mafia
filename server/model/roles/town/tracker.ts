@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { io } from "../../../servers/socket.js";
+import { fromThrowable } from "neverthrow";
 
 export class Tracker extends Role {
   name = "Tracker";
@@ -47,23 +48,29 @@ export class Tracker extends Role {
   }
 
   handleVisits() {
-    try {
-      if (this.visiting != null) {
-        if (this.visiting.visiting)
-          io.to(this.player.socketId).emit(
-            "receiveMessage",
-            "Your target visited " +
-              this.visiting.visiting.player.playerUsername +
-              ".",
-          );
-        else
-          io.to(this.player.socketId).emit(
-            "receiveMessage",
-            "Your target didn't visit anyone.",
-          );
-      }
-    } catch (error) {
-      console.log(error);
+    const handleVisits = fromThrowable(
+      () => {
+        if (this.visiting != null) {
+          if (this.visiting.visiting)
+            io.to(this.player.socketId).emit(
+              "receiveMessage",
+              "Your target visited " +
+                this.visiting.visiting.player.playerUsername +
+                ".",
+            );
+          else
+            io.to(this.player.socketId).emit(
+              "receiveMessage",
+              "Your target didn't visit anyone.",
+            );
+        }
+      },
+      (error) => error,
+    );
+    const result = handleVisits();
+
+    if (result.isErr()) {
+      console.error(result.error);
     }
   }
 }

@@ -32,9 +32,7 @@ import { Peacemaker } from "../../roles/neutral/peacemaker.js";
 import { MafiaFaction } from "../../factions/mafiaFaction.js";
 import { LawmanFaction } from "../../factions/lawmanFaction.js";
 
-import { io } from "../../../servers/socket.js";
 import { Player } from "../../player/player.js";
-import { Role } from "../../roles/abstractRole.js";
 import { BlankRole } from "../../roles/blankRole.js";
 
 //This generates the an array of role classes to be used, and then returns it to the room.
@@ -68,9 +66,10 @@ export class RoleHandler {
     let randomMafiaList = [Mafia, MafiaRoleblocker, MafiaInvestigator];
     let randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
 
-    for (let i = 0; i < this.roomSize; i++) {
+    for (const slotToken of Array.from({ length: this.roomSize }, () => true)) {
+      if (!slotToken) continue;
       //
-      let randomiser = Math.random() * 30 - 15; //Random Integer betweek -15 and 15
+      let randomiser = Math.random() * 30 - 15; //Random Integer between -15 and 15
       //For testing specific roles, comment out otherwise
       /*             if(i == 0) {
                 roleList.push(MafiaInvestigator);
@@ -129,15 +128,15 @@ export class RoleHandler {
   assignFactionsFromPlayerList(playerList: Player[]) {
     let factionList = [];
 
-    for (let i = 0; i < playerList.length; i++) {
-      if (playerList[i].role.name === "Lawman") {
+    for (const player of playerList) {
+      if (player.role.name === "Lawman") {
         factionList.push(new LawmanFaction());
         break;
       }
     }
 
-    for (let i = 0; i < playerList.length; i++) {
-      if (playerList[i].role.group === "mafia") {
+    for (const player of playerList) {
+      if (player.role.group === "mafia") {
         factionList.push(new MafiaFaction());
         break;
       }

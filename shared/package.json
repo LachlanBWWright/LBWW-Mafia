@@ -1,0 +1,10 @@
+{
+  "name": "@mernmafia/shared",
+  "version": "0.0.0",
+  "private": true,
+  "peerDependencies": {
+    "@trpc/server": "*",
+    "superjson": "*",
+    "zod": "*"
+  }
+}

@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "react-bootstrap";
+import { Card } from "../ui/bootstrap-shim";
 import { roles } from "../info/roles";
 
 export function RolesPage() {

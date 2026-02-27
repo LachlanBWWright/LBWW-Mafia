@@ -4,8 +4,6 @@ import { RoleMafia } from "./abstractMafiaRole.js";
 import { io } from "../../../servers/socket.js";
 
 export class MafiaRoleblocker extends RoleMafia {
-  attackVote: Player | null = null;
-
   name = "Mafia Roleblocker";
   group = "mafia";
   baseDefence = 0;

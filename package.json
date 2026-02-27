@@ -1,0 +1,28 @@
+{
+  "name": "lbww-mafia-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "nextjs",
+    "server",
+    "shared",
+    "db"
+  ],
+  "scripts": {
+    "dev": "docker compose up -d && wait-on tcp:5432 && concurrently --names \"next,server\" --prefix-colors \"cyan,yellow\" \"cd nextjs && npm run dev\" \"cd server && npm start\"",
+    "dev:down": "docker compose down",
+    "lint": "npm run lint:server && npm run lint:nextjs && npm run lint:mobile",
+    "lint:server": "cd server && npm run lint",
+    "lint:nextjs": "cd nextjs && npm run lint",
+    "lint:mobile": "cd mobile && npm run lint",
+    "lint:fix": "npm run lint:fix:server && npm run lint:fix:nextjs && npm run lint:fix:mobile",
+    "lint:fix:server": "cd server && npm run lint:fix",
+    "lint:fix:nextjs": "cd nextjs && npm run lint:fix",
+    "lint:fix:mobile": "cd mobile && npm run lint:fix"
+  },
+  "description": "LBWW Mafia monorepo root",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "wait-on": "^9.0.4"
+  }
+}

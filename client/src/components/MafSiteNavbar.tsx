@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Navbar, Nav } from "react-bootstrap";
+import { Navbar, Nav } from "../ui/bootstrap-shim";
 import { Outlet, Link } from "react-router-dom";
 
 export function MafSiteNavbar() {
@@ -18,7 +18,7 @@ export function MafSiteNavbar() {
       <Navbar className="navbar-dark" bg="danger" expand="lg" sticky="top">
         <Nav>
           <Navbar.Brand as={Link} to="/" /* disabled={inGame} */>
-            MERN Mafia
+            LBWW Mafia
           </Navbar.Brand>
         </Nav>
 

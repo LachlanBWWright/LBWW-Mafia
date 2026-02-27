@@ -1,35 +1,43 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useState } from "react";
-import { View, Text, Button, TextInput } from "react-native";
+import { View, Text, Button, TextInput, StyleSheet } from "react-native";
 import { StackParamList } from "../App";
+import { commonStyles } from "../styles/commonStyles";
+import { colors } from "../styles/colors";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
 
-export function HomeScreen({ route, navigation }: HomeScreenProps) {
+const styles = StyleSheet.create({
+  title: {
+    justifyContent: "flex-start",
+    alignSelf: "center",
+    fontSize: 25,
+    fontWeight: "bold",
+    color: colors.textPrimary,
+  },
+  nameText: {
+    justifyContent: "flex-start",
+    alignSelf: "center",
+    flex: 1,
+    color: colors.textSecondary,
+  },
+  formContainer: {
+    alignContent: "space-between",
+  },
+});
+
+export function HomeScreen({ navigation }: HomeScreenProps) {
   const [name, setName] = useState("");
   const [disabled, setDisabled] = useState(true);
 
   return (
-    <View
-      style={{ alignSelf: "stretch", marginTop: "auto", flex: 1, padding: 20 }}
-    >
-      <Text
-        style={{
-          justifyContent: "flex-start",
-          alignSelf: "center",
-          fontSize: 25,
-          fontWeight: "bold",
-        }}
-      >
-        Welcome To MERN Mafia!
-      </Text>
-      <Text
-        style={{ justifyContent: "flex-start", alignSelf: "center", flex: 1 }}
-      >
-        {name.length != 0 ? `Your name is \"${name}\"` : ""}
+    <View style={commonStyles.container} className="bg-slate-950">
+      <Text style={styles.title}>Welcome To LBWW Mafia!</Text>
+      <Text style={styles.nameText}>
+        {name.length !== 0 ? `Your name is "${name}"` : ""}
       </Text>
 
-      <View style={{ alignContent: "space-between" }}>
+      <View style={styles.formContainer} className="gap-2">
         <TextInput
           onChangeText={(text) => {
             setName(text);
@@ -39,31 +47,28 @@ export function HomeScreen({ route, navigation }: HomeScreenProps) {
           placeholder={"Enter your username, 3-12 lowercase letters only!"}
           autoComplete={"username"}
           value={name}
-          style={{
-            borderColor: "#0000FF",
-            borderWidth: 1,
-            borderRadius: 10,
-            margin: 4,
-          }}
+          style={commonStyles.inputBorder}
+          placeholderTextColor={colors.textSecondary}
         />
-        <View style={{ margin: 4 }}>
+        <View style={commonStyles.button}>
           <Button
             title="Play Private Match (TBA)"
             disabled={true}
             onPress={() => navigation.navigate("PrivateGameLobbyScreen")}
-            color={"#FF0000"}
+            color={colors.danger}
           />
         </View>
-        <View style={{ margin: 4 }}>
+        <View style={commonStyles.button}>
           <Button
-            title="Play Public Match"
+            title="Join Game"
             disabled={disabled}
             onPress={() =>
-              navigation.navigate("PublicGameLobbyScreen", {
+              navigation.navigate("GameScreen", {
+                title: "LBWW Mafia",
                 name: validateText(name),
               })
             }
-            color={"#3333FF"}
+            color={colors.accent}
           />
         </View>
       </View>

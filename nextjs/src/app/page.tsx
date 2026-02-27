@@ -1,37 +1,35 @@
 import Link from "next/link";
+import { Button } from "~/components/ui/button";
+import { Header } from "~/components/header";
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-        <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-[5rem]">
-          Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-        </h1>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/usage/first-steps"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">First Steps →</h3>
-            <div className="text-lg">
-              Just the basics - Everything you need to know to set up your
-              database and authentication.
-            </div>
-          </Link>
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/introduction"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">Documentation →</h3>
-            <div className="text-lg">
-              Learn more about Create T3 App, the libraries it uses, and how to
-              deploy it.
-            </div>
-          </Link>
+    <div className="bg-background flex min-h-screen flex-col">
+      <Header />
+      <main className="mx-auto flex w-full max-w-6xl flex-1 items-center px-6 py-12">
+        <div className="grid w-full items-center gap-8 lg:grid-cols-[1.4fr_1fr]">
+          <div className="space-y-5">
+            <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
+              LBWW <span className="text-primary">Mafia</span>
+            </h1>
+            <p className="text-muted-foreground max-w-[700px] text-lg sm:text-xl">
+              Enter a live game instantly, coordinate through chat, and make
+              your move before the timer runs out.
+            </p>
+            <Button size="lg" className="text-base" asChild>
+              <Link href="/lobby">Join Game</Link>
+            </Button>
+          </div>
+          <div className="border-border bg-card/70 rounded-xl border p-5">
+            <h2 className="mb-2 text-lg font-semibold">Quick Start</h2>
+            <ol className="text-muted-foreground space-y-2 text-sm">
+              <li>1. Join a public room.</li>
+              <li>2. Watch day/night countdowns.</li>
+              <li>3. Chat, vote, visit, and whisper from the player panel.</li>
+            </ol>
+          </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

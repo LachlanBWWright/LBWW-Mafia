@@ -1,6 +1,6 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { type DefaultSession, type NextAuthConfig } from "next-auth";
-import DiscordProvider from "next-auth/providers/discord";
+import GoogleProvider from "next-auth/providers/google";
 
 import { db } from "~/server/db";
 import {
@@ -8,7 +8,7 @@ import {
   sessions,
   users,
   verificationTokens,
-} from "~/server/db/schema";
+} from "@mernmafia/db/schema";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -20,6 +20,7 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
+      isAdmin: boolean;
       // ...other properties
       // role: UserRole;
     } & DefaultSession["user"];
@@ -38,7 +39,7 @@ declare module "next-auth" {
  */
 export const authConfig = {
   providers: [
-    DiscordProvider,
+    GoogleProvider,
     /**
      * ...add more providers here.
      *
@@ -56,12 +57,20 @@ export const authConfig = {
     verificationTokensTable: verificationTokens,
   }),
   callbacks: {
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-      },
-    }),
+    session: ({ session, user }) => {
+      const isAdmin =
+        typeof (user as { isAdmin?: unknown }).isAdmin === "boolean"
+          ? (user as unknown as { isAdmin: boolean }).isAdmin
+          : false;
+
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: user.id,
+          isAdmin,
+        },
+      };
+    },
   },
 } satisfies NextAuthConfig;

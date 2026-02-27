@@ -30,7 +30,7 @@ export class Framer extends Role {
     // Find a random target
     let length = this.room.playerList.length;
     let index = Math.floor(Math.random() * length);
-    for (let i = 0; i < length; i++) {
+    for (const i of Array.from({ length }, (_, index) => index)) {
       //console.log((index + i) % length)
       //console.log(this.room.playerList[(index + i) % length])
       if (
@@ -54,7 +54,7 @@ export class Framer extends Role {
     if (this.target?.isAlive || this.victoryCondition) return; //Nothing happens if the target isn't dead, or the player's already won.
     let length = this.room.playerList.length;
     let index = Math.floor(Math.random() * length);
-    for (let i = 0; i < length; i++) {
+    for (const i of Array.from({ length }, (_, index) => index)) {
       if (
         this.room.playerList[(index + i) % length].role.group === "town" &&
         this.room.playerList[(index + i) % length].isAlive

@@ -1,5 +1,5 @@
 import React from "react";
-import { Card } from "react-bootstrap";
+import { Card } from "../ui/bootstrap-shim";
 
 export function SettingsPage() {
   return (

@@ -1,12 +1,12 @@
 import { PlayerSocket } from "../../servers/socket.js";
-import { BlankRole } from "../roles/blankRole.js";
 import { Room } from "../rooms/room.js";
+import { type Role } from "../roles/abstractRole.js";
 
 export class Player {
   socket: PlayerSocket;
   socketId: string;
   playerUsername: string;
-  role: any;
+  role: Role | undefined;
   isAlive: boolean;
   hasVoted: boolean;
   votesReceived: number;
@@ -15,12 +15,12 @@ export class Player {
     socket: PlayerSocket,
     socketId: string,
     playerUsername: string,
-    room: Room,
+    _room: Room,
   ) {
     this.socket = socket;
     this.socketId = socketId;
     this.playerUsername = playerUsername;
-    this.role;
+    this.role = undefined;
     this.isAlive = true;
     this.hasVoted = false;
     this.votesReceived = 0;

@@ -23,7 +23,7 @@ export class Nimby extends Role {
     super(room, player);
   }
 
-  handleNightAction(recipient: Player) {
+  handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
     if (this.alertSlots == 0)
       io.to(this.player.socketId).emit(
@@ -58,13 +58,9 @@ export class Nimby extends Role {
 
   handleVisits() {
     if (this.visiting != null) {
-      for (let i = 0; i < this.visiting.visitors.length; i++) {
-        if (
-          this.visiting.visitors[i] != this &&
-          this.visiting.visitors[i] != this.visiting
-        ) {
-          if (this.visiting.visitors[i].damage == 0)
-            this.visiting.visitors[i].damage = 1;
+      for (const visitor of this.visiting.visitors) {
+        if (visitor != this && visitor != this.visiting) {
+          if (visitor.damage == 0) visitor.damage = 1;
           //this.visiting.attackers.push(this); Deliberately excluded at this point
         }
       }
