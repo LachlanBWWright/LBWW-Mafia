@@ -3,76 +3,39 @@ import axios from "axios";
 import { fromThrowable, ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
+import { getGameEmitter } from "./emitter.js";
+import type { GameEmitter } from "../../shared/communication/serverTypes.js";
 
-export type ClientToServerEvents = {
-  playerJoinRoom: (
-    captchaToken: string,
-    cb: (result: string | number) => void,
-  ) => Promise<void>;
-  disconnect: () => void;
-  messageSentByUser: (message: string, isDay: boolean) => void;
-  handleVote: (recipient: number | null, isDay: boolean) => void;
-  handleVisit: (recipient: number | null, isDay: boolean) => void;
-  handleWhisper: (recipient: number, message: string, isDay: boolean) => void;
-};
-
-type PlayerList = {
-  name: string;
-  isAlive: boolean | undefined;
-  role: string;
-};
-
-type PlayerReturned = {
-  name: string;
-  role: string;
-  dayVisitSelf: boolean;
-  dayVisitOthers: boolean;
-  dayVisitFaction: boolean;
-  nightVisitSelf: boolean;
-  nightVisitOthers: boolean;
-  nightVisitFaction: boolean;
-  nightVote: boolean;
-};
-
-export type ServerToClientEvents = {
-  //receive-message
-  receiveMessage: (message: string) => void;
-  blockMessages: () => void;
-  "receive-new-player": (player: { name: string }) => void;
-  "remove-player": (player: { name: string }) => void;
-  "receive-player-list": (playerList: PlayerList[]) => void;
-  "receive-chat-message": (message: string) => void;
-  "receive-whisper-message": (message: string) => void;
-  "update-day-time": (data: {
-    time: string;
-    dayNumber: number;
-    timeLeft: number;
-  }) => void;
-  "disable-voting": () => void;
-  "update-player-role": (data: { name: string; role?: string }) => void;
-  "assign-player-role": (data: PlayerReturned) => void;
-  "update-faction-role": (data: { name: string; role: string }) => void;
-  "receive-role": (role: string) => void;
-  "update-player-visit": () => void;
-};
-
-export type InterServerEvents = Record<string, never>;
+// Re-export event types from shared for backward compatibility
+export type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+} from "../../shared/communication/events.js";
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+} from "../../shared/communication/events.js";
 
 export type SocketData = {
   roomObject: Room;
   position: number;
 };
 
-export const io = new Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->(httpServer, {
-  cors: {
-    origin: ["http://localhost:3000"],
+/**
+ * `io` is a delegating GameEmitter that forwards calls to whichever backend
+ * (Socket.IO or PartyKit) was initialized via `setGameEmitter()`.
+ * All game logic files import `io` from this module and use it unchanged.
+ */
+export const io: GameEmitter = {
+  to(target: string) {
+    return getGameEmitter().to(target);
   },
-});
+  in(target: string) {
+    return getGameEmitter().in(target);
+  },
+};
 
 const playRoom: { current: Room | undefined } = {
   current: undefined,
@@ -97,8 +60,21 @@ export type PlayerSocket = Socket<
   SocketData
 >;
 
+export function createSocketIoServer() {
+  return new Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    InterServerEvents,
+    SocketData
+  >(httpServer, {
+    cors: {
+      origin: ["http://localhost:3000"],
+    },
+  });
+}
+
 export function addSocketListeners(
-  io: Server<
+  socketIoServer: Server<
     ClientToServerEvents,
     ServerToClientEvents,
     InterServerEvents,
@@ -106,7 +82,7 @@ export function addSocketListeners(
   >,
   roomSize: number,
 ) {
-  io.on("connection", (socket: PlayerSocket) => {
+  socketIoServer.on("connection", (socket: PlayerSocket) => {
     console.log("New Connection");
     //Handle players joining a room
     socket.on(

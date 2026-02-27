@@ -1,0 +1,6 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "lbww-mafia",
+  "main": "server/servers/partykit/partykitServer.ts",
+  "compatibilityDate": "2024-01-01"
+}
