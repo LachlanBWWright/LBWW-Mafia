@@ -82,7 +82,9 @@ export class PartykitClientAdapter implements GameSocket {
 
     this.ws.onopen = () => {
       this._connected = true;
-      this._id = `pk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      // Client-side ID for local identification only; the server assigns the
+      // authoritative connection ID via the PartyKit Connection object.
+      this._id = `pk_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
       this.dispatch("connect");
     };
 

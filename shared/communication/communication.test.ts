@@ -131,7 +131,7 @@ test("createGameSocket creates SocketIoClientAdapter for socketio type", () => {
 
   const socket = createGameSocket(
     { type: "socketio", url: "http://localhost:8000", autoConnect: false },
-    mockIo,
+    mockIo as (...args: any[]) => any,
   );
 
   assert.ok(socket);

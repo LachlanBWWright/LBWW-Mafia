@@ -25,11 +25,12 @@ import { PartykitClientAdapter } from "./partykitClientAdapter";
  *   a standard WebSocket with the JSON event protocol.
  *
  * @param socketIo - For Socket.IO backend, pass the `io` function from socket.io-client.
- *   This avoids dynamic imports in environments where they may not work (React Native, etc.)
+ *   Accepts any function signature since socket.io-client's `io` overloads vary by version.
  */
 export function createGameSocket(
   config: GameSocketConfig,
-  socketIo?: (url: string, opts?: Record<string, unknown>) => unknown,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  socketIo?: (...args: any[]) => any,
 ): GameSocket {
   switch (config.type) {
     case "socketio": {

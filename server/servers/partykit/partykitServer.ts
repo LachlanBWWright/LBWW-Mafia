@@ -36,7 +36,10 @@ export default class MafiaPartyServer implements Party.Server {
 
   constructor(readonly room: Party.Room) {
     this.roomSize = 13;
-    this.debugMode = true; // PartyKit mode skips CAPTCHA (no server-side HTTP for reCAPTCHA in CF Workers)
+    // PartyKit runs on Cloudflare Workers where server-side HTTP calls to Google reCAPTCHA
+    // are not straightforward. Use Cloudflare Turnstile or another CF-compatible CAPTCHA
+    // for production deployments. Set PARTYKIT_CAPTCHA_ENABLED=true to require validation.
+    this.debugMode = room.env?.PARTYKIT_CAPTCHA_ENABLED !== "true";
     this.gameRoom = new Room(this.roomSize);
 
     // Initialize the GameEmitter for this party instance

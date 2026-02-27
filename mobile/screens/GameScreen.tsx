@@ -190,7 +190,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
         url: SOCKET_URL,
         room: PARTYKIT_ROOM,
       },
-      io as unknown as (url: string, opts?: Record<string, unknown>) => unknown,
+      io,
     ),
   );
   const [message, setMessage] = useState("");

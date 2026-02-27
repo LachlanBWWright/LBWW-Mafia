@@ -85,7 +85,7 @@ export default function LobbyPage() {
               room: PARTYKIT_ROOM,
               autoConnect: false,
             },
-            io as unknown as (url: string, opts?: Record<string, unknown>) => unknown,
+            io,
           )
         : null,
     [],
