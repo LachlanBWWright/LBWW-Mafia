@@ -9,9 +9,11 @@
  * Wraps either a Socket.IO client or a PartySocket with a consistent event API.
  */
 export interface GameSocket {
-  on(event: string, handler: (...args: unknown[]) => void): void;
-  off(event: string, handler?: (...args: unknown[]) => void): void;
-  emit(event: string, ...args: unknown[]): void;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  on(event: string, handler: (...args: any[]) => void): void;
+  off(event: string, handler?: (...args: any[]) => void): void;
+  emit(event: string, ...args: any[]): void;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   connect(): void;
   disconnect(): void;
   readonly id: string | undefined;

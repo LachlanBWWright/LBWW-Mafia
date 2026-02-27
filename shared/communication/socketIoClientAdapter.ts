@@ -10,29 +10,31 @@ import type { GameSocket } from "./clientTypes";
  * simply delegates all calls to it.
  */
 export class SocketIoClientAdapter implements GameSocket {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   private socket: {
-    on(event: string, handler: (...args: unknown[]) => void): void;
-    off(event: string, handler?: (...args: unknown[]) => void): void;
-    emit(event: string, ...args: unknown[]): void;
+    on(event: string, handler: (...args: any[]) => void): void;
+    off(event: string, handler?: (...args: any[]) => void): void;
+    emit(event: string, ...args: any[]): void;
     connect(): void;
     disconnect(): void;
     readonly id: string | undefined;
     readonly connected: boolean;
   };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
   constructor(socket: unknown) {
     this.socket = socket as typeof this.socket;
   }
 
-  on(event: string, handler: (...args: unknown[]) => void): void {
+  on(event: string, handler: (...args: any[]) => void): void {
     this.socket.on(event, handler);
   }
 
-  off(event: string, handler?: (...args: unknown[]) => void): void {
+  off(event: string, handler?: (...args: any[]) => void): void {
     this.socket.off(event, handler);
   }
 
-  emit(event: string, ...args: unknown[]): void {
+  emit(event: string, ...args: any[]): void {
     this.socket.emit(event, ...args);
   }
 

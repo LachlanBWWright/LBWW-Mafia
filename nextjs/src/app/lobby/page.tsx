@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 import { Header } from "~/components/header";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -18,6 +18,7 @@ import {
   shouldShowVisitAction,
   type VisitCapability,
 } from "@mernmafia/shared/game/playerActionRules";
+import { createGameSocket, type GameSocket, type SocketBackendType } from "@mernmafia/shared/communication";
 
 const SOCKET_URL =
   process.env.NEXT_PUBLIC_SOCKET_URL ??
@@ -25,6 +26,9 @@ const SOCKET_URL =
 const CAPTCHA_TOKEN =
   process.env.NEXT_PUBLIC_CAPTCHA_TOKEN ??
   (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
+const SOCKET_BACKEND: SocketBackendType =
+  (process.env.NEXT_PUBLIC_SOCKET_BACKEND as SocketBackendType) ?? "socketio";
+const PARTYKIT_ROOM = process.env.NEXT_PUBLIC_PARTYKIT_ROOM ?? "default";
 
 const JOIN_ERROR = {
   CAPTCHA_FAILED: 2,
@@ -71,8 +75,19 @@ export default function LobbyPage() {
     (player) => player.name === playerName,
   )?.isAlive !== false;
 
-  const socket = useMemo<Socket | null>(
-    () => (SOCKET_URL ? io(SOCKET_URL, { autoConnect: false }) : null),
+  const socket = useMemo<GameSocket | null>(
+    () =>
+      SOCKET_URL
+        ? createGameSocket(
+            {
+              type: SOCKET_BACKEND,
+              url: SOCKET_URL,
+              room: PARTYKIT_ROOM,
+              autoConnect: false,
+            },
+            io as unknown as (url: string, opts?: Record<string, unknown>) => unknown,
+          )
+        : null,
     [],
   );
   const appendLocalMessage = useCallback((message: string) => {

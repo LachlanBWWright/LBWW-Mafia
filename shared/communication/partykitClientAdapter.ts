@@ -16,8 +16,8 @@ type ServerMessage =
 
 export class PartykitClientAdapter implements GameSocket {
   private ws: WebSocket | null = null;
-  private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  private pendingCallbacks = new Map<string, (...args: unknown[]) => void>();
+  private listeners = new Map<string, Set<(...args: any[]) => void>>();
+  private pendingCallbacks = new Map<string, (...args: any[]) => void>();
   private callbackCounter = 0;
   private url: string;
   private _id: string | undefined;
@@ -32,14 +32,14 @@ export class PartykitClientAdapter implements GameSocket {
     }
   }
 
-  on(event: string, handler: (...args: unknown[]) => void): void {
+  on(event: string, handler: (...args: any[]) => void): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
     this.listeners.get(event)!.add(handler);
   }
 
-  off(event: string, handler?: (...args: unknown[]) => void): void {
+  off(event: string, handler?: (...args: any[]) => void): void {
     if (!handler) {
       this.listeners.delete(event);
       return;
@@ -50,7 +50,7 @@ export class PartykitClientAdapter implements GameSocket {
     }
   }
 
-  emit(event: string, ...args: unknown[]): void {
+  emit(event: string, ...args: any[]): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
     // Check if the last argument is a callback function
@@ -59,7 +59,7 @@ export class PartykitClientAdapter implements GameSocket {
 
     if (typeof lastArg === "function") {
       callbackId = `cb_${++this.callbackCounter}`;
-      this.pendingCallbacks.set(callbackId, lastArg as (...a: unknown[]) => void);
+      this.pendingCallbacks.set(callbackId, lastArg as (...a: any[]) => void);
       args = args.slice(0, -1);
     }
 
@@ -131,12 +131,12 @@ export class PartykitClientAdapter implements GameSocket {
     return this._connected;
   }
 
-  private dispatch(event: string, ...args: unknown[]): void {
+  private dispatch(event: string, ...args: any[]): void {
     const handlers = this.listeners.get(event);
     if (handlers) {
-      for (const handler of handlers) {
+      handlers.forEach((handler) => {
         handler(...args);
-      }
+      });
     }
   }
 }

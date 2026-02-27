@@ -77,7 +77,7 @@ export default class MafiaPartyServer implements Party.Server {
         }
 
         playerSocket.data.roomObject = this.gameRoom;
-        const result = this.gameRoom.addPlayer(playerSocket as any);
+        const result = this.gameRoom.addPlayer(playerSocket);
 
         if (parsed.callbackId) {
           playerSocket.sendCallback(parsed.callbackId, result);
@@ -90,8 +90,8 @@ export default class MafiaPartyServer implements Party.Server {
         runSafely("messageSentByUser error", () => {
           if (msg.length > 0 && msg.length <= 150) {
             if (playerSocket.data.roomObject !== undefined) {
-              (playerSocket.data.roomObject as Room).handleSentMessage(
-                playerSocket as any,
+              playerSocket.data.roomObject.handleSentMessage(
+                playerSocket,
                 msg,
                 isDay,
               );
@@ -106,8 +106,8 @@ export default class MafiaPartyServer implements Party.Server {
         runSafely("handleVote error", () => {
           if (typeof recipient === "number") {
             if (playerSocket.data.roomObject !== undefined) {
-              (playerSocket.data.roomObject as Room).handleVote(
-                playerSocket as any,
+              playerSocket.data.roomObject.handleVote(
+                playerSocket,
                 recipient,
                 isDay,
               );
@@ -122,8 +122,8 @@ export default class MafiaPartyServer implements Party.Server {
         runSafely("handleVisit error", () => {
           if (typeof recipient === "number" || recipient === null) {
             if (playerSocket.data.roomObject !== undefined) {
-              (playerSocket.data.roomObject as Room).handleVisit(
-                playerSocket as any,
+              playerSocket.data.roomObject.handleVisit(
+                playerSocket,
                 recipient,
                 isDay,
               );
@@ -142,8 +142,8 @@ export default class MafiaPartyServer implements Party.Server {
             msg.length <= 150
           ) {
             if (playerSocket.data.roomObject !== undefined) {
-              (playerSocket.data.roomObject as Room).handleWhisper(
-                playerSocket as any,
+              playerSocket.data.roomObject.handleWhisper(
+                playerSocket,
                 recipient,
                 msg,
                 isDay,

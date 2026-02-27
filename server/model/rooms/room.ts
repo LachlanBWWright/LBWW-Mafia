@@ -1,7 +1,7 @@
 import Crypto from "crypto";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { Player } from "../player/player.js";
-import { PlayerSocket, io } from "../../servers/socket.js";
+import { type GamePlayerSocket, io } from "../../servers/socket.js";
 import { Confesser } from "../roles/neutral/confesser.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { BlankRole } from "../roles/blankRole.js";
@@ -82,7 +82,7 @@ export class Room {
   }
 
   //Adds a new player to the room, and makes the game start if it is full. Returns error code if the user failed to join, or their username
-  addPlayer(playerSocket: PlayerSocket) {
+  addPlayer(playerSocket: GamePlayerSocket) {
     let playerSocketId = playerSocket.id;
     //Stops the user from being added if there's an existing user with the same username or socketId, or if the room is full
     for (const player of this.playerList) {
@@ -192,7 +192,7 @@ export class Room {
 
   //Handles users sending messages to the chat
   handleSentMessage(
-    playerSocket: PlayerSocket,
+    playerSocket: GamePlayerSocket,
     message: string,
     isDay: boolean,
   ) {
@@ -235,7 +235,7 @@ export class Room {
     }
   }
 
-  handleVote(playerSocket: PlayerSocket, recipient: number, isDay: boolean) {
+  handleVote(playerSocket: GamePlayerSocket, recipient: number, isDay: boolean) {
     this.runSafely(() => {
       if (
         (!isDay && this.time === "day") ||
@@ -303,7 +303,7 @@ export class Room {
   }
 
   handleWhisper(
-    playerSocket: PlayerSocket,
+    playerSocket: GamePlayerSocket,
     recipient: number,
     message: string,
     isDay: boolean,
@@ -396,7 +396,7 @@ export class Room {
   }
 
   handleVisit(
-    playerSocket: PlayerSocket,
+    playerSocket: GamePlayerSocket,
     recipient: number | null,
     isDay: boolean,
   ) {

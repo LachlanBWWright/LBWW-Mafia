@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { StackParamList } from "../App";
 import { StackActions } from "@react-navigation/native";
-import io, { type Socket } from "socket.io-client";
+import io from "socket.io-client";
 import { commonStyles } from "../styles/commonStyles";
 import { colors } from "../styles/colors";
 import { trpcClient } from "../lib/trpc";
@@ -26,6 +26,7 @@ import {
   shouldShowVisitAction,
   type VisitCapability,
 } from "../../shared/game/playerActionRules";
+import { createGameSocket, type GameSocket, type SocketBackendType } from "../../shared/communication";
 
 type Player = {
   name: string;
@@ -178,8 +179,20 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   const CAPTCHA_TOKEN =
     process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ??
     (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
+  const SOCKET_BACKEND: SocketBackendType =
+    (process.env.EXPO_PUBLIC_SOCKET_BACKEND as SocketBackendType) ?? "socketio";
+  const PARTYKIT_ROOM = process.env.EXPO_PUBLIC_PARTYKIT_ROOM ?? "default";
 
-  const [socket] = useState<Socket>(() => io(SOCKET_URL));
+  const [socket] = useState<GameSocket>(() =>
+    createGameSocket(
+      {
+        type: SOCKET_BACKEND,
+        url: SOCKET_URL,
+        room: PARTYKIT_ROOM,
+      },
+      io as unknown as (url: string, opts?: Record<string, unknown>) => unknown,
+    ),
+  );
   const [message, setMessage] = useState("");
   const [joinedAs, setJoinedAs] = useState(route.params.name);
   const [playerRole, setPlayerRole] = useState("");
@@ -481,7 +494,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 function PlayerInList(props: {
   currentUser: string;
   player: Player;
-  socket: Socket;
+  socket: GameSocket;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
   time: DayTime;
   actorRole: string;

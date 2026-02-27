@@ -24,6 +24,17 @@ export type SocketData = {
 };
 
 /**
+ * Abstract player socket interface.
+ * Both Socket.IO Socket and PartykitPlayerSocket satisfy this interface.
+ * Used by Room and Player classes for backend-agnostic game logic.
+ */
+export interface GamePlayerSocket {
+  readonly id: string;
+  data: { roomObject?: Room; position?: number };
+  join(room: string): void;
+}
+
+/**
  * `io` is a delegating GameEmitter that forwards calls to whichever backend
  * (Socket.IO or PartyKit) was initialized via `setGameEmitter()`.
  * All game logic files import `io` from this module and use it unchanged.

@@ -1,9 +1,9 @@
-import { PlayerSocket } from "../../servers/socket.js";
+import { type GamePlayerSocket } from "../../servers/socket.js";
 import { Room } from "../rooms/room.js";
 import { type Role } from "../roles/abstractRole.js";
 
 export class Player {
-  socket: PlayerSocket;
+  socket: GamePlayerSocket;
   socketId: string;
   playerUsername: string;
   role: Role | undefined;
@@ -12,7 +12,7 @@ export class Player {
   votesReceived: number;
 
   constructor(
-    socket: PlayerSocket,
+    socket: GamePlayerSocket,
     socketId: string,
     playerUsername: string,
     _room: Room,
