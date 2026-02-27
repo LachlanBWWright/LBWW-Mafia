@@ -1,28 +1,46 @@
+import "react-native-reanimated";
+import "./global.css";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  DarkTheme,
+  NavigationContainer,
+  Theme,
+} from "@react-navigation/native";
 import {
   createNativeStackNavigator,
   NativeStackNavigationProp,
 } from "@react-navigation/native-stack";
 import { HomeScreen } from "./screens/HomeScreen";
-import { HowToPlayScreen } from "./screens/HowToPlayScreen";
 import { PrivateGameLobbyScreen } from "./screens/PrivateGameLobbyScreen";
 import { PublicGameLobbyScreen } from "./screens/PublicGameLobbyScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { GameScreen } from "./screens/GameScreen";
 import React from "react";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import { colors } from "./styles/colors";
 
 export type StackParamList = {
   HomeScreen: undefined;
-  HowToPlayScreen: undefined;
   PrivateGameLobbyScreen: undefined;
   PublicGameLobbyScreen: { name: string };
   SettingsScreen: undefined;
-  GameScreen: { lobbyId: string; title: string; name: string };
+  GameScreen: { title: string; name: string };
 };
 
 const Stack = createNativeStackNavigator<StackParamList>();
+
+const appTheme: Theme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.background,
+    card: colors.surface,
+    border: colors.border,
+    text: colors.textPrimary,
+    primary: colors.accent,
+    notification: colors.danger,
+  },
+};
 
 const styles = StyleSheet.create({
   headerRight: {
@@ -40,19 +58,11 @@ function HeaderRight({
 }) {
   return (
     <View style={styles.headerRight}>
-      <Pressable onPress={() => navigation.navigate("HowToPlayScreen")}>
-        <Icon
-          name="help"
-          size={30}
-          color="#3333FF"
-          style={styles.iconPadding}
-        />
-      </Pressable>
       <Pressable onPress={() => navigation.navigate("SettingsScreen")}>
         <Icon
           name="settings"
           size={30}
-          color="#3333FF"
+          color={colors.accent}
           style={styles.iconPadding}
         />
       </Pressable>
@@ -64,29 +74,36 @@ function HeaderLeft() {
   return <Text />;
 }
 
-const homeScreenOptions = (navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">) => ({
-  title: "MERN Mafia",
+const homeScreenOptions = (
+  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">,
+) => ({
+  title: "LBWW Mafia",
   headerRight: () => <HeaderRight navigation={navigation} />,
+  headerStyle: { backgroundColor: colors.surface },
+  headerTintColor: colors.textPrimary,
 });
 
 const gameScreenOptions = (title: string) => ({
   title: title,
   headerLeft: HeaderLeft,
+  headerStyle: { backgroundColor: colors.surface },
+  headerTintColor: colors.textPrimary,
 });
 
 export default function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator>
+    <NavigationContainer theme={appTheme}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.textPrimary,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
         <Stack.Screen
           name="HomeScreen"
           component={HomeScreen}
           options={({ navigation }) => homeScreenOptions(navigation)}
-        />
-        <Stack.Screen
-          name="HowToPlayScreen"
-          component={HowToPlayScreen}
-          options={{ title: "How To Play" }}
         />
         <Stack.Screen
           name="PrivateGameLobbyScreen"

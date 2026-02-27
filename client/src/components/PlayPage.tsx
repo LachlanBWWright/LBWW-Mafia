@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Card, Tooltip, OverlayTrigger, Button } from "react-bootstrap";
+import { Card, Tooltip, OverlayTrigger, Button } from "../ui/bootstrap-shim";
 import { useOutletContext } from "react-router-dom";
 import { Room } from "./Room";
 import { roles } from "../info/roles";
@@ -40,7 +40,7 @@ export function PlayPage({ debug }: { debug: boolean }) {
               <OverlayTrigger
                 placement="right"
                 delay={{ show: 250, hide: 400 }}
-                overlay={(props) => (
+                overlay={(props: React.HTMLAttributes<HTMLDivElement>) => (
                   <Tooltip id="button-tooltip" {...props}>
                     {roles.get(playerRole)}
                   </Tooltip>
@@ -72,7 +72,7 @@ export function PlayPage({ debug }: { debug: boolean }) {
             This game was created by Lachlan Wright, you can view my GitHub
             profile <a href="http://www.github.com/LachlanBWWright">here,</a> or
             the repository for this game{" "}
-            <a href="https://github.com/LachlanBWWright/MERN-Mafia">here.</a>
+            <a href="https://github.com/LachlanBWWright/LBWW-Mafia">here.</a>
           </Card.Text>
           <Card.Text>
             This is an online game similar to the 'mafia' party game. Most

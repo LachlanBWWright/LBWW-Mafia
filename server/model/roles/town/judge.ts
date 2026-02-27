@@ -47,9 +47,9 @@ export class Judge extends Role {
 
       if (Math.random() < 0.3) {
         let livingPlayerList = [];
-        for (let i = 0; i < this.room.playerList.length; i++) {
-          if (this.room.playerList[i].isAlive) {
-            livingPlayerList.push(this.room.playerList[i]);
+        for (const roomPlayer of this.room.playerList) {
+          if (roomPlayer.isAlive) {
+            livingPlayerList.push(roomPlayer);
           }
         }
 

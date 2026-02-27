@@ -4,7 +4,7 @@ import { Role } from "../abstractRole.js";
 import { io } from "../../../servers/socket.js";
 
 export abstract class RoleMafia extends Role {
-  attackVote: Player | null = null;
+  attackVote: Role | null = null;
   isAttacking = false;
 
   group = "mafia";
@@ -15,21 +15,22 @@ export abstract class RoleMafia extends Role {
   }
 
   handleNightVote(recipient: Player) {
-    this.attackVote = recipient;
+    const recipientRole = recipient.role;
     if (
-      this.attackVote.playerUsername != undefined &&
-      this.attackVote.role.faction != this.faction &&
-      this.attackVote.isAlive &&
+      recipient.playerUsername != undefined &&
+      recipientRole?.faction != this.faction &&
+      recipient.isAlive &&
       this.faction !== undefined
     ) {
       this.faction.sendMessage(
         this.player.playerUsername +
           " has voted to attack " +
-          this.attackVote.playerUsername +
+          recipient.playerUsername +
           ".",
       );
-      this.attackVote = this.attackVote.role; //uses role for easier visiting
+      this.attackVote = recipientRole; //uses role for easier visiting
     } else {
+      this.attackVote = null;
       io.to(this.player.socketId).emit("receiveMessage", "Invalid Vote.");
     }
   }

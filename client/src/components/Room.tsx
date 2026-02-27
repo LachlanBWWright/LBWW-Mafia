@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Form, Button, ListGroup } from "react-bootstrap";
+import { Form, Button, ListGroup } from "../ui/bootstrap-shim";
 import { PlayerItem } from "./PlayerItem";
 import { socket } from "../socket/socket";
 

@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { View, Text, Button, TextInput, StyleSheet } from "react-native";
 import { StackParamList } from "../App";
 import { commonStyles } from "../styles/commonStyles";
+import { colors } from "../styles/colors";
 
 type HomeScreenProps = NativeStackScreenProps<StackParamList, "HomeScreen">;
 
@@ -12,11 +13,13 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     fontSize: 25,
     fontWeight: "bold",
+    color: colors.textPrimary,
   },
   nameText: {
     justifyContent: "flex-start",
     alignSelf: "center",
     flex: 1,
+    color: colors.textSecondary,
   },
   formContainer: {
     alignContent: "space-between",
@@ -28,13 +31,13 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
   const [disabled, setDisabled] = useState(true);
 
   return (
-    <View style={commonStyles.container}>
-      <Text style={styles.title}>Welcome To MERN Mafia!</Text>
+    <View style={commonStyles.container} className="bg-slate-950">
+      <Text style={styles.title}>Welcome To LBWW Mafia!</Text>
       <Text style={styles.nameText}>
         {name.length !== 0 ? `Your name is "${name}"` : ""}
       </Text>
 
-      <View style={styles.formContainer}>
+      <View style={styles.formContainer} className="gap-2">
         <TextInput
           onChangeText={(text) => {
             setName(text);
@@ -45,25 +48,27 @@ export function HomeScreen({ navigation }: HomeScreenProps) {
           autoComplete={"username"}
           value={name}
           style={commonStyles.inputBorder}
+          placeholderTextColor={colors.textSecondary}
         />
         <View style={commonStyles.button}>
           <Button
             title="Play Private Match (TBA)"
             disabled={true}
             onPress={() => navigation.navigate("PrivateGameLobbyScreen")}
-            color={"#FF0000"}
+            color={colors.danger}
           />
         </View>
         <View style={commonStyles.button}>
           <Button
-            title="Play Public Match"
+            title="Join Game"
             disabled={disabled}
             onPress={() =>
-              navigation.navigate("PublicGameLobbyScreen", {
+              navigation.navigate("GameScreen", {
+                title: "LBWW Mafia",
                 name: validateText(name),
               })
             }
-            color={"#3333FF"}
+            color={colors.accent}
           />
         </View>
       </View>

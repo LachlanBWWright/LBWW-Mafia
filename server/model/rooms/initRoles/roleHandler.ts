@@ -66,9 +66,10 @@ export class RoleHandler {
     let randomMafiaList = [Mafia, MafiaRoleblocker, MafiaInvestigator];
     let randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
 
-    for (let i = 0; i < this.roomSize; i++) {
+    for (const slotToken of Array.from({ length: this.roomSize }, () => true)) {
+      if (!slotToken) continue;
       //
-      let randomiser = Math.random() * 30 - 15; //Random Integer betweek -15 and 15
+      let randomiser = Math.random() * 30 - 15; //Random Integer between -15 and 15
       //For testing specific roles, comment out otherwise
       /*             if(i == 0) {
                 roleList.push(MafiaInvestigator);
@@ -127,15 +128,15 @@ export class RoleHandler {
   assignFactionsFromPlayerList(playerList: Player[]) {
     let factionList = [];
 
-    for (let i = 0; i < playerList.length; i++) {
-      if (playerList[i].role.name === "Lawman") {
+    for (const player of playerList) {
+      if (player.role.name === "Lawman") {
         factionList.push(new LawmanFaction());
         break;
       }
     }
 
-    for (let i = 0; i < playerList.length; i++) {
-      if (playerList[i].role.group === "mafia") {
+    for (const player of playerList) {
+      if (player.role.group === "mafia") {
         factionList.push(new MafiaFaction());
         break;
       }

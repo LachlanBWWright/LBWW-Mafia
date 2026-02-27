@@ -2,15 +2,16 @@ import { Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
 import { Room } from "../rooms/room.js";
 import { io } from "../../servers/socket.js";
+import { fromThrowable } from "neverthrow";
 
 export class LawmanFaction extends Faction {
   room?: Room;
 
   findMembers(playerList: Player[]) {
     //Go through a list of members, add them to the this.memberList
-    for (let i = 0; i < playerList.length; i++) {
-      if (playerList[i].role.name == "Lawman") {
-        this.memberList.push(playerList[i]);
+    for (const player of playerList) {
+      if (player.role.name == "Lawman") {
+        this.memberList.push(player);
       }
     }
 
@@ -22,23 +23,29 @@ export class LawmanFaction extends Faction {
   handleNightVote() {
     //Called at the end of the night. Forces a random visit for insane members.
     if (this.room === undefined) return;
-    for (let i = 0; i < this.memberList.length; i++) {
-      if (this.memberList[i].role.isInsane) {
+    for (const member of this.memberList) {
+      if (member.role.isInsane) {
         //Selects a random person to visit
         for (let f = 0; f < 100; f++) {
           //Uses this instead of a while loop just in case some error occurs
-          try {
-            let randomVictim =
-              this.room.playerList[
-                Math.floor(Math.random() * this.room.playerList.length)
-              ];
-            if (randomVictim.isAlive) {
-              console.log(randomVictim.role.name);
-              this.memberList[i].role.visiting = randomVictim.role;
-              f = 1000;
-            }
-          } catch (error) {
-            console.log(error);
+          const setRandomVisit = fromThrowable(
+            () => {
+              const randomIndex = Math.floor(
+                Math.random() * this.room.playerList.length,
+              );
+              const randomVictim = this.room.playerList[randomIndex];
+              if (randomVictim.isAlive) {
+                console.log(randomVictim.role.name);
+                member.role.visiting = randomVictim.role;
+                f = 1000;
+              }
+            },
+            (error) => error,
+          );
+          const result = setRandomVisit();
+
+          if (result.isErr()) {
+            console.error(result.error);
           }
         }
       }
@@ -47,9 +54,9 @@ export class LawmanFaction extends Faction {
 
   handleNightMessage(message: string, playerUsername: string) {
     //Tells the player that they cannot speak at night.
-    for (let i = 0; i < this.memberList.length; i++) {
-      if (this.memberList[i].playerUsername == playerUsername) {
-        io.to(this.memberList[i].socketId).emit(
+    for (const member of this.memberList) {
+      if (member.playerUsername == playerUsername) {
+        io.to(member.socketId).emit(
           "receiveMessage",
           "You cannot speak at night.",
         );
@@ -58,20 +65,14 @@ export class LawmanFaction extends Faction {
   }
 
   sendMessage(message: string) {
-    for (let i = 0; i < this.memberList.length; i++) {
-      io.to(this.memberList[i].socketId).emit("receiveMessage", message);
+    for (const member of this.memberList) {
+      io.to(member.socketId).emit("receiveMessage", message);
     }
   }
 
   removeMembers() {
-    for (let i = 0; i < this.memberList.length; i++) {
-      if (
-        !this.memberList[i].isAlive ||
-        this.memberList[i].role.name != "Lawman"
-      ) {
-        this.memberList.splice(i, 1);
-        i--;
-      }
-    }
+    this.memberList = this.memberList.filter(
+      (member) => member.isAlive && member.role.name == "Lawman",
+    );
   }
 }

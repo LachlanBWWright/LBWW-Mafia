@@ -57,13 +57,13 @@ export class Sacrificer extends Role {
         "You were attacked, but were saved by a sacrificer!",
       );
       this.damage = 99; //Makes the sacrificer die
-      for (let i = 0; i < this.visiting.attackers.length; i++) {
+      for (const attacker of this.visiting.attackers) {
         io.to(this.visiting.player.socketId).emit(
           "receiveMessage",
           "You were attacked by " +
-            this.visiting.attackers[i].player.playerUsername +
+            attacker.player.playerUsername +
             ", whose role is: " +
-            this.visiting.attackers[i].name +
+            attacker.name +
             ".",
         );
       }

@@ -1,5 +1,6 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
+import neverthrow from "eslint-plugin-neverthrow";
 
 export default [
   {
@@ -7,12 +8,13 @@ export default [
     languageOptions: {
       parser: tsparser,
       parserOptions: {
-        project: "./tsconfig.json",
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
     plugins: {
       "@typescript-eslint": tseslint,
+      neverthrow,
     },
     rules: {
       ...tseslint.configs.recommended.rules,

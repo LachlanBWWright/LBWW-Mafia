@@ -52,26 +52,26 @@
 :root {
   --radius: 0.5rem;
   /* Dark theme - default */
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
+  --background: #060912;
+  --foreground: #e9eeff;
+  --card: #0f1528;
+  --card-foreground: #e9eeff;
+  --popover: #0f1528;
+  --popover-foreground: #e9eeff;
   /* Blue primary color */
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
+  --primary: #5b8cff;
+  --primary-foreground: #f2f6ff;
+  --secondary: #19213a;
+  --secondary-foreground: #dce5ff;
+  --muted: #19213a;
+  --muted-foreground: #a8b4d9;
+  --accent: #1e2947;
+  --accent-foreground: #e9eeff;
+  --destructive: #a93f57;
+  --destructive-foreground: #ffe7ed;
+  --border: #283456;
+  --input: #1e2947;
+  --ring: #5b8cff;
   --chart-1: 220 70% 50%;
   --chart-2: 160 60% 45%;
   --chart-3: 30 80% 55%;
@@ -115,4 +115,23 @@
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.themed-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.themed-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.themed-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.themed-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background-color: color-mix(in oklab, var(--primary) 55%, var(--border));
 }
