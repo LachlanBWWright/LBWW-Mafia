@@ -6,6 +6,8 @@
   "main": "index.js",
   "scripts": {
     "start": "tsx server.ts",
+    "start:socketio": "tsx server.ts",
+    "start:partykit": "npx partykit dev servers/partykit/partykitServer.ts",
     "test": "tsx --test ../shared/**/*.test.ts",
     "build": "npm run typecheck",
     "heroku-postbuild": "cd client && npm install --only=dev && npm install && npm run build",
