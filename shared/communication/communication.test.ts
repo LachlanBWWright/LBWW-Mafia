@@ -176,3 +176,83 @@ test("createGameSocket throws for unknown backend type", () => {
     createGameSocket({ type: "unknown" as any, url: "http://localhost:8000" });
   }, /Unknown socket backend type/);
 });
+
+// ───────────── SocketIoClientAdapter advanced tests ─────────────
+
+test("SocketIoClientAdapter correctly reflects connected state changes", () => {
+  let currentConnected = false;
+  const mockSocket = {
+    on: () => {},
+    off: () => {},
+    emit: () => {},
+    connect: () => { currentConnected = true; },
+    disconnect: () => { currentConnected = false; },
+    id: undefined as string | undefined,
+    get connected() { return currentConnected; },
+  };
+
+  const adapter = new SocketIoClientAdapter(mockSocket);
+  assert.equal(adapter.connected, false);
+
+  adapter.connect();
+  assert.equal(adapter.connected, true);
+
+  adapter.disconnect();
+  assert.equal(adapter.connected, false);
+});
+
+test("SocketIoClientAdapter off without handler still calls underlying off", () => {
+  const calls: string[] = [];
+  const mockSocket = {
+    on: () => {},
+    off: (event: string) => { calls.push(event); },
+    emit: () => {},
+    connect: () => {},
+    disconnect: () => {},
+    id: "id",
+    connected: false,
+  };
+
+  const adapter = new SocketIoClientAdapter(mockSocket);
+  adapter.off("some-event");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0], "some-event");
+});
+
+// ───────────── createGameSocket with partykit URL conversion ─────────────
+
+test("createGameSocket converts http URL to ws URL for partykit", () => {
+  // This test ensures the factory properly converts http:// to ws:// for PartyKit
+  const socket = createGameSocket({
+    type: "partykit",
+    url: "http://example.com",
+    room: "game-room",
+    autoConnect: false,
+  });
+
+  assert.ok(socket);
+  assert.equal(socket instanceof PartykitClientAdapter, true);
+});
+
+test("createGameSocket handles https URL for partykit", () => {
+  const socket = createGameSocket({
+    type: "partykit",
+    url: "https://example.com",
+    room: "game-room",
+    autoConnect: false,
+  });
+
+  assert.ok(socket);
+  assert.equal(socket instanceof PartykitClientAdapter, true);
+});
+
+// ───────────── PartykitClientAdapter disconnect cleanup ─────────────
+
+test("PartykitClientAdapter disconnect is safe to call when not connected", () => {
+  const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
+
+  // Should not throw
+  adapter.disconnect();
+  assert.equal(adapter.connected, false);
+  assert.equal(adapter.id, undefined);
+});
