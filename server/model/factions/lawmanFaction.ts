@@ -1,7 +1,7 @@
 import { Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
 import { Room } from "../rooms/room.js";
-import { io } from "../../servers/socket.js";
+import { io } from "../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 
 export class LawmanFaction extends Faction {

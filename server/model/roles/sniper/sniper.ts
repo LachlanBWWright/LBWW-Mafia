@@ -1,7 +1,7 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
-import { io } from "../../../servers/socket.js";
+import { io } from "../../../servers/emitter.js";
 
 export class Sniper extends Role {
   lastVisited: Role | null = null;

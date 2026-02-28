@@ -1,7 +1,8 @@
 import Crypto from "crypto";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { Player } from "../player/player.js";
-import { PlayerSocket, io } from "../../servers/socket.js";
+import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
+import { io } from "../../servers/emitter.js";
 import { Confesser } from "../roles/neutral/confesser.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { BlankRole } from "../roles/blankRole.js";
@@ -82,7 +83,7 @@ export class Room {
   }
 
   //Adds a new player to the room, and makes the game start if it is full. Returns error code if the user failed to join, or their username
-  addPlayer(playerSocket: PlayerSocket) {
+  addPlayer(playerSocket: GamePlayerSocket) {
     let playerSocketId = playerSocket.id;
     //Stops the user from being added if there's an existing user with the same username or socketId, or if the room is full
     for (const player of this.playerList) {
@@ -109,7 +110,10 @@ export class Room {
       "receiveMessage",
       playerUsername + " has joined the room!",
     );
-    this.recordConversation(`${playerUsername} has joined the room!`, playerUsername);
+    this.recordConversation(
+      `${playerUsername} has joined the room!`,
+      playerUsername,
+    );
     playerSocket.data.position =
       this.playerList.push(
         new Player(playerSocket, playerSocketId, playerUsername, this),
@@ -151,7 +155,10 @@ export class Room {
         "receiveMessage",
         player.playerUsername + " has left the room!",
       );
-      this.recordConversation(`${player.playerUsername} has left the room!`, player.playerUsername);
+      this.recordConversation(
+        `${player.playerUsername} has left the room!`,
+        player.playerUsername,
+      );
       this.playerList.splice(playerIndex, 1);
       for (const [index, currentPlayer] of this.playerList.entries()) {
         currentPlayer.socket.data.position = index; //Updates positions
@@ -181,10 +188,7 @@ export class Room {
       playersReturned.push({
         name: player.playerUsername,
         isAlive: this.started ? player.isAlive : undefined, //isAlive is undefined if the game has not started
-        role:
-          this.started && !player.isAlive
-            ? player.role.name
-            : undefined, //Reveals the role if the player is dead, and the game has started
+        role: this.started && !player.isAlive ? player.role.name : undefined, //Reveals the role if the player is dead, and the game has started
       });
     }
     io.to(socketId).emit("receive-player-list", playersReturned);
@@ -192,7 +196,7 @@ export class Room {
 
   //Handles users sending messages to the chat
   handleSentMessage(
-    playerSocket: PlayerSocket,
+    playerSocket: GamePlayerSocket,
     message: string,
     isDay: boolean,
   ) {
@@ -235,7 +239,11 @@ export class Room {
     }
   }
 
-  handleVote(playerSocket: PlayerSocket, recipient: number, isDay: boolean) {
+  handleVote(
+    playerSocket: GamePlayerSocket,
+    recipient: number,
+    isDay: boolean,
+  ) {
     this.runSafely(() => {
       if (
         (!isDay && this.time === "day") ||
@@ -272,7 +280,11 @@ export class Room {
           "The town voted out a confessor, disabling voting.",
         );
       else if (foundRecipient.isAlive && !foundPlayer.hasVoted) {
-        this.recordAction("vote", foundPlayer.playerUsername, foundRecipient.playerUsername);
+        this.recordAction(
+          "vote",
+          foundPlayer.playerUsername,
+          foundRecipient.playerUsername,
+        );
         foundPlayer.hasVoted = true;
         foundRecipient.votesReceived++;
         if (foundRecipient.votesReceived > 1)
@@ -303,7 +315,7 @@ export class Room {
   }
 
   handleWhisper(
-    playerSocket: PlayerSocket,
+    playerSocket: GamePlayerSocket,
     recipient: number,
     message: string,
     isDay: boolean,
@@ -325,7 +337,11 @@ export class Room {
           "You cannot whisper at night.",
         );
       else if (this.time === "day" && foundRecipient.isAlive) {
-        this.recordAction("whisper", foundPlayer.playerUsername, foundRecipient.playerUsername);
+        this.recordAction(
+          "whisper",
+          foundPlayer.playerUsername,
+          foundRecipient.playerUsername,
+        );
         if (0.1 > Math.random()) {
           //10% chance of the whisper being overheard by the town.
           io.to(foundPlayer.socketId).emit(
@@ -396,7 +412,7 @@ export class Room {
   }
 
   handleVisit(
-    playerSocket: PlayerSocket,
+    playerSocket: GamePlayerSocket,
     recipient: number | null,
     isDay: boolean,
   ) {
@@ -476,17 +492,15 @@ export class Room {
         nightVisitFaction: player.role.nightVisitFaction,
         nightVote: player.role.nightVote,
       };
-      io.to(player.socketId).emit(
-        "assign-player-role",
-        playerReturned,
-      );
+      io.to(player.socketId).emit("assign-player-role", playerReturned);
     }
 
     this.factionList.push(
       ...roleHandler.assignFactionsFromPlayerList(this.playerList),
     );
     //Assigns roles to each faction, then factions to each relevant role.
-    for (const faction of this.factionList) faction.findMembers(this.playerList);
+    for (const faction of this.factionList)
+      faction.findMembers(this.playerList);
     for (const player of this.playerList) player.role.initRole();
 
     this.startFirstDaySession(this.sessionLength);
@@ -596,10 +610,7 @@ export class Room {
                 name: livingPlayer.playerUsername,
               }); //Marks player as dead client-side, does not reveal their role
 
-              if (
-                this.framer !== null &&
-                this.framer.target === livingPlayer
-              ) {
+              if (this.framer !== null && this.framer.target === livingPlayer) {
                 this.framer.victoryCondition = true;
                 io.to(this.framer.player.socketId).emit(
                   "receiveMessage",
@@ -662,10 +673,7 @@ export class Room {
           if (player.role.roleblocker) player.role.visit();
         //Marks who has visited who, and handles players whose abilities were disabled by being roleblocked
         for (const player of this.playerList) {
-          if (
-            player.role.roleblocked &&
-            !player.role.roleblocker
-          ) {
+          if (player.role.roleblocked && !player.role.roleblocker) {
             //Cancels vists for players that were roleblocked, and informs them.
             player.role.visiting = null;
             io.to(player.socketId).emit(
@@ -678,13 +686,11 @@ export class Room {
         }
         //Executes the effects that each visit has
         for (const player of this.playerList)
-          if (player.isAlive)
-            player.role.handleVisits(); //Handles actions for certain roles whose behaviour depends on who has visited who.
+          if (player.isAlive) player.role.handleVisits(); //Handles actions for certain roles whose behaviour depends on who has visited who.
         //Kills players who have been attacked without an adequate defence, resets visits after night logic has been completed
         for (const player of this.playerList) {
           if (player.isAlive) {
-            if (player.role.handleDamage())
-              this.endDay = nightNumber + 3; //Handles the player being attacked, potentially killing them.
+            if (player.role.handleDamage()) this.endDay = nightNumber + 3; //Handles the player being attacked, potentially killing them.
             player.role.dayVisiting = null; //Resets dayvisiting
             player.role.visiting = null; //Resets visiting.
             player.role.roleblocked = false; //Resets roleblocked status
@@ -709,8 +715,7 @@ export class Room {
     for (const player of this.playerList) {
       //Roles with the 'neutral' group have a victory condition. TODO: Check to allow them to win
       if (player.role.group != "neutral" && player.isAlive) {
-        if (lastFaction == "neutral")
-          lastFaction = player.role.group;
+        if (lastFaction == "neutral") lastFaction = player.role.group;
         else if (player.role.group != lastFaction) return null; //Game is NOT over if there are are members of two different factions alive (excluding neutral)
       }
     }

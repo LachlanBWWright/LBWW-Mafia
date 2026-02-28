@@ -1,7 +1,7 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
-import { io } from "../../../servers/socket.js";
+import { io } from "../../../servers/emitter.js";
 
 export class MafiaSilencer extends RoleMafia {
   name = "Mafia Silencer";
