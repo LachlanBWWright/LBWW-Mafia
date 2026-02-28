@@ -1,4 +1,4 @@
-import { type GamePlayerSocket } from "../../servers/socket.js";
+import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
 import { Room } from "../rooms/room.js";
 import { type Role } from "../roles/abstractRole.js";
 

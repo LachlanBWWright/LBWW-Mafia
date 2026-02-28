@@ -1,4 +1,4 @@
-import { io } from "../../servers/socket.js";
+import { io } from "../../servers/emitter.js";
 import { Player } from "../player/player.js";
 
 export abstract class Faction {

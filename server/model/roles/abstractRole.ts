@@ -1,7 +1,7 @@
 //This is the base class for a role
 
 import { Room } from "../rooms/room.js";
-import { io } from "../../servers/socket.js";
+import { io } from "../../servers/emitter.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Jailor } from "./town/jailor.js";

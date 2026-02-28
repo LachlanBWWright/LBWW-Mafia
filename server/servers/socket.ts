@@ -3,8 +3,7 @@ import axios from "axios";
 import { fromThrowable, ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
-import { getGameEmitter } from "./emitter.js";
-import type { GameEmitter } from "../../shared/communication/serverTypes.js";
+export type { GamePlayerSocket } from "../../shared/communication/serverTypes.js";
 
 // Re-export event types from shared for backward compatibility
 export type {
@@ -23,30 +22,7 @@ export type SocketData = {
   position: number;
 };
 
-/**
- * Abstract player socket interface.
- * Both Socket.IO Socket and PartykitPlayerSocket satisfy this interface.
- * Used by Room and Player classes for backend-agnostic game logic.
- */
-export interface GamePlayerSocket {
-  readonly id: string;
-  data: { roomObject?: Room; position?: number };
-  join(room: string): void;
-}
-
-/**
- * `io` is a delegating GameEmitter that forwards calls to whichever backend
- * (Socket.IO or PartyKit) was initialized via `setGameEmitter()`.
- * All game logic files import `io` from this module and use it unchanged.
- */
-export const io: GameEmitter = {
-  to(target: string) {
-    return getGameEmitter().to(target);
-  },
-  in(target: string) {
-    return getGameEmitter().in(target);
-  },
-};
+export { io } from "./emitter.js";
 
 const playRoom: { current: Room | undefined } = {
   current: undefined,

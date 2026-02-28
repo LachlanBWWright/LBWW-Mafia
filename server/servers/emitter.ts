@@ -19,3 +19,17 @@ export function getGameEmitter(): GameEmitter {
   }
   return _emitter;
 }
+
+/**
+ * Delegating GameEmitter proxy.
+ * Import `io` from this module in game logic (Room, Role, Faction) to stay
+ * backend-agnostic. Avoids pulling Socket.IO into the PartyKit bundle.
+ */
+export const io: GameEmitter = {
+  to(target: string) {
+    return getGameEmitter().to(target);
+  },
+  in(target: string) {
+    return getGameEmitter().in(target);
+  },
+};

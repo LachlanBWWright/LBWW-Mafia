@@ -1,4 +1,4 @@
-import { io } from "../../servers/socket.js";
+import { io } from "../../servers/emitter.js";
 import { Faction } from "./abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Role } from "../roles/abstractRole.js";

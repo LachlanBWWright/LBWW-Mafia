@@ -9,7 +9,11 @@
  *   - `in(roomName)` → { disconnectSockets() } → close all connections
  */
 import type * as Party from "partykit/server";
-import type { GameEmitter, EmitTarget, DisconnectTarget } from "../../../shared/communication/serverTypes.js";
+import type {
+  GameEmitter,
+  EmitTarget,
+  DisconnectTarget,
+} from "@mernmafia/shared/communication/serverTypes";
 
 export class PartykitEmitter implements GameEmitter {
   private partyRoom: Party.Room;

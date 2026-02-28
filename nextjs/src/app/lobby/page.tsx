@@ -20,14 +20,15 @@ import {
 } from "@mernmafia/shared/game/playerActionRules";
 import { createGameSocket, type GameSocket, type SocketBackendType } from "@mernmafia/shared/communication";
 
+const SOCKET_BACKEND: SocketBackendType =
+  (process.env.NEXT_PUBLIC_SOCKET_BACKEND as SocketBackendType) ?? "socketio";
 const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL ??
-  (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
+  SOCKET_BACKEND === "partykit"
+    ? (process.env.NEXT_PUBLIC_PARTYKIT_URL ?? (process.env.NODE_ENV === "development" ? "http://localhost:1999" : ""))
+    : (process.env.NEXT_PUBLIC_SOCKETIO_URL ?? (process.env.NODE_ENV === "development" ? "http://localhost:8000" : ""));
 const CAPTCHA_TOKEN =
   process.env.NEXT_PUBLIC_CAPTCHA_TOKEN ??
   (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
-const SOCKET_BACKEND: SocketBackendType =
-  (process.env.NEXT_PUBLIC_SOCKET_BACKEND as SocketBackendType) ?? "socketio";
 const PARTYKIT_ROOM = process.env.NEXT_PUBLIC_PARTYKIT_ROOM ?? "default";
 
 const JOIN_ERROR = {
@@ -92,10 +93,11 @@ export default function LobbyPage() {
   );
   const appendLocalMessage = useCallback((message: string) => {
     messageIdRef.current += 1;
-    setMessages((current) => [
-      ...current,
-      { id: messageIdRef.current, text: message },
-    ]);
+    const id = messageIdRef.current;
+    setMessages((current) => {
+      if (current.some((m) => m.id === id)) return current;
+      return [...current, { id, text: message }];
+    });
   }, []);
 
   useEffect(() => {
@@ -107,7 +109,11 @@ export default function LobbyPage() {
     socket.on("blockMessages", () => setCanTalk(false));
     socket.on("disable-voting", () => setCanVote(false));
     socket.on("receive-new-player", (playerJson: { name: string }) => {
-      setPlayers((current) => [...current, { name: playerJson.name }]);
+      setPlayers((current) =>
+        current.some((p) => p.name === playerJson.name)
+          ? current
+          : [...current, { name: playerJson.name }],
+      );
     });
     socket.on("remove-player", (playerJson: { name: string }) => {
       setPlayers((current) =>
