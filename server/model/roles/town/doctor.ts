@@ -1,11 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class Doctor extends Role {
   name = "Doctor";
-  group = "town";
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -24,18 +26,18 @@ export class Doctor extends Role {
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot heal yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to heal " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to heal " + recipient.username + ".",
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 

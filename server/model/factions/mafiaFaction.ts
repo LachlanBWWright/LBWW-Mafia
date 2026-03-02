@@ -1,3 +1,5 @@
+import { RoleGroup } from "../roles/roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { Faction } from "./abstractFaction.js";
 import { Player } from "../player/player.js";
@@ -9,7 +11,7 @@ export class MafiaFaction extends Faction {
   findMembers(playerList: Player[]) {
     //Go through a list of members, add them to the this.memberList
     for (const player of playerList) {
-      if (player.role.group == "mafia") {
+      if (player.role.group == RoleGroup.Mafia) {
         this.memberList.push(player);
       }
     }
@@ -45,8 +47,8 @@ export class MafiaFaction extends Faction {
 
     //Sends the message to every member of the faction.
     for (const member of this.memberList) {
-      io.to(member.socketId).emit(
-        "receive-chat-message",
+      io.to(member.user.socketId).emit(
+        ServerEvent.ReceiveChatMessage,
         nightMessage,
       );
     }
@@ -54,7 +56,7 @@ export class MafiaFaction extends Faction {
 
   sendMessage(message: string) {
     for (const member of this.memberList) {
-      io.to(member.socketId).emit("receiveMessage", message);
+      io.to(member.user.socketId).emit(ServerEvent.ReceiveMessage, message);
     }
   }
 
@@ -69,7 +71,7 @@ export class MafiaFaction extends Faction {
 
   removeMembers() {
     this.memberList = this.memberList.filter(
-      (member) => member.isAlive && member.role.group == "mafia",
+      (member) => member.isAlive && member.role.group == RoleGroup.Mafia,
     );
   }
 }

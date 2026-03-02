@@ -1,4 +1,5 @@
 import { Player } from "../player/player.js";
+import { RoleGroup } from "./roleGroup.js";
 import { Room } from "../rooms/room.js";
 import { Role } from "./abstractRole.js";
 
@@ -6,7 +7,7 @@ import { Role } from "./abstractRole.js";
 
 export class BlankRole extends Role {
   name = "Blank Role";
-  group = "unaligned";
+  group = RoleGroup.Unaligned;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;

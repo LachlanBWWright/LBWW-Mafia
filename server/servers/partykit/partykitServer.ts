@@ -80,7 +80,7 @@ export default class MafiaPartyServer implements Party.Server {
         }
 
         playerSocket.data.roomObject = this.gameRoom;
-        const result = this.gameRoom.addPlayer(playerSocket);
+        const result = this.gameRoom.addUser(playerSocket);
 
         if (parsed.callbackId) {
           playerSocket.sendCallback(parsed.callbackId, result);

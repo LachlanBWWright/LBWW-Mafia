@@ -1,15 +1,17 @@
 import { Role } from "../abstractRole.js";
 import { Room } from "../../rooms/room.js";
 import { Player } from "../../player/player.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
+import { RoleGroup } from "../roleGroup.js";
 
 //This class judges the alignment of the selected target (usually!)
 export class Vetter extends Role {
   researchSlots = 3;
 
   name = "Vetter";
-  group = "town";
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -28,20 +30,20 @@ export class Vetter extends Role {
   handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
     if (this.researchSlots == 0)
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have no research sessions left!",
       );
     else if (this.visiting == null) {
       this.visiting = this;
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have decided to stay home and research into people's history.",
       );
     } else {
       this.visiting = null;
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have decided not to research into people's history.",
       );
     }
@@ -68,30 +70,30 @@ export class Vetter extends Role {
           );
 
         if (Math.random() > 0.5) {
-          io.to(this.player.socketId).emit(
-            "receiveMessage",
+          io.to(this.player.user.socketId).emit(
+            ServerEvent.ReceiveMessage,
             "You researched into " +
-              this.room.playerList[randomPlayerOne].playerUsername +
+              this.room.playerList[randomPlayerOne].username +
               " and " +
-              this.room.playerList[randomPlayerTwo].playerUsername +
+              this.room.playerList[randomPlayerTwo].username +
               ", finding that at least one of them is a " +
               this.room.playerList[randomPlayerOne].role.name +
               ".",
           );
         } else {
-          io.to(this.player.socketId).emit(
-            "receiveMessage",
+          io.to(this.player.user.socketId).emit(
+            ServerEvent.ReceiveMessage,
             "You researched into " +
-              this.room.playerList[randomPlayerOne].playerUsername +
+              this.room.playerList[randomPlayerOne].username +
               " and " +
-              this.room.playerList[randomPlayerTwo].playerUsername +
+              this.room.playerList[randomPlayerTwo].username +
               ", finding that at least one of them is a " +
               this.room.playerList[randomPlayerTwo].role.name +
               ".",
           );
         }
-        io.to(this.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           `You have ${this.researchSlots} research sessions left.`,
         );
       },

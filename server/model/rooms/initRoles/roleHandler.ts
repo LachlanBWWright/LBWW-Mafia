@@ -1,3 +1,4 @@
+import { RoleGroup } from "../../roles/roleGroup.js";
 //Imports all the roles used
 
 //Town Roles
@@ -136,7 +137,7 @@ export class RoleHandler {
     }
 
     for (const player of playerList) {
-      if (player.role.group === "mafia") {
+      if (player.role.group === RoleGroup.Mafia) {
         factionList.push(new MafiaFaction());
         break;
       }

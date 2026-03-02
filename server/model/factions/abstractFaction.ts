@@ -1,3 +1,4 @@
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { Player } from "../player/player.js";
 
@@ -8,8 +9,8 @@ export abstract class Faction {
     for (const member of this.memberList) {
       member.role.assignFaction(this);
       for (const targetMember of this.memberList) {
-        io.to(targetMember.socketId).emit("update-faction-role", {
-          name: member.playerUsername,
+        io.to(targetMember.user.socketId).emit(ServerEvent.UpdateFactionRole, {
+          name: member.username,
           role: member.role.name,
         });
       }

@@ -1,11 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class Jailor extends Role {
   name = "Jailor";
-  group = "town";
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -24,18 +26,18 @@ export class Jailor extends Role {
   handleDayAction(recipient: Player) {
     //Choose to jail a player
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot jail yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to jail " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to jail " + recipient.username + ".",
       );
       this.dayVisiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 
@@ -43,31 +45,31 @@ export class Jailor extends Role {
     //Choose if the player who is jailed should be executed, or let go
     if (this.dayVisiting == null) {
       //this.visiting = this;
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You haven't jailed anyone, so you cannot do anything.",
       );
     } else {
       if (this.visiting == null) {
         //To be exectued
         this.visiting = this.dayVisiting;
-        io.to(this.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "You have decided to execute the prisoner.",
         );
-        io.to(this.dayVisiting.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.dayVisiting.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "The jailor has decided to execute you",
         );
       } else {
         //Cancels the execution
         this.visiting = null;
-        io.to(this.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "You have decided not to execute the prisoner.",
         );
-        io.to(this.dayVisiting.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.dayVisiting.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "The jailor has decided not to execute you",
         );
       }
@@ -77,12 +79,12 @@ export class Jailor extends Role {
   dayVisit() {
     //Tells the player that they've been jailed, and roleblocks them. dayVisiting is called at the end of a day session.
     if (this.dayVisiting != null) {
-      io.to(this.dayVisiting.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.dayVisiting.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have been jailed!",
       );
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have jailed your target.",
       );
       this.dayVisiting.jailed = this;

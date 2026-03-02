@@ -1,6 +1,8 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class Framer extends Role {
@@ -8,7 +10,7 @@ export class Framer extends Role {
   target: Player | null = null; //Target to kill (player object)
 
   name = "Framer";
-  group = "neutral";
+  group = RoleGroup.Neutral;
   baseDefence = 1;
   defence = 1;
   roleblocker = false;
@@ -34,14 +36,14 @@ export class Framer extends Role {
       //console.log((index + i) % length)
       //console.log(this.room.playerList[(index + i) % length])
       if (
-        this.room.playerList[(index + i) % length].role.group === "town" &&
+        this.room.playerList[(index + i) % length].role.group === RoleGroup.Town &&
         this.room.playerList[(index + i) % length].isAlive
       ) {
         this.target = this.room.playerList[(index + i) % length];
-        io.to(this.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "Your target is " +
-            this.target.playerUsername +
+            this.target.username +
             ". You will win the game if you get them voted out. If your target dies before day 5, they will be replaced.",
         );
         break;
@@ -56,14 +58,14 @@ export class Framer extends Role {
     let index = Math.floor(Math.random() * length);
     for (const i of Array.from({ length }, (_, index) => index)) {
       if (
-        this.room.playerList[(index + i) % length].role.group === "town" &&
+        this.room.playerList[(index + i) % length].role.group === RoleGroup.Town &&
         this.room.playerList[(index + i) % length].isAlive
       ) {
         this.target = this.room.playerList[(index + i) % length];
-        io.to(this.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "Your new target is " +
-            this.target.playerUsername +
+            this.target.username +
             ". You will win the game if you get them voted out. If your target dies before day 5, they will be replaced.",
         );
         break;

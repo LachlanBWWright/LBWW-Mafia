@@ -1,13 +1,15 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class Peacemaker extends Role {
   victoryCondition: boolean = false;
 
   name = "Peacemaker";
-  group = "neutral";
+  group = RoleGroup.Neutral;
   baseDefence = 0;
   defence = 0;
   roleblocker = true;
@@ -28,18 +30,18 @@ export class Peacemaker extends Role {
   handleNightAction(recipient: Player) {
     //Choose who should be roleblocked
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot block yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to block " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to block " + recipient.username + ".",
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 

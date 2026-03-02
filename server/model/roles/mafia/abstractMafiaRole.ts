@@ -1,13 +1,15 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export abstract class RoleMafia extends Role {
   attackVote: Role | null = null;
   isAttacking = false;
 
-  group = "mafia";
+  group = RoleGroup.Mafia;
 
   constructor(room: Room, player: Player) {
     //Group is kept as a constructor parameter for consistency, but mafia classes will always be in the 'mafia' group.
@@ -17,21 +19,21 @@ export abstract class RoleMafia extends Role {
   handleNightVote(recipient: Player) {
     const recipientRole = recipient.role;
     if (
-      recipient.playerUsername != undefined &&
+      recipient.username != undefined &&
       recipientRole?.faction != this.faction &&
       recipient.isAlive &&
       this.faction !== undefined
     ) {
       this.faction.sendMessage(
-        this.player.playerUsername +
+        this.player.username +
           " has voted to attack " +
-          recipient.playerUsername +
+          recipient.username +
           ".",
       );
       this.attackVote = recipientRole; //uses role for easier visiting
     } else {
       this.attackVote = null;
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid Vote.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid Vote.");
     }
   }
 
@@ -42,8 +44,8 @@ export abstract class RoleMafia extends Role {
 
   cancelNightAction() {
     //Faction-based classes should override this function
-    io.to(this.player.socketId).emit(
-      "receiveMessage",
+    io.to(this.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
       "You have cancelled your class' nighttime action.",
     );
     this.visiting = null;
@@ -62,8 +64,8 @@ export abstract class RoleMafia extends Role {
   visitOverride() {
     //This visits a role and attacks them. this.visiting is dictated by the faction Class.
     if (this.visiting != null) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have been chosen to do the mafia's dirty work.",
       );
       this.visiting.receiveVisit(this);

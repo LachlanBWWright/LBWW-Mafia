@@ -1,6 +1,7 @@
 import { Player } from "../player/player.js";
 import { Faction } from "./abstractFaction.js";
 import { Room } from "../rooms/room.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 
@@ -55,9 +56,9 @@ export class LawmanFaction extends Faction {
   handleNightMessage(message: string, playerUsername: string) {
     //Tells the player that they cannot speak at night.
     for (const member of this.memberList) {
-      if (member.playerUsername == playerUsername) {
-        io.to(member.socketId).emit(
-          "receiveMessage",
+      if (member.username == playerUsername) {
+        io.to(member.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "You cannot speak at night.",
         );
       }
@@ -66,7 +67,7 @@ export class LawmanFaction extends Faction {
 
   sendMessage(message: string) {
     for (const member of this.memberList) {
-      io.to(member.socketId).emit("receiveMessage", message);
+      io.to(member.user.socketId).emit(ServerEvent.ReceiveMessage, message);
     }
   }
 

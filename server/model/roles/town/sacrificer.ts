@@ -1,11 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class Sacrificer extends Role {
   name = "Sacrificer";
-  group = "town";
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -24,18 +26,18 @@ export class Sacrificer extends Role {
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot protect yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to protect " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to protect " + recipient.username + ".",
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 
@@ -48,20 +50,20 @@ export class Sacrificer extends Role {
   handleVisits() {
     if (this.visiting != null && this.visiting.attackers.length > 0) {
       this.visiting.defence = 3;
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have died protecting your target.",
       );
-      io.to(this.visiting.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.visiting.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You were attacked, but were saved by a sacrificer!",
       );
       this.damage = 99; //Makes the sacrificer die
       for (const attacker of this.visiting.attackers) {
-        io.to(this.visiting.player.socketId).emit(
-          "receiveMessage",
+        io.to(this.visiting.player.user.socketId).emit(
+          ServerEvent.ReceiveMessage,
           "You were attacked by " +
-            attacker.player.playerUsername +
+            attacker.player.username +
             ", whose role is: " +
             attacker.name +
             ".",

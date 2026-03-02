@@ -1,31 +1,31 @@
-//This is the base class for a role
-
 import { Room } from "../rooms/room.js";
 import { io } from "../../servers/emitter.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Jailor } from "./town/jailor.js";
+import { RoleGroup } from "./roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { fromThrowable } from "neverthrow";
 
 export abstract class Role {
-  room: Room;
-  player: Player;
+  readonly room: Room;
+  readonly player: Player;
 
-  abstract name: string;
-  abstract group: string;
+  abstract readonly name: string;
+  abstract readonly group: RoleGroup;
   faction?: Faction;
 
   abstract baseDefence: number;
-  abstract defence: number;
+  defence = 0;
   damage = 0;
 
-  abstract dayVisitSelf: boolean;
-  abstract dayVisitOthers: boolean;
-  abstract dayVisitFaction: boolean;
-  abstract nightVisitSelf: boolean;
-  abstract nightVisitOthers: boolean;
-  abstract nightVisitFaction: boolean;
-  abstract nightVote: boolean;
+  abstract readonly dayVisitSelf: boolean;
+  abstract readonly dayVisitOthers: boolean;
+  abstract readonly dayVisitFaction: boolean;
+  abstract readonly nightVisitSelf: boolean;
+  abstract readonly nightVisitOthers: boolean;
+  abstract readonly nightVisitFaction: boolean;
+  abstract readonly nightVote: boolean;
   attackVote?: Role | null;
   isAttacking?: boolean;
   isInsane?: boolean;
@@ -37,177 +37,125 @@ export abstract class Role {
   visitors: Role[] = [];
   attackers: Role[] = [];
 
-  abstract roleblocker: boolean;
+  abstract readonly roleblocker: boolean;
   roleblocked = false;
   silenced = false;
   dayTapped: Role | boolean = false;
   nightTapped: Role | boolean = false;
   jailed: Jailor | null = null;
 
-  // Role name, Group Name, SocketIo Room, Player Class, Base Defence, Is Roleblocker, Day visits, night visits
   constructor(room: Room, player: Player) {
-    //Classes
-    this.room = room; //io for SocketIo emitting
-    this.player = player; //The player object paired to the class
+    this.room = room;
+    this.player = player;
   }
 
   assignFaction(faction: Faction) {
     this.faction = faction;
   }
 
-  initRole() {
-    //Initialises a role, overridden by child classes when required.
-  }
+  initRole() {}
+  dayUpdate() {}
 
-  dayUpdate() {
-    //Updates a role at the start of each day from day 2, overridden by child classes when required.
-  }
-
-  //Handles sending general message
   handleMessage(message: string) {
-    if (this.room.time == "day") {
-      //Free speaking only at daytime
-      if (this.silenced)
-        io.to(this.player.socketId).emit(
-          "receive-chat-message",
-          "You have been silenced and cannot talk",
-        );
-      else
+    const socketId = this.player.user.socketId;
+    if (this.room.time === "day") {
+      if (this.silenced) {
+        io.to(socketId).emit(ServerEvent.ReceiveChatMessage, "You have been silenced and cannot talk");
+      } else {
         io.to(this.room.name).emit(
-          "receive-chat-message",
-          this.player.playerUsername + ": " + message,
+          ServerEvent.ReceiveChatMessage,
+          `${this.player.username}: ${message}`,
         );
+      }
     } else if (this.jailed != null) {
-      //Special logic for jailee-jailor messaging conversation
-      io.to(this.player.socketId).emit(
-        "receive-chat-message",
-        this.player.playerUsername + ": " + message,
+      io.to(socketId).emit(ServerEvent.ReceiveChatMessage, `${this.player.username}: ${message}`);
+      io.to(this.jailed.player.user.socketId).emit(
+        ServerEvent.ReceiveChatMessage,
+        `${this.player.username}: ${message}`,
       );
-      io.to(this.jailed.player.socketId).emit(
-        "receive-chat-message",
-        this.player.playerUsername + ": " + message,
-      );
-    } else if (this.name == "Jailor" && this.dayVisiting != null) {
-      //Special logic for jailor => jailee messaging
-      io.to(this.player.socketId).emit(
-        "receive-chat-message",
-        "Jailor: " + message,
-      );
-      io.to(this.dayVisiting.player.socketId).emit(
-        "receive-chat-message",
-        "Jailor: " + message,
+    } else if (this instanceof Jailor && this.dayVisiting != null) {
+      io.to(socketId).emit(ServerEvent.ReceiveChatMessage, `Jailor: ${message}`);
+      io.to(this.dayVisiting.player.user.socketId).emit(
+        ServerEvent.ReceiveChatMessage,
+        `Jailor: ${message}`,
       );
     } else if (typeof this.faction === "undefined") {
-      //If the player isn't in a faction, they can't talk at night
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You cannot speak at night.",
-      );
+      io.to(socketId).emit(ServerEvent.ReceiveMessage, "You cannot speak at night.");
     } else {
-      //Calls the function for handling the night chat.
       const handleNightMessage = fromThrowable(
         () => {
-          this.faction.handleNightMessage(message, this.player.playerUsername);
-          if (this.nightTapped != false && this.nightTapped !== true)
-            io.to(this.nightTapped.player.socketId).emit(
-              "receive-chat-message",
-              this.player.playerUsername + ": " + message,
+          this.faction!.handleNightMessage(message, this.player.username);
+          if (this.nightTapped !== false && this.nightTapped !== true) {
+            io.to((this.nightTapped as Role).player.user.socketId).emit(
+              ServerEvent.ReceiveChatMessage,
+              `${this.player.username}: ${message}`,
             );
+          }
         },
         (error) => error,
       );
       const result = handleNightMessage();
-
       if (result.isErr()) console.error(result.error);
     }
   }
 
   handleDayAction(_recipient: Player) {
-    //Handles the class' daytime action
-    io.to(this.player.socketId).emit(
-      "receiveMessage",
-      "Your class has no daytime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no daytime action.");
   }
 
   cancelDayAction() {
-    //Faction-based classes should override this function
-    io.to(this.player.socketId).emit(
-      "receiveMessage",
-      "You have cancelled your class' daytime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You have cancelled your class' daytime action.");
     this.dayVisiting = null;
   }
 
   handleNightAction(_recipient: Player) {
-    //Handles the class' nighttime action
-    io.to(this.player.socketId).emit(
-      "receiveMessage",
-      "Your class has no nighttime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no nighttime action.");
   }
 
   handleNightVote(_recipient: Player) {
-    io.to(this.player.socketId).emit(
-      "receiveMessage",
-      "Your class has no nighttime factional voting.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no nighttime factional voting.");
   }
 
   cancelNightAction() {
-    //Faction-based classes should override this function
-    io.to(this.player.socketId).emit(
-      "receiveMessage",
-      "You have cancelled your class' nighttime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You have cancelled your class' nighttime action.");
     this.visiting = null;
   }
 
   receiveVisit(role: Role) {
-    //Called by another player visiting at day
     this.visitors.push(role);
   }
 
   handleDamage() {
-    //Kills the player if they don't have adequate defence, then resets attack/damage
     if (this.baseDefence > this.defence) this.defence = this.baseDefence;
     if (this.damage > this.defence) {
-      //Kills the player
-      io.to(this.player.socketId).emit("receiveMessage", "You have died!");
-      io.to(this.player.socketId).emit("blockMessages");
+      const socketId = this.player.user.socketId;
+      io.to(socketId).emit(ServerEvent.ReceiveMessage, "You have died!");
+      io.to(socketId).emit(ServerEvent.BlockMessages);
       io.to(this.room.name).emit(
-        "receiveMessage",
-        this.player.playerUsername +
-          " has died. Their role was " +
-          this.name.toLowerCase() +
-          ".",
+        ServerEvent.ReceiveMessage,
+        `${this.player.username} has died. Their role was ${this.name.toLowerCase()}.`,
       );
       this.player.isAlive = false;
-      this.damage = 0; //Stops the player from being spammed with death messages after they die.
+      this.damage = 0;
       this.attackers = [];
-
-      io.to(this.room.name).emit("update-player-role", {
-        name: this.player.playerUsername,
+      io.to(this.room.name).emit(ServerEvent.UpdatePlayerRole, {
+        name: this.player.username,
         role: this.name,
       });
       return true;
     }
-    //Resets stats
-    if (this.damage != 0)
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You were attacked, but you survived!",
-      );
+    if (this.damage !== 0) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You were attacked, but you survived!");
+    }
     this.defence = this.baseDefence;
     this.damage = 0;
     this.attackers = [];
     return false;
   }
 
-  //These should be overriden by child classes if applicable
-  dayVisit() {} //Visit another player (Day)
-  visit() {} //Visit another player (Night)
-  receiveDayVisit(_role: Role) {} //Called by another player visiting at night
-  handleDayVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
-  handleVisits() {} //Called after visit. For roles such as the watchman, who can see who has visited who
+  dayVisit() {}
+  visit() {}
+  receiveDayVisit(_role: Role) {}
+  handleDayVisits() {}
+  handleVisits() {}
 }

@@ -3,6 +3,34 @@
  * These types are backend-agnostic and used by both Socket.IO and PartyKit.
  */
 
+/** Enum of all server → client socket event names. */
+export enum ServerEvent {
+  ReceiveMessage = "receiveMessage",
+  BlockMessages = "blockMessages",
+  ReceiveNewPlayer = "receive-new-player",
+  RemovePlayer = "remove-player",
+  ReceivePlayerList = "receive-player-list",
+  ReceiveChatMessage = "receive-chat-message",
+  ReceiveWhisperMessage = "receive-whisper-message",
+  UpdateDayTime = "update-day-time",
+  DisableVoting = "disable-voting",
+  UpdatePlayerRole = "update-player-role",
+  AssignPlayerRole = "assign-player-role",
+  UpdateFactionRole = "update-faction-role",
+  ReceiveRole = "receive-role",
+  UpdatePlayerVisit = "update-player-visit",
+}
+
+/** Enum of all client → server socket event names. */
+export enum ClientEvent {
+  PlayerJoinRoom = "playerJoinRoom",
+  Disconnect = "disconnect",
+  MessageSentByUser = "messageSentByUser",
+  HandleVote = "handleVote",
+  HandleVisit = "handleVisit",
+  HandleWhisper = "handleWhisper",
+}
+
 export type PlayerList = {
   name: string;
   isAlive: boolean | undefined;

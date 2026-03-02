@@ -1,11 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class MafiaInvestigator extends RoleMafia {
   name = "Mafia Investigator";
-  group = "mafia";
+  group = RoleGroup.Mafia;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -24,18 +26,18 @@ export class MafiaInvestigator extends RoleMafia {
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot inspect yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to inspect " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to inspect " + recipient.username + ".",
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 
@@ -43,9 +45,9 @@ export class MafiaInvestigator extends RoleMafia {
     //This visits a role and attacks them. this.visiting is dictated by the faction Class.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        this.visiting.player.playerUsername +
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        this.visiting.player.username +
           "'s role is " +
           this.visiting.name +
           ".",

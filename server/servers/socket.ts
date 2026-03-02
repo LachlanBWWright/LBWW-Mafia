@@ -73,7 +73,7 @@ export function addSocketListeners(
               if (playRoom.current !== undefined) {
                 socket.data.roomObject = playRoom.current;
                 socket.join(playRoom.current.name);
-                const result = socket.data.roomObject.addPlayer(socket);
+                const result = socket.data.roomObject.addUser(socket);
                 console.log("Result: " + result);
                 cb(result);
               }

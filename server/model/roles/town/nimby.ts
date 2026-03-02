@@ -1,13 +1,15 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class Nimby extends Role {
   alertSlots = 3;
 
   name = "Nimby";
-  group = "town";
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -26,20 +28,20 @@ export class Nimby extends Role {
   handleNightAction(_recipient: Player) {
     //Vote on who should be attacked
     if (this.alertSlots == 0)
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have no alerts left!",
       );
     else if (this.visiting == null) {
       this.visiting = this;
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have decided to go on alert.",
       );
     } else {
       this.visiting = null;
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You have decided not to go on alert.",
       );
     }

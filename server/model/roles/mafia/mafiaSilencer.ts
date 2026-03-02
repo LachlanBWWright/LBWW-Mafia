@@ -1,11 +1,13 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
+import { RoleGroup } from "../roleGroup.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 export class MafiaSilencer extends RoleMafia {
   name = "Mafia Silencer";
-  group = "mafia";
+  group = RoleGroup.Mafia;
   baseDefence = 0;
   defence = 0;
   roleblocker = true;
@@ -24,25 +26,25 @@ export class MafiaSilencer extends RoleMafia {
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot silence yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to silence " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to silence " + recipient.username + ".",
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 
   defaultVisit() {
     //This visits a role and attacks them. this.visiting is dictated by the faction Class.
     if (this.visiting != null) {
-      if (this.visiting.group == "town" || Math.random() > 0.5) {
+      if (this.visiting.group == RoleGroup.Town || Math.random() > 0.5) {
         this.visiting.roleblocked = true;
         this.visiting.receiveVisit(this);
       }

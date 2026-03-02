@@ -1,12 +1,14 @@
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
+import { RoleGroup } from "../roleGroup.js";
 
 export class Tracker extends Role {
   name = "Tracker";
-  group = "town";
+  group = RoleGroup.Town;
   baseDefence = 0;
   defence = 0;
   roleblocker = false;
@@ -25,18 +27,18 @@ export class Tracker extends Role {
   handleNightAction(recipient: Player) {
     //Vote on who should be attacked
     if (recipient == this.player) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
         "You cannot track yourself.",
       );
-    } else if (recipient.playerUsername != undefined && recipient.isAlive) {
-      io.to(this.player.socketId).emit(
-        "receiveMessage",
-        "You have chosen to track " + recipient.playerUsername + ".",
+    } else if (recipient.username != undefined && recipient.isAlive) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You have chosen to track " + recipient.username + ".",
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.socketId).emit("receiveMessage", "Invalid choice.");
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
     }
   }
 
@@ -52,15 +54,15 @@ export class Tracker extends Role {
       () => {
         if (this.visiting != null) {
           if (this.visiting.visiting)
-            io.to(this.player.socketId).emit(
-              "receiveMessage",
+            io.to(this.player.user.socketId).emit(
+              ServerEvent.ReceiveMessage,
               "Your target visited " +
-                this.visiting.visiting.player.playerUsername +
+                this.visiting.visiting.player.username +
                 ".",
             );
           else
-            io.to(this.player.socketId).emit(
-              "receiveMessage",
+            io.to(this.player.user.socketId).emit(
+              ServerEvent.ReceiveMessage,
               "Your target didn't visit anyone.",
             );
         }
