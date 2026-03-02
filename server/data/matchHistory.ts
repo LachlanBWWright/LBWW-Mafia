@@ -44,7 +44,7 @@ export async function persistMatchHistory(input: MatchHistoryInput) {
 
   const insertedMatch = insertedMatches[0];
   if (!insertedMatch) {
-    console.error("Match history insert did not return an ID", {
+    console.error("Failed to insert match history: no record returned", {
       roomName: input.roomName,
       endedAt: input.endedAt.toISOString(),
     });

@@ -69,6 +69,14 @@ export class Room {
     if (result.isErr()) console.error(result.error);
   }
 
+  /** Returns the active Player for a given socket, or null if not found. */
+  private getPlayerFromSocket(socket: GamePlayerSocket): Player | null {
+    if (socket.data.position === undefined) return null;
+    const user = this.userList[socket.data.position];
+    if (!user) return null;
+    return this.playerList.find((p) => p.user === user) ?? null;
+  }
+
   /**
    * Adds a connected client to the lobby.
    * Returns an error code on failure or the assigned username on success.
@@ -144,21 +152,21 @@ export class Room {
         playerSocket.data.position === undefined
       ) return;
 
-      const user = this.userList[playerSocket.data.position];
-      if (!user) return;
-
       if (this.started) {
-        const player = this.playerList.find((p) => p.user === user);
+        const player = this.getPlayerFromSocket(playerSocket);
         if (!player) return;
         if (player.isAlive) {
           player.role.handleMessage(message);
         } else {
           io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, "You cannot speak, as you are dead.");
         }
+        this.recordConversation(message, player.username);
       } else {
+        const user = this.userList[playerSocket.data.position];
+        if (!user) return;
         io.to(this.name).emit(ServerEvent.ReceiveChatMessage, `${user.username}: ${message}`);
+        this.recordConversation(message, user.username);
       }
-      this.recordConversation(message, user.username);
     }, (error) => error);
 
     const result = handle();
@@ -177,9 +185,7 @@ export class Room {
         playerSocket.data.position === undefined
       ) return;
 
-      const user = this.userList[playerSocket.data.position];
-      if (!user) return;
-      const foundPlayer = this.playerList.find((p) => p.user === user);
+      const foundPlayer = this.getPlayerFromSocket(playerSocket);
       const foundRecipient = this.playerList[recipient];
       if (!foundPlayer || !foundRecipient) return;
 
@@ -220,9 +226,7 @@ export class Room {
         playerSocket.data.position === undefined
       ) return;
 
-      const user = this.userList[playerSocket.data.position];
-      if (!user) return;
-      const foundPlayer = this.playerList.find((p) => p.user === user);
+      const foundPlayer = this.getPlayerFromSocket(playerSocket);
       const foundRecipient = this.playerList[recipient];
       if (!foundPlayer || !foundRecipient) return;
 
@@ -276,9 +280,7 @@ export class Room {
         playerSocket.data.position === undefined
       ) return;
 
-      const user = this.userList[playerSocket.data.position];
-      if (!user) return;
-      const foundPlayer = this.playerList.find((p) => p.user === user);
+      const foundPlayer = this.getPlayerFromSocket(playerSocket);
       const foundRecipient = recipient !== null ? this.playerList[recipient] : null;
       if (!foundPlayer) return;
 
@@ -322,6 +324,10 @@ export class Room {
       this.playerList.push(player);
 
       const RoleClass = this.roleList[index];
+      if (!RoleClass) {
+        console.error(`No role class found at index ${index} — roleList has ${this.roleList.length} entries`);
+        continue;
+      }
       const role = new RoleClass(this, player);
       player.assignRole(role);
 
