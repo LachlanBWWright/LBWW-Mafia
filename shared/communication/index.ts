@@ -5,6 +5,8 @@ export type {
   PlayerList,
   PlayerReturned,
 } from "./events";
+export { ServerEvent, ClientEvent } from "./events";
+export { DayTime } from "../game/playerActionRules";
 export type {
   GameEmitter,
   EmitTarget,

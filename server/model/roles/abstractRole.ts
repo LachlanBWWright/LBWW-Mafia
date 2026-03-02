@@ -4,6 +4,7 @@ import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Jailor } from "./town/jailor.js";
 import { RoleGroup } from "./roleGroup.js";
+import { GamePhase } from "../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { fromThrowable } from "neverthrow";
 
@@ -58,7 +59,7 @@ export abstract class Role {
 
   handleMessage(message: string) {
     const socketId = this.player.user.socketId;
-    if (this.room.time === "day") {
+    if (this.room.time === GamePhase.Day) {
       if (this.silenced) {
         io.to(socketId).emit(ServerEvent.ReceiveChatMessage, "You have been silenced and cannot talk");
       } else {
@@ -82,11 +83,12 @@ export abstract class Role {
     } else if (typeof this.faction === "undefined") {
       io.to(socketId).emit(ServerEvent.ReceiveMessage, "You cannot speak at night.");
     } else {
+      const faction = this.faction;
       const handleNightMessage = fromThrowable(
         () => {
-          this.faction!.handleNightMessage(message, this.player.username);
-          if (this.nightTapped !== false && this.nightTapped !== true) {
-            io.to((this.nightTapped as Role).player.user.socketId).emit(
+          faction.handleNightMessage(message, this.player.username);
+          if (this.nightTapped instanceof Role) {
+            io.to(this.nightTapped.player.user.socketId).emit(
               ServerEvent.ReceiveChatMessage,
               `${this.player.username}: ${message}`,
             );

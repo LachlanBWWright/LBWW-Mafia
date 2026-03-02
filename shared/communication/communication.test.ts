@@ -3,6 +3,7 @@ import { SocketIoClientAdapter, type SocketIoCompatible } from "./socketIoClient
 import { PartykitClientAdapter } from "./partykitClientAdapter";
 import { createGameSocket } from "./createGameSocket";
 import type { GameSocketConfig } from "./clientTypes";
+import { ServerEvent, ClientEvent } from "./events";
 
 // ───────────── SocketIoClientAdapter tests ─────────────
 
@@ -25,19 +26,19 @@ describe("SocketIoClientAdapter", () => {
     expect(adapter.connected).toBe(true);
 
     const handler = (msg: string) => msg;
-    adapter.on("receiveMessage", handler);
+    adapter.on(ServerEvent.ReceiveMessage, handler);
     expect(calls[0]?.method).toBe("on");
-    expect(calls[0]?.args[0]).toBe("receiveMessage");
+    expect(calls[0]?.args[0]).toBe(ServerEvent.ReceiveMessage);
 
-    adapter.emit("messageSentByUser", "hello", true);
+    adapter.emit(ClientEvent.MessageSentByUser, "hello", true);
     expect(calls[1]?.method).toBe("emit");
-    expect(calls[1]?.args[0]).toBe("messageSentByUser");
+    expect(calls[1]?.args[0]).toBe(ClientEvent.MessageSentByUser);
     expect(calls[1]?.args[1]).toBe("hello");
     expect(calls[1]?.args[2]).toBe(true);
 
-    adapter.off("receiveMessage", handler);
+    adapter.off(ServerEvent.ReceiveMessage, handler);
     expect(calls[2]?.method).toBe("off");
-    expect(calls[2]?.args[0]).toBe("receiveMessage");
+    expect(calls[2]?.args[0]).toBe(ServerEvent.ReceiveMessage);
 
     adapter.connect();
     expect(calls[3]?.method).toBe("connect");
@@ -79,9 +80,9 @@ describe("SocketIoClientAdapter", () => {
     };
 
     const adapter = new SocketIoClientAdapter(mockSocket);
-    adapter.off("receiveMessage");
+    adapter.off(ServerEvent.ReceiveMessage);
     expect(calls.length).toBe(1);
-    expect(calls[0]).toBe("receiveMessage");
+    expect(calls[0]).toBe(ServerEvent.ReceiveMessage);
   });
 });
 
@@ -91,7 +92,7 @@ describe("PartykitClientAdapter", () => {
   it("registers and dispatches event handlers", () => {
     const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
     const received: string[] = [];
-    adapter.on("receiveMessage", (msg: string) => { received.push(msg); });
+    adapter.on(ServerEvent.ReceiveMessage, (msg: string) => { received.push(msg); });
     expect(adapter.connected).toBe(false);
     expect(adapter.id).toBeUndefined();
   });
@@ -100,22 +101,22 @@ describe("PartykitClientAdapter", () => {
     const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
     const handler1 = (msg: string) => msg;
     const handler2 = (msg: string) => msg;
-    adapter.on("receiveMessage", handler1);
-    adapter.on("receiveMessage", handler2);
-    adapter.off("receiveMessage", handler1);
+    adapter.on(ServerEvent.ReceiveMessage, handler1);
+    adapter.on(ServerEvent.ReceiveMessage, handler2);
+    adapter.off(ServerEvent.ReceiveMessage, handler1);
   });
 
   it("off without handler removes all handlers for event", () => {
     const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
-    adapter.on("receiveMessage", (msg: string) => msg);
-    adapter.on("receiveMessage", (msg: string) => msg);
-    adapter.off("receiveMessage");
+    adapter.on(ServerEvent.ReceiveMessage, (msg: string) => msg);
+    adapter.on(ServerEvent.ReceiveMessage, (msg: string) => msg);
+    adapter.off(ServerEvent.ReceiveMessage);
   });
 
   it("emit with callback stores pending callback", () => {
     const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
     let callbackCalled = false;
-    adapter.emit("playerJoinRoom", "token", (_result: string | number) => {
+    adapter.emit(ClientEvent.PlayerJoinRoom, "token", (_result: string | number) => {
       callbackCalled = true;
     });
     expect(callbackCalled).toBe(false);

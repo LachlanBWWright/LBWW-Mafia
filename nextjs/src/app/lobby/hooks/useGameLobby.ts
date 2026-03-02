@@ -5,7 +5,9 @@ import { io } from "socket.io-client";
 import { SocketIoClientAdapter } from "@mernmafia/shared/communication/socketIoClientAdapter";
 import { PartykitClientAdapter } from "@mernmafia/shared/communication/partykitClientAdapter";
 import type { PlayerList, PlayerReturned } from "@mernmafia/shared/communication/events";
-import type { DayTime, VisitCapability } from "@mernmafia/shared/game/playerActionRules";
+import { ServerEvent, ClientEvent } from "@mernmafia/shared/communication/events";
+import { DayTime } from "@mernmafia/shared/game/playerActionRules";
+import type { VisitCapability } from "@mernmafia/shared/game/playerActionRules";
 import { defaultVisitCapability } from "@mernmafia/shared/game/playerActionRules";
 import type { GameSocket, SocketBackendType } from "@mernmafia/shared/communication/clientTypes";
 
@@ -88,7 +90,7 @@ function performJoin(ctx: JoinContext) {
     ctx.setJoining(false);
   }, 7000);
   ctx.socket.connect();
-  ctx.socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (result: string | number) => {
+  ctx.socket.emit(ClientEvent.PlayerJoinRoom, CAPTCHA_TOKEN, (result: string | number) => {
     clearTimeout(timeout);
     if (typeof result === "string") {
       ctx.playerNameRef.current = result;
@@ -119,7 +121,7 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
   const [players, setPlayers] = useState<Player[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
-  const [time, setTime] = useState<DayTime>("Day");
+  const [time, setTime] = useState<DayTime>(DayTime.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [canTalk, setCanTalk] = useState(true);
@@ -169,43 +171,43 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
     const onUpdateRole = (d: { name: string; role?: string }) =>
       setPlayers((cur) =>
         cur.map((p) => (p.name === d.name ? { ...p, isAlive: false, role: d.role ?? p.role } : p)));
-    const onDayTime = (info: { time: "Day" | "Night"; dayNumber: number; timeLeft: number }) => {
+    const onDayTime = (info: { time: DayTime; dayNumber: number; timeLeft: number }) => {
       setTime(info.time);
       setDayNumber(info.dayNumber);
       setTimeLeft(info.timeLeft);
     };
 
-    socket.on("receiveMessage", appendMsg);
-    socket.on("receive-chat-message", appendMsg);
-    socket.on("receive-whisper-message", appendMsg);
-    socket.on("blockMessages", () => setCanTalk(false));
-    socket.on("disable-voting", () => setCanVote(false));
-    socket.on("receive-new-player", onNewPlayer);
-    socket.on("remove-player", onRemovePlayer);
-    socket.on("receive-player-list", onPlayerList);
-    socket.on("assign-player-role", onAssignRole);
-    socket.on("update-player-role", onUpdateRole);
-    socket.on("update-faction-role", onFactionRole);
-    socket.on("update-day-time", onDayTime);
-    socket.on("update-player-visit", () => undefined);
+    socket.on(ServerEvent.ReceiveMessage, appendMsg);
+    socket.on(ServerEvent.ReceiveChatMessage, appendMsg);
+    socket.on(ServerEvent.ReceiveWhisperMessage, appendMsg);
+    socket.on(ServerEvent.BlockMessages, () => setCanTalk(false));
+    socket.on(ServerEvent.DisableVoting, () => setCanVote(false));
+    socket.on(ServerEvent.ReceiveNewPlayer, onNewPlayer);
+    socket.on(ServerEvent.RemovePlayer, onRemovePlayer);
+    socket.on(ServerEvent.ReceivePlayerList, onPlayerList);
+    socket.on(ServerEvent.AssignPlayerRole, onAssignRole);
+    socket.on(ServerEvent.UpdatePlayerRole, onUpdateRole);
+    socket.on(ServerEvent.UpdateFactionRole, onFactionRole);
+    socket.on(ServerEvent.UpdateDayTime, onDayTime);
+    socket.on(ServerEvent.UpdatePlayerVisit, () => undefined);
 
     const autoJoin = setTimeout(() => performJoin(joinCtx), 0);
 
     return () => {
       clearTimeout(autoJoin);
-      socket.off("receiveMessage", appendMsg);
-      socket.off("receive-chat-message", appendMsg);
-      socket.off("receive-whisper-message", appendMsg);
-      socket.off("blockMessages");
-      socket.off("disable-voting");
-      socket.off("receive-new-player", onNewPlayer);
-      socket.off("remove-player", onRemovePlayer);
-      socket.off("receive-player-list", onPlayerList);
-      socket.off("assign-player-role", onAssignRole);
-      socket.off("update-player-role", onUpdateRole);
-      socket.off("update-faction-role", onFactionRole);
-      socket.off("update-day-time", onDayTime);
-      socket.off("update-player-visit");
+      socket.off(ServerEvent.ReceiveMessage, appendMsg);
+      socket.off(ServerEvent.ReceiveChatMessage, appendMsg);
+      socket.off(ServerEvent.ReceiveWhisperMessage, appendMsg);
+      socket.off(ServerEvent.BlockMessages);
+      socket.off(ServerEvent.DisableVoting);
+      socket.off(ServerEvent.ReceiveNewPlayer, onNewPlayer);
+      socket.off(ServerEvent.RemovePlayer, onRemovePlayer);
+      socket.off(ServerEvent.ReceivePlayerList, onPlayerList);
+      socket.off(ServerEvent.AssignPlayerRole, onAssignRole);
+      socket.off(ServerEvent.UpdatePlayerRole, onUpdateRole);
+      socket.off(ServerEvent.UpdateFactionRole, onFactionRole);
+      socket.off(ServerEvent.UpdateDayTime, onDayTime);
+      socket.off(ServerEvent.UpdatePlayerVisit);
       socket.disconnect();
     };
   }, [socket]); // socket is stable (lazy useState initializer, never changes)
@@ -229,23 +231,23 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
 
   const sendMessage = () => {
     if (!socket || !messageDraft.trim()) return;
-    socket.emit("messageSentByUser", messageDraft.trim(), time === "Day");
+    socket.emit(ClientEvent.MessageSentByUser, messageDraft.trim(), time === DayTime.Day);
     setMessageDraft("");
   };
 
   const voteForPlayer = (index: number) => {
-    if (!socket || time !== "Day") return;
-    socket.emit("handleVote", index, true);
+    if (!socket || time !== DayTime.Day) return;
+    socket.emit(ClientEvent.HandleVote, index, true);
   };
 
   const visitPlayer = (index: number) => {
     if (!socket) return;
-    socket.emit("handleVisit", index, time === "Day");
+    socket.emit(ClientEvent.HandleVisit, index, time === DayTime.Day);
   };
 
   const whisperToPlayer = (index: number) => {
     if (!socket || !messageDraft.trim()) return;
-    socket.emit("handleWhisper", index, messageDraft.trim(), time === "Day");
+    socket.emit(ClientEvent.HandleWhisper, index, messageDraft.trim(), time === DayTime.Day);
     setMessageDraft("");
   };
 

@@ -11,6 +11,7 @@ import { PartykitEmitter } from "./partykitEmitter.js";
 import { PartykitPlayerSocket } from "./partykitPlayerSocket.js";
 import { setGameEmitter } from "../emitter.js";
 import { Room } from "../../model/rooms/room.js";
+import { ClientEvent } from "../../../shared/communication/events.js";
 import { fromThrowable } from "neverthrow";
 
 type ClientMessage = {
@@ -70,7 +71,7 @@ export default class MafiaPartyServer implements Party.Server {
     if (!playerSocket) return;
 
     switch (parsed.event) {
-      case "playerJoinRoom": {
+      case ClientEvent.PlayerJoinRoom: {
         // In PartyKit mode, skip CAPTCHA and directly add player
         if (this.gameRoom.started) {
           // Create a new room if the current one already started
@@ -88,8 +89,10 @@ export default class MafiaPartyServer implements Party.Server {
         break;
       }
 
-      case "messageSentByUser": {
-        const [msg, isDay] = parsed.args as [string, boolean];
+      case ClientEvent.MessageSentByUser: {
+        const msg = parsed.args[0];
+        const isDay = parsed.args[1];
+        if (typeof msg !== "string" || typeof isDay !== "boolean") break;
         runSafely("messageSentByUser error", () => {
           if (msg.length > 0 && msg.length <= 150) {
             if (playerSocket.data.roomObject !== undefined) {
@@ -104,8 +107,10 @@ export default class MafiaPartyServer implements Party.Server {
         break;
       }
 
-      case "handleVote": {
-        const [recipient, isDay] = parsed.args as [number | null, boolean];
+      case ClientEvent.HandleVote: {
+        const recipient = parsed.args[0];
+        const isDay = parsed.args[1];
+        if ((typeof recipient !== "number" && recipient !== null) || typeof isDay !== "boolean") break;
         runSafely("handleVote error", () => {
           if (typeof recipient === "number") {
             if (playerSocket.data.roomObject !== undefined) {
@@ -120,8 +125,10 @@ export default class MafiaPartyServer implements Party.Server {
         break;
       }
 
-      case "handleVisit": {
-        const [recipient, isDay] = parsed.args as [number | null, boolean];
+      case ClientEvent.HandleVisit: {
+        const recipient = parsed.args[0];
+        const isDay = parsed.args[1];
+        if ((typeof recipient !== "number" && recipient !== null) || typeof isDay !== "boolean") break;
         runSafely("handleVisit error", () => {
           if (typeof recipient === "number" || recipient === null) {
             if (playerSocket.data.roomObject !== undefined) {
@@ -136,14 +143,13 @@ export default class MafiaPartyServer implements Party.Server {
         break;
       }
 
-      case "handleWhisper": {
-        const [recipient, msg, isDay] = parsed.args as [number, string, boolean];
+      case ClientEvent.HandleWhisper: {
+        const recipient = parsed.args[0];
+        const msg = parsed.args[1];
+        const isDay = parsed.args[2];
+        if (typeof recipient !== "number" || typeof msg !== "string" || typeof isDay !== "boolean") break;
         runSafely("handleWhisper error", () => {
-          if (
-            typeof recipient === "number" &&
-            msg.length > 0 &&
-            msg.length <= 150
-          ) {
+          if (msg.length > 0 && msg.length <= 150) {
             if (playerSocket.data.roomObject !== undefined) {
               playerSocket.data.roomObject.handleWhisper(
                 playerSocket,

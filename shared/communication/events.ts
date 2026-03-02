@@ -2,6 +2,9 @@
  * Shared event type definitions for client-server communication.
  * These types are backend-agnostic and used by both Socket.IO and PartyKit.
  */
+import { DayTime } from "../game/playerActionRules";
+// Re-export DayTime so consumers can import it from one place
+export { DayTime } from "../game/playerActionRules";
 
 /** Enum of all server → client socket event names. */
 export enum ServerEvent {
@@ -70,7 +73,7 @@ export type ServerToClientEvents = {
   "receive-chat-message": (message: string) => void;
   "receive-whisper-message": (message: string) => void;
   "update-day-time": (data: {
-    time: "Day" | "Night";
+    time: DayTime;
     dayNumber: number;
     timeLeft: number;
   }) => void;
@@ -83,3 +86,4 @@ export type ServerToClientEvents = {
 };
 
 export type InterServerEvents = Record<string, never>;
+

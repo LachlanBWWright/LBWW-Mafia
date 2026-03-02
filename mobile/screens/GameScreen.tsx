@@ -17,7 +17,7 @@ import { colors } from "../styles/colors";
 import { trpcClient } from "../lib/trpc";
 import type { RecentMatchSummary } from "../../shared/trpc/appRouter";
 import {
-  type DayTime,
+  DayTime,
   canVoteTarget,
   canWhisperTarget,
   canPerformVisit,
@@ -26,6 +26,10 @@ import {
   shouldShowVisitAction,
   type VisitCapability,
 } from "../../shared/game/playerActionRules";
+import {
+  ServerEvent,
+  ClientEvent,
+} from "../../shared/communication/events";
 import {
   SocketIoClientAdapter,
 } from "../../shared/communication/socketIoClientAdapter";
@@ -204,7 +208,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
 
   const [canTalk, setCanTalk] = useState(true);
   const [canVote, setCanVote] = useState(true);
-  const [time, setTime] = useState<DayTime>("Day");
+  const [time, setTime] = useState<DayTime>(DayTime.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<string[]>([]);
@@ -227,35 +231,27 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
   );
 
   useEffect(() => {
-    socket.on("receiveMessage", (incomingMessage: string) => {
+    const appendMsg = (incomingMessage: string) => {
       setMessages((current) => [...current, incomingMessage]);
+    };
+
+    socket.on(ServerEvent.ReceiveMessage, appendMsg);
+    socket.on(ServerEvent.ReceiveChatMessage, appendMsg);
+    socket.on(ServerEvent.ReceiveWhisperMessage, appendMsg);
+
+    socket.on(ServerEvent.ReceivePlayerList, (listJson: Player[]) => {
+      setPlayerList([...listJson]);
     });
 
-    socket.on("receive-chat-message", (incomingMessage: string) => {
-      setMessages((current) => [...current, incomingMessage]);
-    });
-
-    socket.on("receive-whisper-message", (incomingMessage: string) => {
-      setMessages((current) => [...current, incomingMessage]);
-    });
-
-    socket.on("receive-player-list", (listJson: Player[]) => {
-      const list: Player[] = [];
-      for (const player of listJson) {
-        list.push(player);
-      }
-      setPlayerList(list);
-    });
-
-    socket.on("receive-new-player", (playerJson: Player) => {
+    socket.on(ServerEvent.ReceiveNewPlayer, (playerJson: Player) => {
       setPlayerList((list) => [...list, playerJson]);
     });
 
-    socket.on("remove-player", (playerJson: Player) => {
+    socket.on(ServerEvent.RemovePlayer, (playerJson: Player) => {
       setPlayerList((list) => list.filter((item) => item.name !== playerJson.name));
     });
 
-    socket.on("assign-player-role", (playerJson: RoleAssignment) => {
+    socket.on(ServerEvent.AssignPlayerRole, (playerJson: RoleAssignment) => {
       setPlayerList((list) =>
         list.map((player) =>
           player.name === playerJson.name
@@ -274,7 +270,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       });
     });
 
-    socket.on("update-player-role", (playerJson: Player) => {
+    socket.on(ServerEvent.UpdatePlayerRole, (playerJson: Player) => {
       setPlayerList((list) =>
         list.map((player) => {
           if (player.name !== playerJson.name) {
@@ -295,21 +291,21 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
       );
     });
 
-    socket.on("update-day-time", (infoJson: DayTimeInfo) => {
+    socket.on(ServerEvent.UpdateDayTime, (infoJson: DayTimeInfo) => {
       setTime(infoJson.time);
       setDayNumber(infoJson.dayNumber);
       setTimeLeft(infoJson.timeLeft);
     });
 
-    socket.on("blockMessages", () => {
+    socket.on(ServerEvent.BlockMessages, () => {
       setCanTalk(false);
     });
-    socket.on("disable-voting", () => {
+    socket.on(ServerEvent.DisableVoting, () => {
       setCanVote(false);
     });
 
     if (CAPTCHA_TOKEN) {
-      socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (callback: string | number) => {
+      socket.emit(ClientEvent.PlayerJoinRoom, CAPTCHA_TOKEN, (callback: string | number) => {
         if (typeof callback === "string") {
           setJoinedAs(callback);
           setMessages([`System: You joined as ${callback}.`]);
@@ -322,18 +318,18 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
     }
 
     return () => {
-      socket.off("receiveMessage");
-      socket.off("receive-chat-message");
-      socket.off("receive-whisper-message");
-      socket.off("blockMessages");
-      socket.off("disable-voting");
-      socket.off("receive-role");
-      socket.off("receive-player-list");
-      socket.off("receive-new-player");
-      socket.off("remove-player");
-      socket.off("update-player-role");
-      socket.off("update-player-visit");
-      socket.off("update-day-time");
+      socket.off(ServerEvent.ReceiveMessage);
+      socket.off(ServerEvent.ReceiveChatMessage);
+      socket.off(ServerEvent.ReceiveWhisperMessage);
+      socket.off(ServerEvent.BlockMessages);
+      socket.off(ServerEvent.DisableVoting);
+      socket.off(ServerEvent.ReceiveRole);
+      socket.off(ServerEvent.ReceivePlayerList);
+      socket.off(ServerEvent.ReceiveNewPlayer);
+      socket.off(ServerEvent.RemovePlayer);
+      socket.off(ServerEvent.UpdatePlayerRole);
+      socket.off(ServerEvent.UpdatePlayerVisit);
+      socket.off(ServerEvent.UpdateDayTime);
       socket.disconnect();
     };
   }, [CAPTCHA_TOKEN, navigation, socket]);
@@ -475,7 +471,7 @@ export function GameScreen({ route, navigation }: GameScreenProps) {
             style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
             disabled={!message.trim()}
             onPress={() => {
-              socket.emit("messageSentByUser", message, time === "Day");
+              socket.emit(ClientEvent.MessageSentByUser, message, time === DayTime.Day);
               setMessage("");
             }}
           >
@@ -554,9 +550,9 @@ function PlayerInList(props: {
               }
               onPress={() =>
                 props.socket.emit(
-                  "messageSentByUser",
+                  ClientEvent.MessageSentByUser,
                   `/c ${props.player.name}`,
-                  props.time === "Day",
+                  props.time === DayTime.Day,
                 )
               }
             >
@@ -577,9 +573,9 @@ function PlayerInList(props: {
               }
               onPress={() =>
                 props.socket.emit(
-                  "messageSentByUser",
+                  ClientEvent.MessageSentByUser,
                   `/v ${props.player.name}`,
-                  props.time === "Day",
+                  props.time === DayTime.Day,
                 )
               }
             >

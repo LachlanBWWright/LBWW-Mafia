@@ -14,6 +14,7 @@ import type {
   PlayerList,
   PlayerReturned,
 } from "./events";
+import { ServerEvent, DayTime } from "./events";
 
 type AckCallback = (result: string | number) => void;
 
@@ -94,10 +95,12 @@ export class PartykitClientAdapter implements GameSocket {
     event: K,
     handler: ServerToClientEvents[K],
   ): void {
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, new Set());
+    let listeners = this.listeners.get(event);
+    if (!listeners) {
+      listeners = new Set();
+      this.listeners.set(event, listeners);
     }
-    this.listeners.get(event)!.add(handler);
+    listeners.add(handler);
   }
 
   off<K extends keyof ServerToClientEvents>(
@@ -225,44 +228,44 @@ export class PartykitClientAdapter implements GameSocket {
 
   private dispatchEvent(event: string, args: unknown[]): void {
     switch (event) {
-      case "receiveMessage":
-      case "receive-chat-message":
-      case "receive-whisper-message":
-      case "receive-role": {
+      case ServerEvent.ReceiveMessage:
+      case ServerEvent.ReceiveChatMessage:
+      case ServerEvent.ReceiveWhisperMessage:
+      case ServerEvent.ReceiveRole: {
         const [msg] = args;
         if (typeof msg === "string") {
           this.callHandlers(event, msg);
         }
         break;
       }
-      case "blockMessages":
-      case "disable-voting":
-      case "update-player-visit": {
+      case ServerEvent.BlockMessages:
+      case ServerEvent.DisableVoting:
+      case ServerEvent.UpdatePlayerVisit: {
         this.callHandlers(event);
         break;
       }
-      case "receive-new-player":
-      case "remove-player": {
+      case ServerEvent.ReceiveNewPlayer:
+      case ServerEvent.RemovePlayer: {
         const [player] = args;
         if (isObject(player) && typeof player.name === "string") {
           this.callHandlers(event, { name: player.name });
         }
         break;
       }
-      case "receive-player-list": {
+      case ServerEvent.ReceivePlayerList: {
         const list = toPlayerList(args[0]);
-        if (list) this.callHandlers("receive-player-list", list);
+        if (list) this.callHandlers(ServerEvent.ReceivePlayerList, list);
         break;
       }
-      case "update-day-time": {
+      case ServerEvent.UpdateDayTime: {
         const [d] = args;
         if (
           isObject(d) &&
-          (d.time === "Day" || d.time === "Night") &&
+          (d.time === DayTime.Day || d.time === DayTime.Night) &&
           typeof d.dayNumber === "number" &&
           typeof d.timeLeft === "number"
         ) {
-          this.callHandlers("update-day-time", {
+          this.callHandlers(ServerEvent.UpdateDayTime, {
             time: d.time,
             dayNumber: d.dayNumber,
             timeLeft: d.timeLeft,
@@ -270,29 +273,29 @@ export class PartykitClientAdapter implements GameSocket {
         }
         break;
       }
-      case "update-player-role": {
+      case ServerEvent.UpdatePlayerRole: {
         const [d] = args;
         if (isObject(d) && typeof d.name === "string") {
-          this.callHandlers("update-player-role", {
+          this.callHandlers(ServerEvent.UpdatePlayerRole, {
             name: d.name,
             role: typeof d.role === "string" ? d.role : undefined,
           });
         }
         break;
       }
-      case "assign-player-role": {
+      case ServerEvent.AssignPlayerRole: {
         const data = toPlayerReturned(args[0]);
-        if (data) this.callHandlers("assign-player-role", data);
+        if (data) this.callHandlers(ServerEvent.AssignPlayerRole, data);
         break;
       }
-      case "update-faction-role": {
+      case ServerEvent.UpdateFactionRole: {
         const [d] = args;
         if (
           isObject(d) &&
           typeof d.name === "string" &&
           typeof d.role === "string"
         ) {
-          this.callHandlers("update-faction-role", {
+          this.callHandlers(ServerEvent.UpdateFactionRole, {
             name: d.name,
             role: d.role,
           });

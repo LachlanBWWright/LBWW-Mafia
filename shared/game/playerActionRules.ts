@@ -1,4 +1,8 @@
-export type DayTime = "Day" | "Night";
+/** Enum representing the two game phases as seen by clients (capitalized, used in wire protocol). */
+export enum DayTime {
+  Day = "Day",
+  Night = "Night",
+}
 
 export type VisitCapability = {
   dayVisitSelf: boolean;
@@ -38,9 +42,6 @@ const roleFactionMap: Record<string, string> = {
   "Mafia Investigator": "mafia",
 };
 
-const normalizeTime = (time: DayTime) =>
-  time.toLowerCase() === "night" ? "night" : "day";
-
 export const getRoleFaction = (role?: string): string | null => {
   if (!role) {
     return null;
@@ -57,7 +58,6 @@ export const canPerformVisit = (input: {
   targetRole?: string;
   capability: VisitCapability;
 }) => {
-  const phase = normalizeTime(input.time);
   if (!input.actorAlive || !input.targetAlive) {
     return false;
   }
@@ -68,7 +68,7 @@ export const canPerformVisit = (input: {
     actorFaction && targetFaction && actorFaction === targetFaction,
   );
 
-  if (phase === "day") {
+  if (input.time === DayTime.Day) {
     if (input.isSelf) {
       return input.capability.dayVisitSelf;
     }
@@ -90,17 +90,15 @@ export const canPerformVisit = (input: {
 export const shouldShowVisitAction = (
   time: DayTime,
   capability: VisitCapability,
-) => {
-  const phase = normalizeTime(time);
-  return phase === "day"
+) =>
+  time === DayTime.Day
     ? capability.dayVisitSelf || capability.dayVisitOthers || capability.dayVisitFaction
     : capability.nightVisitSelf ||
         capability.nightVisitOthers ||
         capability.nightVisitFaction;
-};
 
 export const shouldShowDayOnlyActions = (time: DayTime) =>
-  normalizeTime(time) === "day";
+  time === DayTime.Day;
 
 export const canVoteTarget = (input: {
   time: DayTime;

@@ -4,13 +4,16 @@ import { User } from "../user/user.js";
 import { Player } from "../player/player.js";
 import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { DayTime } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { Confesser } from "../roles/neutral/confesser.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { BlankRole } from "../roles/blankRole.js";
+import { Role } from "../roles/abstractRole.js";
 import { Framer } from "../roles/neutral/framer.js";
 import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { RoleGroup } from "../roles/roleGroup.js";
+import { GamePhase } from "./gamePhase.js";
 import { names } from "../player/names/namesList.js";
 import { fromThrowable } from "neverthrow";
 import {
@@ -28,7 +31,7 @@ export class Room {
   playerList: Player[] = [];
 
   started = false;
-  time: "day" | "night" | "" | "undefined" = "";
+  time: GamePhase = GamePhase.Idle;
   roleList: (typeof BlankRole)[] = [];
   factionList: Faction[] = [];
   sessionLength: number;
@@ -147,8 +150,8 @@ export class Room {
   handleSentMessage(playerSocket: GamePlayerSocket, message: string, isDay: boolean) {
     const handle = fromThrowable(() => {
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
+        (!isDay && this.time === GamePhase.Day) ||
+        (isDay && this.time === GamePhase.Night) ||
         playerSocket.data.position === undefined
       ) return;
 
@@ -179,9 +182,9 @@ export class Room {
   handleVote(playerSocket: GamePlayerSocket, recipient: number, isDay: boolean) {
     this.runSafely(() => {
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === "" ||
+        (!isDay && this.time === GamePhase.Day) ||
+        (isDay && this.time === GamePhase.Night) ||
+        this.time === GamePhase.Idle ||
         playerSocket.data.position === undefined
       ) return;
 
@@ -193,7 +196,7 @@ export class Room {
         io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, "You cannot change your vote.");
       } else if (foundPlayer === foundRecipient) {
         io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, "You cannot vote for yourself.");
-      } else if (this.time !== "day") {
+      } else if (this.time !== GamePhase.Day) {
         if (foundPlayer.role.nightVote) {
           foundPlayer.hasVoted = true;
           foundPlayer.role.handleNightVote(foundRecipient);
@@ -220,9 +223,9 @@ export class Room {
   handleWhisper(playerSocket: GamePlayerSocket, recipient: number, message: string, isDay: boolean) {
     this.runSafely(() => {
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === "" ||
+        (!isDay && this.time === GamePhase.Day) ||
+        (isDay && this.time === GamePhase.Night) ||
+        this.time === GamePhase.Idle ||
         playerSocket.data.position === undefined
       ) return;
 
@@ -230,9 +233,9 @@ export class Room {
       const foundRecipient = this.playerList[recipient];
       if (!foundPlayer || !foundRecipient) return;
 
-      if (this.time === "night") {
+      if (this.time === GamePhase.Night) {
         io.to(foundPlayer.user.socketId).emit(ServerEvent.ReceiveMessage, "You cannot whisper at night.");
-      } else if (this.time === "day" && foundRecipient.isAlive) {
+      } else if (this.time === GamePhase.Day && foundRecipient.isAlive) {
         this.recordAction("whisper", foundPlayer.username, foundRecipient.username);
         if (0.1 > Math.random()) {
           io.to(foundPlayer.user.socketId).emit(ServerEvent.ReceiveMessage, "Your whispers were overheard by the town!");
@@ -251,14 +254,14 @@ export class Room {
             `Whisper to ${foundRecipient.username}: ${message}`,
           );
           const senderTap = foundPlayer.role.dayTapped;
-          if (senderTap !== false && senderTap !== null && typeof senderTap === "object") {
+          if (senderTap instanceof Role) {
             io.to(senderTap.player.user.socketId).emit(
               ServerEvent.ReceiveWhisperMessage,
               `${foundPlayer.username} whispered "${message}" to ${foundRecipient.username}.`,
             );
           }
           const recipientTap = foundRecipient.role.dayTapped;
-          if (recipientTap !== false && recipientTap !== null && typeof recipientTap === "object") {
+          if (recipientTap instanceof Role) {
             io.to(recipientTap.player.user.socketId).emit(
               ServerEvent.ReceiveWhisperMessage,
               `${foundPlayer.username} whispered "${message}" to ${foundRecipient.username}.`,
@@ -274,9 +277,9 @@ export class Room {
   handleVisit(playerSocket: GamePlayerSocket, recipient: number | null, isDay: boolean) {
     this.runSafely(() => {
       if (
-        (!isDay && this.time === "day") ||
-        (isDay && this.time === "night") ||
-        this.time === "" ||
+        (!isDay && this.time === GamePhase.Day) ||
+        (isDay && this.time === GamePhase.Night) ||
+        this.time === GamePhase.Idle ||
         playerSocket.data.position === undefined
       ) return;
 
@@ -284,14 +287,14 @@ export class Room {
       const foundRecipient = recipient !== null ? this.playerList[recipient] : null;
       if (!foundPlayer) return;
 
-      if (this.time === "day") {
+      if (this.time === GamePhase.Day) {
         if (foundRecipient != null) {
           this.recordAction("day-visit", foundPlayer.username, foundRecipient.username);
           foundPlayer.role.handleDayAction(foundRecipient);
         } else {
           foundPlayer.role.cancelDayAction();
         }
-      } else if (this.time === "night") {
+      } else if (this.time === GamePhase.Night) {
         if (foundPlayer.role.roleblocked) {
           io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, "You are roleblocked, and cannot call commands.");
         } else if (foundRecipient != null) {
@@ -352,9 +355,9 @@ export class Room {
   }
 
   startFirstDaySession(sessionLength: number) {
-    this.time = "day";
+    this.time = GamePhase.Day;
     io.to(this.name).emit(ServerEvent.ReceiveMessage, "Day 1 has started.");
-    io.to(this.name).emit(ServerEvent.UpdateDayTime, { time: "Day", dayNumber: 1, timeLeft: 5 });
+    io.to(this.name).emit(ServerEvent.UpdateDayTime, { time: DayTime.Day, dayNumber: 1, timeLeft: 5 });
     setTimeout(() => {
       this.runSafely(() => {
         for (const player of this.playerList) {
@@ -367,7 +370,7 @@ export class Room {
   }
 
   startDaySession(dayNumber: number, sessionLength: number) {
-    this.time = "day";
+    this.time = GamePhase.Day;
 
     if (this.endDay <= dayNumber) {
       io.to(this.name).emit(ServerEvent.ReceiveMessage, "Nobody has died in three consecutive days, so the game has ended.");
@@ -382,7 +385,7 @@ export class Room {
     }
 
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
-      time: "Day",
+      time: DayTime.Day,
       dayNumber,
       timeLeft: Math.floor(sessionLength / 1000 + 10),
     });
@@ -461,12 +464,12 @@ export class Room {
   }
 
   startNightSession(nightNumber: number, sessionLength: number) {
-    this.time = "night";
-    io.to(this.name).emit(ServerEvent.UpdateDayTime, { time: "Night", dayNumber: nightNumber, timeLeft: 15 });
+    this.time = GamePhase.Night;
+    io.to(this.name).emit(ServerEvent.UpdateDayTime, { time: DayTime.Night, dayNumber: nightNumber, timeLeft: 15 });
 
     setTimeout(() => {
       this.runSafely(() => {
-        this.time = "undefined";
+        this.time = GamePhase.Processing;
 
         for (const faction of this.factionList) {
           faction.removeMembers();

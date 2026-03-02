@@ -4,6 +4,7 @@ import { fromThrowable, ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
 import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents } from "../../shared/communication/events.js";
+import { ClientEvent } from "../../shared/communication/events.js";
 
 export type SocketData = {
   roomObject: Room;
@@ -57,7 +58,7 @@ export function addSocketListeners(
   socketIoServer.on("connection", (socket: PlayerSocket) => {
     console.log("New Connection");
     socket.on(
-      "playerJoinRoom",
+      ClientEvent.PlayerJoinRoom,
       async (captchaToken: string, cb: (code: string | number) => void) => {
         await ResultAsync.fromPromise(
           axios.post(
@@ -87,7 +88,7 @@ export function addSocketListeners(
       },
     );
 
-    socket.on("disconnect", () => {
+    socket.on(ClientEvent.Disconnect, () => {
       runSafely("Disconnect error", () => {
         if (socket.data.roomObject !== undefined) {
           socket.data.roomObject.removePlayer(socket.id);
@@ -95,7 +96,7 @@ export function addSocketListeners(
       });
     });
 
-    socket.on("messageSentByUser", (message, isDay: boolean) => {
+    socket.on(ClientEvent.MessageSentByUser, (message, isDay: boolean) => {
       runSafely("messageSentByUser error", () => {
         if (message.length > 0 && message.length <= 150) {
           if (socket.data.roomObject !== undefined)
@@ -104,7 +105,7 @@ export function addSocketListeners(
       });
     });
 
-    socket.on("handleVote", (recipient, isDay: boolean) => {
+    socket.on(ClientEvent.HandleVote, (recipient, isDay: boolean) => {
       runSafely("handleVote error", () => {
         if (typeof recipient === "number") {
           if (socket.data.roomObject !== undefined)
@@ -113,7 +114,7 @@ export function addSocketListeners(
       });
     });
 
-    socket.on("handleVisit", (recipient, isDay: boolean) => {
+    socket.on(ClientEvent.HandleVisit, (recipient, isDay: boolean) => {
       runSafely("handleVisit error", () => {
         if (typeof recipient === "number" || recipient === null) {
           if (socket.data.roomObject !== undefined)
@@ -122,7 +123,7 @@ export function addSocketListeners(
       });
     });
 
-    socket.on("handleWhisper", (recipient, message, isDay) => {
+    socket.on(ClientEvent.HandleWhisper, (recipient, message, isDay) => {
       runSafely("handleWhisper error", () => {
         if (
           typeof recipient === "number" &&

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { setGameEmitter, getGameEmitter } from "../../server/servers/emitter";
 import type { GameEmitter } from "./serverTypes";
+import { ServerEvent } from "./events";
+import { DayTime } from "../game/playerActionRules";
 
 // ───────────── GameEmitter singleton tests ─────────────
 
@@ -30,16 +32,16 @@ describe("GameEmitter singleton", () => {
     const retrieved = getGameEmitter();
     expect(retrieved).toBe(mockEmitter);
 
-    retrieved.to("room-1").emit("receiveMessage", "Hello");
+    retrieved.to("room-1").emit(ServerEvent.ReceiveMessage, "Hello");
     expect(emittedCalls.length).toBe(1);
     expect(emittedCalls[0]?.target).toBe("room-1");
-    expect(emittedCalls[0]?.event).toBe("receiveMessage");
+    expect(emittedCalls[0]?.event).toBe(ServerEvent.ReceiveMessage);
     expect(emittedCalls[0]?.args).toEqual(["Hello"]);
 
-    retrieved.to("socket-id-123").emit("blockMessages");
+    retrieved.to("socket-id-123").emit(ServerEvent.BlockMessages);
     expect(emittedCalls.length).toBe(2);
     expect(emittedCalls[1]?.target).toBe("socket-id-123");
-    expect(emittedCalls[1]?.event).toBe("blockMessages");
+    expect(emittedCalls[1]?.event).toBe(ServerEvent.BlockMessages);
 
     retrieved.in("game-room").disconnectSockets();
     expect(disconnectCalls.length).toBe(1);
@@ -64,9 +66,9 @@ describe("GameEmitter singleton", () => {
     };
 
     setGameEmitter(mockEmitter);
-    io.to("test-room").emit("update-day-time", { time: "Day" as const, dayNumber: 1, timeLeft: 10 });
+    io.to("test-room").emit(ServerEvent.UpdateDayTime, { time: DayTime.Day, dayNumber: 1, timeLeft: 10 });
     expect(emittedCalls.length).toBe(1);
-    expect(emittedCalls[0]?.event).toBe("update-day-time");
+    expect(emittedCalls[0]?.event).toBe(ServerEvent.UpdateDayTime);
   });
 });
 
@@ -106,19 +108,19 @@ describe("PartykitEmitter", () => {
 
     const emitter = new PartykitEmitter(mockPartyRoom, "test-room-name");
 
-    emitter.to("test-room-name").emit("receiveMessage", "Hello room");
+    emitter.to("test-room-name").emit(ServerEvent.ReceiveMessage, "Hello room");
     expect(broadcastedMessages.length).toBe(1);
     const parsed = JSON.parse(broadcastedMessages[0] ?? "{}") as { type: string; event: string; args: unknown[] };
     expect(parsed.type).toBe("event");
-    expect(parsed.event).toBe("receiveMessage");
+    expect(parsed.event).toBe(ServerEvent.ReceiveMessage);
     expect(parsed.args).toEqual(["Hello room"]);
 
-    emitter.to("conn-1").emit("blockMessages");
+    emitter.to("conn-1").emit(ServerEvent.BlockMessages);
     expect(sentMessages.get("conn-1")?.length).toBe(1);
     const parsedDirect = JSON.parse(sentMessages.get("conn-1")?.[0] ?? "{}") as { event: string };
-    expect(parsedDirect.event).toBe("blockMessages");
+    expect(parsedDirect.event).toBe(ServerEvent.BlockMessages);
 
-    emitter.to("conn-nonexistent").emit("receiveMessage", "test");
+    emitter.to("conn-nonexistent").emit(ServerEvent.ReceiveMessage, "test");
 
     emitter.in("test-room-name").disconnectSockets();
     expect(closedConnections.length).toBe(2);
