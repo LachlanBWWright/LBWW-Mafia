@@ -117,8 +117,7 @@ export class PartykitClientAdapter implements GameSocket {
   ): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    const argsToSend: unknown = args;
-    let serializableArgs: unknown = argsToSend;
+    let serializableArgs: unknown = args;
     let callbackId: string | undefined;
 
     const possibleCallback: unknown = args[args.length - 1];

@@ -60,6 +60,58 @@ export type GameLobbyActions = {
   setMessageDraft: (draft: string) => void;
 };
 
+type JoinContext = {
+  socket: GameSocket;
+  joiningRef: { current: boolean };
+  playerNameRef: { current: string };
+  msgIdRef: { current: number };
+  setJoinStatus: (s: string) => void;
+  setJoining: (b: boolean) => void;
+  setPlayerName: (n: string) => void;
+  setCurrentUserRole: (r: string | undefined) => void;
+  setVisitCapability: (v: VisitCapability) => void;
+  setMessages: (fn: (cur: ChatMessage[]) => ChatMessage[]) => void;
+  setCanTalk: (b: boolean) => void;
+  setCanVote: (b: boolean) => void;
+};
+
+function performJoin(ctx: JoinContext) {
+  if (ctx.joiningRef.current) return;
+  if (!SOCKET_URL) { ctx.setJoinStatus("Socket server URL is not configured."); return; }
+  if (!CAPTCHA_TOKEN) { ctx.setJoinStatus("Captcha token is not configured."); return; }
+  ctx.joiningRef.current = true;
+  ctx.setJoining(true);
+  ctx.setJoinStatus("Joining game room...");
+  const timeout = setTimeout(() => {
+    ctx.setJoinStatus("Could not connect to the game server.");
+    ctx.joiningRef.current = false;
+    ctx.setJoining(false);
+  }, 7000);
+  ctx.socket.connect();
+  ctx.socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (result: string | number) => {
+    clearTimeout(timeout);
+    if (typeof result === "string") {
+      ctx.playerNameRef.current = result;
+      ctx.setPlayerName(result);
+      ctx.setCurrentUserRole(undefined);
+      ctx.setVisitCapability(defaultVisitCapability);
+      ctx.setJoinStatus("");
+      ctx.setMessages(() => []);
+      ctx.msgIdRef.current = 0;
+      ctx.setCanTalk(true);
+      ctx.setCanVote(true);
+    } else if (result === JOIN_ERROR.ROOM_FULL) {
+      ctx.setJoinStatus("Room is full. Please try again.");
+    } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
+      ctx.setJoinStatus("Failed captcha verification.");
+    } else {
+      ctx.setJoinStatus("Unable to join room.");
+    }
+    ctx.joiningRef.current = false;
+    ctx.setJoining(false);
+  });
+}
+
 export function useGameLobby(): GameLobbyState & GameLobbyActions {
   const [joinStatus, setJoinStatus] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -92,41 +144,10 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
       setMessages((cur) => (cur.some((m) => m.id === id) ? cur : [...cur, { id, text }]));
     };
 
-    const attemptJoin = () => {
-      if (joiningRef.current) return;
-      if (!SOCKET_URL) { setJoinStatus("Socket server URL is not configured."); return; }
-      if (!CAPTCHA_TOKEN) { setJoinStatus("Captcha token is not configured."); return; }
-      joiningRef.current = true;
-      setJoining(true);
-      setJoinStatus("Joining game room...");
-      const timeout = setTimeout(() => {
-        setJoinStatus("Could not connect to the game server.");
-        joiningRef.current = false;
-        setJoining(false);
-      }, 7000);
-      socket.connect();
-      socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (result: string | number) => {
-        clearTimeout(timeout);
-        if (typeof result === "string") {
-          playerNameRef.current = result;
-          setPlayerName(result);
-          setCurrentUserRole(undefined);
-          setVisitCapability(defaultVisitCapability);
-          setJoinStatus("");
-          setMessages([]);
-          msgIdRef.current = 0;
-          setCanTalk(true);
-          setCanVote(true);
-        } else if (result === JOIN_ERROR.ROOM_FULL) {
-          setJoinStatus("Room is full. Please try again.");
-        } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
-          setJoinStatus("Failed captcha verification.");
-        } else {
-          setJoinStatus("Unable to join room.");
-        }
-        joiningRef.current = false;
-        setJoining(false);
-      });
+    const joinCtx: JoinContext = {
+      socket, joiningRef, playerNameRef, msgIdRef,
+      setJoinStatus, setJoining, setPlayerName, setCurrentUserRole,
+      setVisitCapability, setMessages, setCanTalk, setCanVote,
     };
 
     const onNewPlayer = (p: { name: string }) =>
@@ -168,7 +189,7 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
     socket.on("update-day-time", onDayTime);
     socket.on("update-player-visit", () => undefined);
 
-    const autoJoin = setTimeout(attemptJoin, 0);
+    const autoJoin = setTimeout(() => performJoin(joinCtx), 0);
 
     return () => {
       clearTimeout(autoJoin);
@@ -197,41 +218,12 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
     return () => clearInterval(timer);
   }, [timeLeft]);
 
-  // joinGame is exposed for the "Retry" button; uses socket from outer scope (stable)
   const joinGame = () => {
-    if (joiningRef.current || !socket) return;
-    if (!SOCKET_URL) { setJoinStatus("Socket server URL is not configured."); return; }
-    if (!CAPTCHA_TOKEN) { setJoinStatus("Captcha token is not configured."); return; }
-    joiningRef.current = true;
-    setJoining(true);
-    setJoinStatus("Joining game room...");
-    const timeout = setTimeout(() => {
-      setJoinStatus("Could not connect to the game server.");
-      joiningRef.current = false;
-      setJoining(false);
-    }, 7000);
-    socket.connect();
-    socket.emit("playerJoinRoom", CAPTCHA_TOKEN, (result: string | number) => {
-      clearTimeout(timeout);
-      if (typeof result === "string") {
-        playerNameRef.current = result;
-        setPlayerName(result);
-        setCurrentUserRole(undefined);
-        setVisitCapability(defaultVisitCapability);
-        setJoinStatus("");
-        setMessages([]);
-        msgIdRef.current = 0;
-        setCanTalk(true);
-        setCanVote(true);
-      } else if (result === JOIN_ERROR.ROOM_FULL) {
-        setJoinStatus("Room is full. Please try again.");
-      } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
-        setJoinStatus("Failed captcha verification.");
-      } else {
-        setJoinStatus("Unable to join room.");
-      }
-      joiningRef.current = false;
-      setJoining(false);
+    if (!socket) return;
+    performJoin({
+      socket, joiningRef, playerNameRef, msgIdRef,
+      setJoinStatus, setJoining, setPlayerName, setCurrentUserRole,
+      setVisitCapability, setMessages, setCanTalk, setCanVote,
     });
   };
 
