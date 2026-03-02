@@ -26,7 +26,7 @@ export function createGameSocket(
     }
 
     case "partykit": {
-      const wsUrl = config.url.replace(/^https?/, "ws");
+      const wsUrl = config.url.replace(/^http(s?)/, "ws$1");
       const room = config.room ?? "default";
       return new PartykitClientAdapter(
         `${wsUrl}/party/${room}`,
