@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "~/server/trpc/router";
@@ -12,23 +12,22 @@ type RecentMatchesProps = {
   title: string;
 };
 
+function createClient() {
+  return createTRPCProxyClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: "/api/trpc",
+        transformer: superjson,
+      }),
+    ],
+  });
+}
+
 export function RecentMatches({ username, title }: RecentMatchesProps) {
   const [matches, setMatches] = useState<RecentMatchSummary[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
-
-  const trpcClient = useMemo(
-    () =>
-      createTRPCProxyClient<AppRouter>({
-        links: [
-          httpBatchLink({
-            url: "/api/trpc",
-            transformer: superjson,
-          }),
-        ],
-      }),
-    [],
-  );
+  const [trpcClient] = useState(createClient);
 
   useEffect(() => {
     if (!username.trim()) {
@@ -76,7 +75,8 @@ export function RecentMatches({ username, title }: RecentMatchesProps) {
               {new Date(match.endedAt).toLocaleString()} • {match.roomName}
             </p>
             <p className="text-muted-foreground">
-              Winners: {match.winningRoles.join(", ") || "None"} • Events: {match.conversationCount + match.actionCount}
+              Winners: {match.winningRoles.join(", ") || "None"} • Events:{" "}
+              {match.conversationCount + match.actionCount}
             </p>
           </div>
         ))}
@@ -84,3 +84,4 @@ export function RecentMatches({ username, title }: RecentMatchesProps) {
     </Card>
   );
 }
+

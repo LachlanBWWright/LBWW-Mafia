@@ -1,7 +1,7 @@
 /**
  * Mutable GameEmitter singleton.
  * The chosen backend (Socket.IO or PartyKit) sets the emitter before game logic runs.
- * All game logic imports `io` from socket.ts, which delegates to this emitter.
+ * All game logic imports `io` from this module, which delegates to the active emitter.
  */
 import type { GameEmitter } from "../../shared/communication/serverTypes.js";
 

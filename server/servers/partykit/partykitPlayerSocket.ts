@@ -2,16 +2,21 @@
  * Wraps a PartyKit Connection to match the GamePlayerSocket interface
  * expected by Room and Player classes.
  */
-import type * as Party from "partykit/server";
-import type { GamePlayerSocket } from "../socket.js";
+import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
 import type { Room } from "../../model/rooms/room.js";
+
+/** Minimal subset of Party.Connection that PartykitPlayerSocket requires. */
+export type PartyConnectionAdapter = {
+  id: string;
+  send(msg: string): void;
+};
 
 export class PartykitPlayerSocket implements GamePlayerSocket {
   id: string;
   data: { roomObject?: Room; position?: number };
-  private connection: Party.Connection;
+  private connection: PartyConnectionAdapter;
 
-  constructor(connection: Party.Connection) {
+  constructor(connection: PartyConnectionAdapter) {
     this.connection = connection;
     this.id = connection.id;
     this.data = {};

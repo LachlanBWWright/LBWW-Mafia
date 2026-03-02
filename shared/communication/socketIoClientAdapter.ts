@@ -1,40 +1,55 @@
 /**
  * Socket.IO implementation of the GameSocket interface.
- * Wraps a socket.io-client Socket with the unified API.
+ * Wraps a socket.io-client Socket typed to the game's event maps.
  */
 import type { GameSocket } from "./clientTypes";
+import type { ServerToClientEvents, ClientToServerEvents } from "./events";
 
 /**
- * Wraps a socket.io-client Socket instance to conform to GameSocket.
- * The underlying socket.io-client Socket is passed in - this adapter
- * simply delegates all calls to it.
+ * Minimal structural interface that socket.io-client's Socket satisfies when
+ * created as `io<ServerToClientEvents, ClientToServerEvents>(url, opts)`.
+ * Using a local structural type avoids importing socket.io-client in shared.
  */
+export type SocketIoCompatible = {
+  on<K extends keyof ServerToClientEvents>(
+    event: K,
+    listener: ServerToClientEvents[K],
+  ): unknown;
+  off<K extends keyof ServerToClientEvents>(
+    event: K,
+    listener?: ServerToClientEvents[K],
+  ): unknown;
+  emit<K extends keyof ClientToServerEvents>(
+    event: K,
+    ...args: Parameters<ClientToServerEvents[K]>
+  ): unknown;
+  connect(): unknown;
+  disconnect(): unknown;
+  readonly id: string | undefined;
+  readonly connected: boolean;
+};
+
 export class SocketIoClientAdapter implements GameSocket {
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  private socket: {
-    on(event: string, handler: (...args: any[]) => void): void;
-    off(event: string, handler?: (...args: any[]) => void): void;
-    emit(event: string, ...args: any[]): void;
-    connect(): void;
-    disconnect(): void;
-    readonly id: string | undefined;
-    readonly connected: boolean;
-  };
-  /* eslint-enable @typescript-eslint/no-explicit-any */
+  constructor(private socket: SocketIoCompatible) {}
 
-  constructor(socket: unknown) {
-    this.socket = socket as typeof this.socket;
-  }
-
-  on(event: string, handler: (...args: any[]) => void): void {
+  on<K extends keyof ServerToClientEvents>(
+    event: K,
+    handler: ServerToClientEvents[K],
+  ): void {
     this.socket.on(event, handler);
   }
 
-  off(event: string, handler?: (...args: any[]) => void): void {
+  off<K extends keyof ServerToClientEvents>(
+    event: K,
+    handler?: ServerToClientEvents[K],
+  ): void {
     this.socket.off(event, handler);
   }
 
-  emit(event: string, ...args: any[]): void {
+  emit<K extends keyof ClientToServerEvents>(
+    event: K,
+    ...args: Parameters<ClientToServerEvents[K]>
+  ): void {
     this.socket.emit(event, ...args);
   }
 

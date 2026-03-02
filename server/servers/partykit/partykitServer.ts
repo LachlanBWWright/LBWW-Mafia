@@ -54,7 +54,7 @@ export default class MafiaPartyServer implements Party.Server {
   }
 
   onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: Party.Connection) {
-    const raw = typeof message === "string" ? message : new TextDecoder().decode(message as ArrayBuffer);
+    const raw = typeof message === "string" ? message : new TextDecoder().decode(message);
 
     let parsed: ClientMessage;
     try {
@@ -162,9 +162,10 @@ export default class MafiaPartyServer implements Party.Server {
   onClose(connection: Party.Connection) {
     console.log(`PartyKit: Connection closed ${connection.id}`);
     const playerSocket = this.playerSockets.get(connection.id);
-    if (playerSocket?.data.roomObject) {
+    const room = playerSocket?.data.roomObject;
+    if (room) {
       runSafely("Disconnect error", () => {
-        (playerSocket.data.roomObject as Room).removePlayer(connection.id);
+        room.removePlayer(connection.id);
       });
     }
     this.playerSockets.delete(connection.id);

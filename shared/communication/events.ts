@@ -42,7 +42,7 @@ export type ServerToClientEvents = {
   "receive-chat-message": (message: string) => void;
   "receive-whisper-message": (message: string) => void;
   "update-day-time": (data: {
-    time: string;
+    time: "Day" | "Night";
     dayNumber: number;
     timeLeft: number;
   }) => void;

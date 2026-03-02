@@ -8,18 +8,24 @@
  *   - `to(connectionId)` → send to a specific connection
  *   - `in(roomName)` → { disconnectSockets() } → close all connections
  */
-import type * as Party from "partykit/server";
 import type {
   GameEmitter,
   EmitTarget,
   DisconnectTarget,
 } from "@mernmafia/shared/communication/serverTypes";
 
+/** Minimal subset of Party.Room that PartykitEmitter requires. */
+export type PartyRoomAdapter = {
+  broadcast(msg: string): void;
+  getConnection(id: string): { send(msg: string): void } | undefined | null;
+  getConnections(): Iterable<{ close(code?: number, reason?: string): void }>;
+};
+
 export class PartykitEmitter implements GameEmitter {
-  private partyRoom: Party.Room;
+  private partyRoom: PartyRoomAdapter;
   private roomName: string;
 
-  constructor(partyRoom: Party.Room, roomName: string) {
+  constructor(partyRoom: PartyRoomAdapter, roomName: string) {
     this.partyRoom = partyRoom;
     this.roomName = roomName;
   }

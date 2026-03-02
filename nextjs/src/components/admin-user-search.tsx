@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "~/server/trpc/router";
@@ -12,23 +12,22 @@ type AdminUserSearchProps = {
   initialQuery: string;
 };
 
+function createClient() {
+  return createTRPCProxyClient<AppRouter>({
+    links: [
+      httpBatchLink({
+        url: "/api/trpc",
+        transformer: superjson,
+      }),
+    ],
+  });
+}
+
 export function AdminUserSearch({ initialQuery }: AdminUserSearchProps) {
   const [query, setQuery] = useState(initialQuery);
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [status, setStatus] = useState("Run a search to view users.");
-
-  const trpcClient = useMemo(
-    () =>
-      createTRPCProxyClient<AppRouter>({
-        links: [
-          httpBatchLink({
-            url: "/api/trpc",
-            transformer: superjson,
-          }),
-        ],
-      }),
-    [],
-  );
+  const [trpcClient] = useState(createClient);
 
   const searchUsers = async () => {
     setStatus("Searching users...");

@@ -1,21 +1,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SocketIoClientAdapter } from "./socketIoClientAdapter";
+import { SocketIoClientAdapter, type SocketIoCompatible } from "./socketIoClientAdapter";
 import { PartykitClientAdapter } from "./partykitClientAdapter";
 import { createGameSocket } from "./createGameSocket";
+import type { GameSocketConfig } from "./clientTypes";
 
 // ───────────── SocketIoClientAdapter tests ─────────────
 
 test("SocketIoClientAdapter delegates on/off/emit to underlying socket", () => {
   const calls: { method: string; args: unknown[] }[] = [];
-  const mockSocket = {
-    on(event: string, handler: (...args: unknown[]) => void) {
+  const mockSocket: SocketIoCompatible = {
+    on(event, handler) {
       calls.push({ method: "on", args: [event, handler] });
     },
-    off(event: string, handler?: (...args: unknown[]) => void) {
+    off(event, handler) {
       calls.push({ method: "off", args: [event, handler] });
     },
-    emit(event: string, ...args: unknown[]) {
+    emit(event, ...args) {
       calls.push({ method: "emit", args: [event, ...args] });
     },
     connect() {
@@ -30,33 +31,27 @@ test("SocketIoClientAdapter delegates on/off/emit to underlying socket", () => {
 
   const adapter = new SocketIoClientAdapter(mockSocket);
 
-  // Test properties
   assert.equal(adapter.id, "test-socket-123");
   assert.equal(adapter.connected, true);
 
-  // Test on
-  const handler = () => {};
-  adapter.on("test-event", handler);
+  const handler = (msg: string) => msg;
+  adapter.on("receiveMessage", handler);
   assert.equal(calls[0]?.method, "on");
-  assert.equal(calls[0]?.args[0], "test-event");
+  assert.equal(calls[0]?.args[0], "receiveMessage");
 
-  // Test emit
-  adapter.emit("test-event", "arg1", "arg2");
+  adapter.emit("messageSentByUser", "hello", true);
   assert.equal(calls[1]?.method, "emit");
-  assert.equal(calls[1]?.args[0], "test-event");
-  assert.equal(calls[1]?.args[1], "arg1");
-  assert.equal(calls[1]?.args[2], "arg2");
+  assert.equal(calls[1]?.args[0], "messageSentByUser");
+  assert.equal(calls[1]?.args[1], "hello");
+  assert.equal(calls[1]?.args[2], true);
 
-  // Test off
-  adapter.off("test-event", handler);
+  adapter.off("receiveMessage", handler);
   assert.equal(calls[2]?.method, "off");
-  assert.equal(calls[2]?.args[0], "test-event");
+  assert.equal(calls[2]?.args[0], "receiveMessage");
 
-  // Test connect
   adapter.connect();
   assert.equal(calls[3]?.method, "connect");
 
-  // Test disconnect
   adapter.disconnect();
   assert.equal(calls[4]?.method, "disconnect");
 });
@@ -64,16 +59,13 @@ test("SocketIoClientAdapter delegates on/off/emit to underlying socket", () => {
 // ───────────── PartykitClientAdapter tests ─────────────
 
 test("PartykitClientAdapter registers and dispatches event handlers", () => {
-  // Create adapter without auto-connecting (no WebSocket needed)
   const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
 
   const received: string[] = [];
-  adapter.on("test-event", (msg: string) => {
+  adapter.on("receiveMessage", (msg: string) => {
     received.push(msg);
   });
 
-  // Simulate dispatching (through the internal mechanism)
-  // Since dispatch is private, we test through the full flow with a mock WebSocket
   assert.equal(adapter.connected, false);
   assert.equal(adapter.id, undefined);
 });
@@ -81,57 +73,49 @@ test("PartykitClientAdapter registers and dispatches event handlers", () => {
 test("PartykitClientAdapter off removes specific handler", () => {
   const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
 
-  const handler1 = () => {};
-  const handler2 = () => {};
+  const handler1 = (msg: string) => msg;
+  const handler2 = (msg: string) => msg;
 
-  adapter.on("event", handler1);
-  adapter.on("event", handler2);
-
-  // Remove specific handler
-  adapter.off("event", handler1);
-  // handler2 should still be registered (no assertion for internal state, but it shouldn't crash)
+  adapter.on("receiveMessage", handler1);
+  adapter.on("receiveMessage", handler2);
+  adapter.off("receiveMessage", handler1);
 });
 
 test("PartykitClientAdapter off without handler removes all handlers for event", () => {
   const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
 
-  adapter.on("event", () => {});
-  adapter.on("event", () => {});
-
-  // Remove all handlers for the event
-  adapter.off("event");
-  // No crash means success
+  adapter.on("receiveMessage", (msg: string) => msg);
+  adapter.on("receiveMessage", (msg: string) => msg);
+  adapter.off("receiveMessage");
 });
 
 test("PartykitClientAdapter emit with callback stores pending callback", () => {
   const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
 
-  // This should not throw even without a connection (emit is a no-op when not connected)
   let callbackCalled = false;
-  adapter.emit("playerJoinRoom", "token", (result: string) => {
+  adapter.emit("playerJoinRoom", "token", (_result: string | number) => {
     callbackCalled = true;
   });
 
-  // Callback should not be called yet (no connection)
   assert.equal(callbackCalled, false);
 });
 
 // ───────────── createGameSocket factory tests ─────────────
 
 test("createGameSocket creates SocketIoClientAdapter for socketio type", () => {
-  const mockIo = (url: string, opts?: Record<string, unknown>) => ({
-    on: () => {},
-    off: () => {},
-    emit: () => {},
-    connect: () => {},
-    disconnect: () => {},
+  const mockSocket: SocketIoCompatible = {
+    on() { return undefined; },
+    off() { return undefined; },
+    emit() { return undefined; },
+    connect() { return undefined; },
+    disconnect() { return undefined; },
     id: "mock-id",
     connected: false,
-  });
+  };
 
   const socket = createGameSocket(
     { type: "socketio", url: "http://localhost:8000", autoConnect: false },
-    mockIo as (...args: any[]) => any,
+    mockSocket,
   );
 
   assert.ok(socket);
@@ -147,7 +131,6 @@ test("createGameSocket throws for socketio without io function", () => {
 });
 
 test("createGameSocket creates PartykitClientAdapter for partykit type", () => {
-  // PartyKit adapter creation should succeed (but won't connect to a real server)
   const socket = createGameSocket({
     type: "partykit",
     url: "http://localhost:1999",
@@ -172,8 +155,12 @@ test("createGameSocket uses default room for partykit when not specified", () =>
 });
 
 test("createGameSocket throws for unknown backend type", () => {
+  // Parse config at runtime to bypass compile-time type exhaustiveness check
+  const config = JSON.parse(
+    '{"type":"unknown","url":"http://localhost:8000"}',
+  ) as GameSocketConfig;
   assert.throws(() => {
-    createGameSocket({ type: "unknown" as any, url: "http://localhost:8000" });
+    createGameSocket(config);
   }, /Unknown socket backend type/);
 });
 
@@ -181,13 +168,13 @@ test("createGameSocket throws for unknown backend type", () => {
 
 test("SocketIoClientAdapter correctly reflects connected state changes", () => {
   let currentConnected = false;
-  const mockSocket = {
-    on: () => {},
-    off: () => {},
-    emit: () => {},
-    connect: () => { currentConnected = true; },
-    disconnect: () => { currentConnected = false; },
-    id: undefined as string | undefined,
+  const mockSocket: SocketIoCompatible = {
+    on() { return undefined; },
+    off() { return undefined; },
+    emit() { return undefined; },
+    connect() { currentConnected = true; return undefined; },
+    disconnect() { currentConnected = false; return undefined; },
+    id: undefined,
     get connected() { return currentConnected; },
   };
 
@@ -203,26 +190,25 @@ test("SocketIoClientAdapter correctly reflects connected state changes", () => {
 
 test("SocketIoClientAdapter off without handler still calls underlying off", () => {
   const calls: string[] = [];
-  const mockSocket = {
-    on: () => {},
-    off: (event: string) => { calls.push(event); },
-    emit: () => {},
-    connect: () => {},
-    disconnect: () => {},
+  const mockSocket: SocketIoCompatible = {
+    on() { return undefined; },
+    off(event) { calls.push(event); return undefined; },
+    emit() { return undefined; },
+    connect() { return undefined; },
+    disconnect() { return undefined; },
     id: "id",
     connected: false,
   };
 
   const adapter = new SocketIoClientAdapter(mockSocket);
-  adapter.off("some-event");
+  adapter.off("receiveMessage");
   assert.equal(calls.length, 1);
-  assert.equal(calls[0], "some-event");
+  assert.equal(calls[0], "receiveMessage");
 });
 
 // ───────────── createGameSocket with partykit URL conversion ─────────────
 
 test("createGameSocket converts http URL to ws URL for partykit", () => {
-  // This test ensures the factory properly converts http:// to ws:// for PartyKit
   const socket = createGameSocket({
     type: "partykit",
     url: "http://example.com",
@@ -251,8 +237,8 @@ test("createGameSocket handles https URL for partykit", () => {
 test("PartykitClientAdapter disconnect is safe to call when not connected", () => {
   const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
 
-  // Should not throw
   adapter.disconnect();
   assert.equal(adapter.connected, false);
   assert.equal(adapter.id, undefined);
 });
+

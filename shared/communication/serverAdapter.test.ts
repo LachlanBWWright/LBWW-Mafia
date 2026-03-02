@@ -57,7 +57,7 @@ test("setGameEmitter and getGameEmitter round-trip", () => {
 
 test("io delegating object works after emitter is set", async () => {
   // Dynamically import both to ensure we're using the same module instances
-  const { io } = await import("../../server/servers/socket");
+  const { io } = await import("../../server/servers/emitter");
   const { setGameEmitter: setEmitter } = await import("../../server/servers/emitter");
 
   const emittedCalls: { target: string; event: string; args: unknown[] }[] = [];
@@ -138,7 +138,7 @@ test("PartykitEmitter broadcasts to room and sends to individual connections", a
     },
   };
 
-  const emitter = new PartykitEmitter(mockPartyRoom as any, "test-room-name");
+  const emitter = new PartykitEmitter(mockPartyRoom, "test-room-name");
 
   // Test broadcasting to room
   emitter.to("test-room-name").emit("receiveMessage", "Hello room");
@@ -184,7 +184,7 @@ test("PartykitPlayerSocket wraps connection with correct interface", async () =>
     },
   };
 
-  const playerSocket = new PartykitPlayerSocket(mockConnection as any);
+  const playerSocket = new PartykitPlayerSocket(mockConnection);
 
   assert.equal(playerSocket.id, "pk-conn-1");
   assert.deepEqual(playerSocket.data, {});
@@ -218,7 +218,7 @@ test("both PlayerSocket (Socket.IO) and PartykitPlayerSocket satisfy GamePlayerS
     send() {},
   };
 
-  const pkSocket = new PartykitPlayerSocket(mockConnection as any);
+  const pkSocket = new PartykitPlayerSocket(mockConnection);
 
   // Verify the shape
   assert.equal(typeof pkSocket.id, "string");

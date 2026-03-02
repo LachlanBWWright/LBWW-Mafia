@@ -26,7 +26,11 @@ import {
   shouldShowVisitAction,
   type VisitCapability,
 } from "../../shared/game/playerActionRules";
-import { createGameSocket, type GameSocket, type SocketBackendType } from "../../shared/communication";
+import {
+  SocketIoClientAdapter,
+} from "../../shared/communication/socketIoClientAdapter";
+import { PartykitClientAdapter } from "../../shared/communication/partykitClientAdapter";
+import type { GameSocket, SocketBackendType } from "../../shared/communication/clientTypes";
 
 type Player = {
   name: string;
@@ -173,26 +177,25 @@ const styles = StyleSheet.create({
 type GameScreenProps = NativeStackScreenProps<StackParamList, "GameScreen">;
 
 export function GameScreen({ route, navigation }: GameScreenProps) {
-  const SOCKET_URL =
-    process.env.EXPO_PUBLIC_SOCKET_URL ??
-    (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
+  const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL ?? "";
   const CAPTCHA_TOKEN =
     process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ??
     (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
+  const rawBackend = process.env.EXPO_PUBLIC_SOCKET_BACKEND;
   const SOCKET_BACKEND: SocketBackendType =
-    (process.env.EXPO_PUBLIC_SOCKET_BACKEND as SocketBackendType) ?? "socketio";
+    rawBackend === "partykit" ? "partykit" : "socketio";
   const PARTYKIT_ROOM = process.env.EXPO_PUBLIC_PARTYKIT_ROOM ?? "default";
 
-  const [socket] = useState<GameSocket>(() =>
-    createGameSocket(
-      {
-        type: SOCKET_BACKEND,
-        url: SOCKET_URL,
-        room: PARTYKIT_ROOM,
-      },
-      io,
-    ),
-  );
+  const [socket] = useState<GameSocket>(() => {
+    if (SOCKET_BACKEND === "partykit") {
+      const wsUrl = SOCKET_URL.replace(/^https?/, "ws");
+      return new PartykitClientAdapter(`${wsUrl}/party/${PARTYKIT_ROOM}`, false);
+    }
+    const raw = io(SOCKET_URL, {
+      autoConnect: false,
+    });
+    return new SocketIoClientAdapter(raw);
+  });
   const [message, setMessage] = useState("");
   const [joinedAs, setJoinedAs] = useState(route.params.name);
   const [playerRole, setPlayerRole] = useState("");
