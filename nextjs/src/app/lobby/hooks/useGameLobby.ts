@@ -30,7 +30,7 @@ type ChatMessage = { id: number; text: string };
 function buildSocket(): GameSocket | null {
   if (!SOCKET_URL) return null;
   if (SOCKET_BACKEND === "partykit") {
-    const wsUrl = SOCKET_URL.replace(/^https?/, "ws");
+    const wsUrl = SOCKET_URL.replace(/^http(s?)/, "ws$1");
     return new PartykitClientAdapter(`${wsUrl}/party/${PARTYKIT_ROOM}`, false);
   }
   const raw = io(SOCKET_URL, { autoConnect: false });
