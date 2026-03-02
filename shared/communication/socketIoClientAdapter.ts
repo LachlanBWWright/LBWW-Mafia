@@ -53,7 +53,7 @@ export class SocketIoClientAdapter implements GameSocket {
     this.socket.emit(event, ...args);
   }
 
-  connect(): void {
+  connect(_onOpen?: () => void): void {
     this.socket.connect();
   }
 

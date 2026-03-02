@@ -1,5 +1,15 @@
 import { relations, sql } from "drizzle-orm";
-import { index, integer, pgTableCreator, primaryKey, serial, text, timestamp, boolean, varchar } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  pgTableCreator,
+  primaryKey,
+  serial,
+  text,
+  timestamp,
+  boolean,
+  varchar,
+} from "drizzle-orm/pg-core";
 
 /**
  * Multi-project schema prefix for shared Postgres instance.
@@ -18,7 +28,9 @@ export const posts = createTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`now()`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   }),
   (t) => [
     index("created_by_idx").on(t.createdById),
@@ -33,7 +45,9 @@ export const users = createTable("user", () => ({
     .$defaultFn(() => crypto.randomUUID()),
   name: varchar("name", { length: 255 }),
   email: varchar("email", { length: 255 }).notNull(),
-  emailVerified: timestamp("email_verified", { withTimezone: true }).default(sql`now()`),
+  emailVerified: timestamp("email_verified", { withTimezone: true }).default(
+    sql`now()`,
+  ),
   image: varchar("image", { length: 255 }),
   isAdmin: boolean("is_admin").notNull().default(false),
 }));
@@ -50,7 +64,9 @@ export const accounts = createTable(
       .references(() => users.id),
     type: varchar("type", { length: 255 }).notNull(),
     provider: varchar("provider", { length: 255 }).notNull(),
-    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    providerAccountId: varchar("provider_account_id", {
+      length: 255,
+    }).notNull(),
     refresh_token: text("refresh_token"),
     access_token: text("access_token"),
     expires_at: integer("expires_at"),
@@ -72,7 +88,9 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 export const sessions = createTable(
   "session",
   () => ({
-    sessionToken: varchar("session_token", { length: 255 }).notNull().primaryKey(),
+    sessionToken: varchar("session_token", { length: 255 })
+      .notNull()
+      .primaryKey(),
     userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => users.id),
@@ -111,6 +129,14 @@ export const matches = createTable(
   (t) => [index("match_ended_at_idx").on(t.endedAt)],
 );
 
+export const activeRoom = createTable("active_room", () => ({
+  id: integer("id").primaryKey(),
+  roomId: varchar("room_id", { length: 36 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+}));
+
 export const matchParticipants = createTable(
   "match_participant",
   () => ({
@@ -131,3 +157,19 @@ export const matchParticipants = createTable(
     index("match_participant_username_idx").on(t.username),
   ],
 );
+
+// helper object for easier schema imports
+export const schema = {
+  createTable,
+  posts,
+  users,
+  usersRelations,
+  accounts,
+  accountsRelations,
+  sessions,
+  sessionsRelations,
+  verificationTokens,
+  matches,
+  activeRoom,
+  matchParticipants,
+};

@@ -66,6 +66,7 @@ export type RouterServices = {
   searchUsers: (input: { query: string; limit: number }) => Promise<UserSummary[]>;
   setUserAdmin: (input: { userId: string; isAdmin: boolean }) => Promise<void>;
   persistMatch: (input: PersistMatchInput) => Promise<{ id: number }>;
+  rotateActiveRoom: () => Promise<{ roomId: string }>;
 };
 
 export type AppRouterContext = {
@@ -159,6 +160,10 @@ export function createAppRouter(services: RouterServices) {
           }
           return services.getRecentMatches({ username, limit: input.limit });
         }),
+    }),
+    room: t.router({
+      rotate: backendProcedure
+        .mutation(() => services.rotateActiveRoom()),
     }),
     admin: t.router({
       searchUsers: adminProcedure

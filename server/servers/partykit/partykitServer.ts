@@ -38,7 +38,7 @@ export default class MafiaPartyServer implements Party.Server {
   constructor(readonly room: Party.Room) {
     this.roomSize = 13;
 
-    this.gameRoom = new Room(this.roomSize);
+    this.gameRoom = new Room(this.roomSize, room.id);
 
     // Initialize the GameEmitter for this party instance
     const emitter = new PartykitEmitter(room, this.gameRoom.name);
@@ -88,13 +88,6 @@ export default class MafiaPartyServer implements Party.Server {
     switch (parsed.event) {
       case ClientEvent.PlayerJoinRoom: {
         // In PartyKit mode, skip CAPTCHA and directly add player
-        if (this.gameRoom.started) {
-          // Create a new room if the current one already started
-          this.gameRoom = new Room(this.roomSize);
-          const emitter = new PartykitEmitter(this.room, this.gameRoom.name);
-          setGameEmitter(emitter);
-        }
-
         playerSocket.data.roomObject = this.gameRoom;
         const result = this.gameRoom.addUser(playerSocket);
 

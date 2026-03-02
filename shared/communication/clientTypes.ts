@@ -22,7 +22,7 @@ export interface GameSocket {
     event: K,
     ...args: Parameters<ClientToServerEvents[K]>
   ): void;
-  connect(): void;
+  connect(onOpen?: () => void): void;
   disconnect(): void;
   readonly id: string | undefined;
   readonly connected: boolean;

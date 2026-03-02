@@ -20,18 +20,16 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "";
 const CAPTCHA_TOKEN =
   process.env.NEXT_PUBLIC_CAPTCHA_TOKEN ??
   (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
-const PARTYKIT_ROOM = process.env.NEXT_PUBLIC_PARTYKIT_ROOM ?? "default";
-
 const JOIN_ERROR = { CAPTCHA_FAILED: 2, ROOM_FULL: 3 } as const;
 
 export type Player = { name: string; isAlive?: boolean; role?: string };
 type ChatMessage = { id: number; text: string };
 
-function buildSocket(): GameSocket | null {
+function buildSocket(roomId: string): GameSocket | null {
   if (!SOCKET_URL) return null;
   if (SOCKET_BACKEND === "partykit") {
     const wsUrl = SOCKET_URL.replace(/^http(s?)/, "ws$1");
-    return new PartykitClientAdapter(`${wsUrl}/party/${PARTYKIT_ROOM}`, false);
+    return new PartykitClientAdapter(`${wsUrl}/party/${roomId}`, false);
   }
   const raw = io(SOCKET_URL, { autoConnect: false });
   return new SocketIoClientAdapter(raw);
@@ -89,7 +87,7 @@ function performJoin(ctx: JoinContext) {
     ctx.joiningRef.current = false;
     ctx.setJoining(false);
   }, 7000);
-  ctx.socket.connect();
+  ctx.socket.connect(() => {
   ctx.socket.emit(ClientEvent.PlayerJoinRoom, CAPTCHA_TOKEN, (result: string | number) => {
     clearTimeout(timeout);
     if (typeof result === "string") {
@@ -112,9 +110,10 @@ function performJoin(ctx: JoinContext) {
     ctx.joiningRef.current = false;
     ctx.setJoining(false);
   });
+  });
 }
 
-export function useGameLobby(): GameLobbyState & GameLobbyActions {
+export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions {
   const [joinStatus, setJoinStatus] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [joining, setJoining] = useState(false);
@@ -130,7 +129,7 @@ export function useGameLobby(): GameLobbyState & GameLobbyActions {
   const [currentUserRole, setCurrentUserRole] = useState<string | undefined>();
 
   // Socket is created once via lazy useState initializer (never changes after mount)
-  const [socket] = useState<GameSocket | null>(() => buildSocket());
+  const [socket] = useState<GameSocket | null>(() => buildSocket(roomId));
 
   const msgIdRef = useRef(0);
   const joiningRef = useRef(false);

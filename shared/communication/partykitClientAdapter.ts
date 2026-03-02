@@ -140,13 +140,19 @@ export class PartykitClientAdapter implements GameSocket {
     );
   }
 
-  connect(): void {
-    if (
-      this.ws &&
-      (this.ws.readyState === WebSocket.OPEN ||
-        this.ws.readyState === WebSocket.CONNECTING)
-    ) {
-      return;
+  connect(onOpen?: () => void): void {
+    if (this.ws) {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        onOpen?.();
+        return;
+      }
+      if (this.ws.readyState === WebSocket.CONNECTING) {
+        if (onOpen) {
+          const prev = this.ws.onopen as (() => void) | null;
+          this.ws.onopen = () => { prev?.(); onOpen(); };
+        }
+        return;
+      }
     }
 
     this.ws = new WebSocket(this.url);
@@ -156,6 +162,7 @@ export class PartykitClientAdapter implements GameSocket {
       this._id = `pk_${Date.now().toString(36)}_${Math.random()
         .toString(36)
         .slice(2, 10)}`;
+      onOpen?.();
     };
 
     this.ws.onmessage = (msgEvent: MessageEvent) => {

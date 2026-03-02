@@ -1,6 +1,7 @@
-import { desc, eq, inArray, like, or } from "drizzle-orm";
+import { desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import {
+  activeRoom,
   matchParticipants,
   matches,
   users,
@@ -214,9 +215,22 @@ const persistMatch = async (input: PersistMatchInput): Promise<{ id: number }> =
   return { id: matchId };
 };
 
+const rotateActiveRoom = async (): Promise<{ roomId: string }> => {
+  const roomId = crypto.randomUUID();
+  await db
+    .insert(activeRoom)
+    .values({ id: 1, roomId })
+    .onConflictDoUpdate({
+      target: activeRoom.id,
+      set: { roomId, updatedAt: sql`now()` },
+    });
+  return { roomId };
+};
+
 export const trpcServices: RouterServices = {
   getRecentMatches,
   searchUsers,
   setUserAdmin,
   persistMatch,
+  rotateActiveRoom,
 };

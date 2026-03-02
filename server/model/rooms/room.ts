@@ -18,6 +18,7 @@ import { names } from "../player/names/namesList.js";
 import { fromThrowable } from "neverthrow";
 import {
   persistMatchHistory,
+  rotateActiveRoom,
   type MatchHistoryEvent,
 } from "../../data/matchHistory.js";
 
@@ -47,8 +48,8 @@ export class Room {
   conversationHistory: MatchHistoryEvent[] = [];
   actionHistory: MatchHistoryEvent[] = [];
 
-  constructor(size: number) {
-    this.name = Crypto.randomBytes(8).toString("hex");
+  constructor(size: number, name?: string) {
+    this.name = name ?? Crypto.randomBytes(8).toString("hex");
     this.size = size;
     this.sessionLength = this.size * 4000;
   }
@@ -106,6 +107,9 @@ export class Room {
       this.started = true;
       io.to(this.name).emit(ServerEvent.ReceiveMessage, "The room is full! Starting the game!");
       this.emitUserList(this.name);
+      void rotateActiveRoom().catch((error) => {
+        console.error("Failed to rotate active room", error);
+      });
       this.startGame();
     }
 

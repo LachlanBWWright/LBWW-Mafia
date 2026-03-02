@@ -24,6 +24,29 @@ export type MatchHistoryInput = {
   actionHistory: MatchHistoryEvent[];
 };
 
+export async function rotateActiveRoom(): Promise<void> {
+  const url = process.env.NEXTJS_URL;
+  const secret = process.env.BACKEND_SECRET;
+
+  if (!url || !secret) {
+    console.warn("rotateActiveRoom: NEXTJS_URL or BACKEND_SECRET not set, skipping");
+    return;
+  }
+
+  const res = await fetch(`${url}/api/trpc/room.rotate`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify({ "0": { json: null } }),
+  });
+
+  if (!res.ok) {
+    console.error(`rotateActiveRoom: tRPC request failed with status ${res.status}`);
+  }
+}
+
 export async function persistMatchHistory(input: MatchHistoryInput) {
   const url = process.env.NEXTJS_URL;
   const secret = process.env.BACKEND_SECRET;
