@@ -32,6 +32,32 @@ export type UserSummary = {
   isAdmin: boolean;
 };
 
+export type MatchHistoryEvent = {
+  time: number;
+  type: "system" | "chat" | "whisper" | "action";
+  actor?: string;
+  target?: string;
+  content: string;
+};
+
+export type MatchHistoryParticipant = {
+  userId?: string | null;
+  username: string;
+  role: string;
+  won: boolean;
+};
+
+export type PersistMatchInput = {
+  roomName: string;
+  startedAt: string;
+  endedAt: string;
+  winningFaction: string;
+  winningRoles: string[];
+  participants: MatchHistoryParticipant[];
+  conversationHistory: MatchHistoryEvent[];
+  actionHistory: MatchHistoryEvent[];
+};
+
 export type RouterServices = {
   getRecentMatches: (input: {
     username: string;
@@ -39,10 +65,12 @@ export type RouterServices = {
   }) => Promise<RecentMatchSummary[]>;
   searchUsers: (input: { query: string; limit: number }) => Promise<UserSummary[]>;
   setUserAdmin: (input: { userId: string; isAdmin: boolean }) => Promise<void>;
+  persistMatch: (input: PersistMatchInput) => Promise<{ id: number }>;
 };
 
 export type AppRouterContext = {
   sessionUser: SessionUser | null;
+  isBackend: boolean;
 };
 
 const t = initTRPC.context<AppRouterContext>().create({
@@ -64,6 +92,16 @@ const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   });
 });
 
+const backendProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.isBackend) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "Backend secret required.",
+    });
+  }
+  return next();
+});
+
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.sessionUser.isAdmin) {
     throw new TRPCError({
@@ -77,6 +115,29 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
 export function createAppRouter(services: RouterServices) {
   return t.router({
     match: t.router({
+      persist: backendProcedure
+        .input(
+          z.object({
+            roomName: z.string(),
+            startedAt: z.string(),
+            endedAt: z.string(),
+            winningFaction: z.string(),
+            winningRoles: z.array(z.string()),
+            participants: z.array(
+              z.object({
+                userId: z.string().nullable().optional(),
+                username: z.string(),
+                role: z.string(),
+                won: z.boolean(),
+              }),
+            ),
+            conversationHistory: z.array(z.unknown()),
+            actionHistory: z.array(z.unknown()),
+          }),
+        )
+        .mutation(({ input }) =>
+          services.persistMatch(input as PersistMatchInput),
+        ),
       recentByUsername: t.procedure
         .input(
           z.object({

@@ -1,6 +1,3 @@
-import { db } from "./sharedDb.js";
-import { matches, matchParticipants } from "./schema.js";
-
 export type MatchHistoryEvent = {
   time: number;
   type: "system" | "chat" | "whisper" | "action";
@@ -28,38 +25,43 @@ export type MatchHistoryInput = {
 };
 
 export async function persistMatchHistory(input: MatchHistoryInput) {
-  const insertedMatches = await db
-    .insert(matches)
-    .values({
-      roomName: input.roomName,
-      startedAt: input.startedAt,
-      endedAt: input.endedAt,
-      winningFaction: input.winningFaction,
-      winningRoles: JSON.stringify(input.winningRoles),
-      playerCount: input.participants.length,
-      conversationHistory: JSON.stringify(input.conversationHistory),
-      actionHistory: JSON.stringify(input.actionHistory),
-    })
-    .returning({ id: matches.id });
+  const url = process.env.NEXTJS_URL;
+  const secret = process.env.BACKEND_SECRET;
 
-  const insertedMatch = insertedMatches[0];
-  if (!insertedMatch) {
-    console.error("Failed to insert match history: no record returned", {
-      roomName: input.roomName,
-      endedAt: input.endedAt.toISOString(),
-    });
+  if (!url || !secret) {
+    console.warn(
+      "persistMatchHistory: NEXTJS_URL or BACKEND_SECRET not set, skipping",
+    );
     return;
   }
 
-  if (input.participants.length > 0) {
-    await db.insert(matchParticipants).values(
-      input.participants.map((participant) => ({
-        matchId: insertedMatch.id,
-        userId: participant.userId ?? null,
-        username: participant.username,
-        role: participant.role,
-        won: participant.won,
-      })),
+  const body = {
+    "0": {
+      json: {
+        roomName: input.roomName,
+        startedAt: input.startedAt.toISOString(),
+        endedAt: input.endedAt.toISOString(),
+        winningFaction: input.winningFaction,
+        winningRoles: input.winningRoles,
+        participants: input.participants,
+        conversationHistory: input.conversationHistory,
+        actionHistory: input.actionHistory,
+      },
+    },
+  };
+
+  const res = await fetch(`${url}/api/trpc/match.persist`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    console.error(
+      `persistMatchHistory: tRPC request failed with status ${res.status}`,
     );
   }
 }

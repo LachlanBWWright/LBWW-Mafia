@@ -7,6 +7,7 @@ import {
 } from "@mernmafia/db/schema";
 import type {
   MatchParticipantSummary,
+  PersistMatchInput,
   RecentMatchSummary,
   RouterServices,
   UserSummary,
@@ -178,8 +179,44 @@ const setUserAdmin = async ({
     .where(eq(users.id, userId));
 };
 
+const persistMatch = async (input: PersistMatchInput): Promise<{ id: number }> => {
+  const inserted = await db
+    .insert(matches)
+    .values({
+      roomName: input.roomName,
+      startedAt: new Date(input.startedAt),
+      endedAt: new Date(input.endedAt),
+      winningFaction: input.winningFaction,
+      winningRoles: JSON.stringify(input.winningRoles),
+      playerCount: input.participants.length,
+      conversationHistory: JSON.stringify(input.conversationHistory),
+      actionHistory: JSON.stringify(input.actionHistory),
+    })
+    .returning({ id: matches.id });
+
+  const matchId = inserted[0]?.id;
+  if (!matchId) {
+    throw new Error("Failed to insert match: no record returned");
+  }
+
+  if (input.participants.length > 0) {
+    await db.insert(matchParticipants).values(
+      input.participants.map((p) => ({
+        matchId,
+        userId: p.userId ?? null,
+        username: p.username,
+        role: p.role,
+        won: p.won,
+      })),
+    );
+  }
+
+  return { id: matchId };
+};
+
 export const trpcServices: RouterServices = {
   getRecentMatches,
   searchUsers,
   setUserAdmin,
+  persistMatch,
 };

@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { GamePhase } from "../../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
@@ -21,6 +22,21 @@ export class Jailor extends Role {
 
   constructor(room: Room, player: Player) {
     super(room, player);
+  }
+
+  handleMessage(message: string) {
+    const socketId = this.player.user.socketId;
+    if (this.room.time === GamePhase.Day) {
+      super.handleMessage(message);
+    } else if (this.dayVisiting != null) {
+      io.to(socketId).emit(ServerEvent.ReceiveChatMessage, `Jailor: ${message}`);
+      io.to(this.dayVisiting.player.user.socketId).emit(
+        ServerEvent.ReceiveChatMessage,
+        `Jailor: ${message}`,
+      );
+    } else {
+      super.handleMessage(message);
+    }
   }
 
   handleDayAction(recipient: Player) {

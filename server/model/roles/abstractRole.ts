@@ -2,7 +2,6 @@ import { Room } from "../rooms/room.js";
 import { io } from "../../servers/emitter.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
-import { Jailor } from "./town/jailor.js";
 import { RoleGroup } from "./roleGroup.js";
 import { GamePhase } from "../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
@@ -43,7 +42,7 @@ export abstract class Role {
   silenced = false;
   dayTapped: Role | boolean = false;
   nightTapped: Role | boolean = false;
-  jailed: Jailor | null = null;
+  jailed: Role | null = null;
 
   constructor(room: Room, player: Player) {
     this.room = room;
@@ -73,12 +72,6 @@ export abstract class Role {
       io.to(this.jailed.player.user.socketId).emit(
         ServerEvent.ReceiveChatMessage,
         `${this.player.username}: ${message}`,
-      );
-    } else if (this instanceof Jailor && this.dayVisiting != null) {
-      io.to(socketId).emit(ServerEvent.ReceiveChatMessage, `Jailor: ${message}`);
-      io.to(this.dayVisiting.player.user.socketId).emit(
-        ServerEvent.ReceiveChatMessage,
-        `Jailor: ${message}`,
       );
     } else if (typeof this.faction === "undefined") {
       io.to(socketId).emit(ServerEvent.ReceiveMessage, "You cannot speak at night.");

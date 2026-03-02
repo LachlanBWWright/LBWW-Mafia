@@ -37,10 +37,7 @@ export default class MafiaPartyServer implements Party.Server {
 
   constructor(readonly room: Party.Room) {
     this.roomSize = 13;
-    // PartyKit runs on Cloudflare Workers where server-side HTTP calls to Google reCAPTCHA
-    // are not straightforward. Use Cloudflare Turnstile or another CF-compatible CAPTCHA
-    // for production deployments. Set PARTYKIT_CAPTCHA_ENABLED=true to require validation.
-    this.debugMode = room.env?.PARTYKIT_CAPTCHA_ENABLED !== "true";
+
     this.gameRoom = new Room(this.roomSize);
 
     // Initialize the GameEmitter for this party instance
@@ -54,8 +51,12 @@ export default class MafiaPartyServer implements Party.Server {
     this.playerSockets.set(connection.id, playerSocket);
   }
 
-  onMessage(message: string | ArrayBuffer | ArrayBufferView, sender: Party.Connection) {
-    const raw = typeof message === "string" ? message : new TextDecoder().decode(message);
+  onMessage(
+    message: string | ArrayBuffer | ArrayBufferView,
+    sender: Party.Connection,
+  ) {
+    const raw =
+      typeof message === "string" ? message : new TextDecoder().decode(message);
 
     let parsed: ClientMessage;
     try {
@@ -110,7 +111,11 @@ export default class MafiaPartyServer implements Party.Server {
       case ClientEvent.HandleVote: {
         const recipient = parsed.args[0];
         const isDay = parsed.args[1];
-        if ((typeof recipient !== "number" && recipient !== null) || typeof isDay !== "boolean") break;
+        if (
+          (typeof recipient !== "number" && recipient !== null) ||
+          typeof isDay !== "boolean"
+        )
+          break;
         runSafely("handleVote error", () => {
           if (typeof recipient === "number") {
             if (playerSocket.data.roomObject !== undefined) {
@@ -128,16 +133,19 @@ export default class MafiaPartyServer implements Party.Server {
       case ClientEvent.HandleVisit: {
         const recipient = parsed.args[0];
         const isDay = parsed.args[1];
-        if ((typeof recipient !== "number" && recipient !== null) || typeof isDay !== "boolean") break;
+        if (
+          (typeof recipient !== "number" && recipient !== null) ||
+          typeof isDay !== "boolean"
+        )
+          break;
+        const safeRecipient = recipient as number | null;
         runSafely("handleVisit error", () => {
-          if (typeof recipient === "number" || recipient === null) {
-            if (playerSocket.data.roomObject !== undefined) {
-              playerSocket.data.roomObject.handleVisit(
-                playerSocket,
-                recipient,
-                isDay,
-              );
-            }
+          if (playerSocket.data.roomObject !== undefined) {
+            playerSocket.data.roomObject.handleVisit(
+              playerSocket,
+              safeRecipient,
+              isDay,
+            );
           }
         });
         break;
@@ -147,7 +155,12 @@ export default class MafiaPartyServer implements Party.Server {
         const recipient = parsed.args[0];
         const msg = parsed.args[1];
         const isDay = parsed.args[2];
-        if (typeof recipient !== "number" || typeof msg !== "string" || typeof isDay !== "boolean") break;
+        if (
+          typeof recipient !== "number" ||
+          typeof msg !== "string" ||
+          typeof isDay !== "boolean"
+        )
+          break;
         runSafely("handleWhisper error", () => {
           if (msg.length > 0 && msg.length <= 150) {
             if (playerSocket.data.roomObject !== undefined) {
