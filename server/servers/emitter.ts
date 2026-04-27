@@ -14,9 +14,11 @@ export function setGameEmitter(emitter: GameEmitter): void {
 
 export function getGameEmitter(): Result<GameEmitter, Error> {
   if (!_emitter) {
-    return err(new Error(
-      "GameEmitter not initialized. Call setGameEmitter() from the backend entry point first.",
-    ));
+    return err(
+      new Error(
+        "GameEmitter not initialized. Call setGameEmitter() from the backend entry point first.",
+      ),
+    );
   }
   return ok(_emitter);
 }
@@ -31,7 +33,7 @@ export const io: GameEmitter = {
     const res = getGameEmitter();
     if (res.isErr()) {
       console.warn(res.error);
-      return { emit: () => {} } as any;
+      return { emit: () => {} };
     }
     return res.value.to(target);
   },
@@ -39,7 +41,7 @@ export const io: GameEmitter = {
     const res = getGameEmitter();
     if (res.isErr()) {
       console.warn(res.error);
-      return { disconnectSockets: () => {} } as any;
+      return { disconnectSockets: () => {} };
     }
     return res.value.in(target);
   },
