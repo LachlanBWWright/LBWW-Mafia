@@ -5,7 +5,18 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A Town role that can go on alert at night for protection.
+ * Has a limited number of alert slots (3) and counterattacks visitors while alert.
+ * 
+ * @class Nimby
+ * @extends {Role}
+ */
 export class Nimby extends Role {
+  /**
+   * Number of remaining alert slots for this Nimby.
+   * @type {number}
+   */
   alertSlots = 3;
 
   name = "Nimby";
@@ -21,12 +32,24 @@ export class Nimby extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Nimby instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by toggling alert status.
+   * Uses one alert slot if turning on alert. Must have slots remaining.
+   * 
+   * @param {Player} _recipient - Not used; Nimby only affects self
+   * @returns {void}
+   */
   handleNightAction(_recipient: Player) {
-    //Vote on who should be attacked
     if (this.alertSlots == 0)
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -47,23 +70,32 @@ export class Nimby extends Role {
     }
   }
 
+  /**
+   * Processes the alert visit by increasing self defense and consuming an alert slot.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a role, and gives their defence a minimum of one
     if (this.visiting != null) {
       if (this.visiting.defence == 0) {
-        this.visiting.defence = 1; //Makes the protectee's defence at least 1
+        this.visiting.defence = 1;
         this.alertSlots--;
       }
       this.visiting.receiveVisit(this);
     }
   }
 
+  /**
+   * Counterattacks any visitors to self while on alert.
+   * Inflicts 1 damage to counterattacked visitors (except self and duplicate entries).
+   * 
+   * @returns {void}
+   */
   handleVisits() {
     if (this.visiting != null) {
       for (const visitor of this.visiting.visitors) {
         if (visitor != this && visitor != this.visiting) {
           if (visitor.damage == 0) visitor.damage = 1;
-          //this.visiting.attackers.push(this); Deliberately excluded at this point
         }
       }
     }

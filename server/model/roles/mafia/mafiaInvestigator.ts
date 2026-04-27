@@ -5,6 +5,13 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A Mafia role with investigation abilities. Can inspect other players to reveal their role
+ * during the night phase instead of attacking.
+ * 
+ * @class MafiaInvestigator
+ * @extends {RoleMafia}
+ */
 export class MafiaInvestigator extends RoleMafia {
   name = "Mafia Investigator";
   group = RoleGroup.Mafia;
@@ -19,12 +26,24 @@ export class MafiaInvestigator extends RoleMafia {
   nightVisitFaction = false;
   nightVote = true;
 
+  /**
+   * Creates a new MafiaInvestigator instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by allowing the investigator to choose a player to inspect.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to inspect
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -41,8 +60,12 @@ export class MafiaInvestigator extends RoleMafia {
     }
   }
 
+  /**
+   * Performs the inspection visit by revealing the target role to the investigator.
+   * 
+   * @returns {void}
+   */
   defaultVisit() {
-    //This visits a role and attacks them. this.visiting is dictated by the faction Class.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
       io.to(this.player.user.socketId).emit(

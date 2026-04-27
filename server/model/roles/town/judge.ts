@@ -5,7 +5,13 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
-//This class judges the alignment of the selected target (usually!)
+/**
+ * A Town role that judges players and determines their factional alignment.
+ * Has a 70% chance to correctly identify alignment; otherwise returns a random alignment.
+ * 
+ * @class Judge
+ * @extends {Role}
+ */
 export class Judge extends Role {
   name = "Judge";
   group = RoleGroup.Town;
@@ -20,12 +26,24 @@ export class Judge extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Judge instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by allowing the Judge to choose a player to inspect.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to judge
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -42,8 +60,13 @@ export class Judge extends Role {
     }
   }
 
+  /**
+   * Processes the inspection visit by determining factional alignment.
+   * Has a 30% chance to return false information; otherwise returns actual alignment.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a role, and tries to determine their alignment.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
 
@@ -65,7 +88,6 @@ export class Judge extends Role {
             " faction.",
         );
       } else {
-        //Visits the right player, and returns their group (factional alignment)
         io.to(this.player.user.socketId).emit(
           ServerEvent.ReceiveMessage,
           this.visiting.player.username +

@@ -1,3 +1,7 @@
+/**
+ * Theme color palette for the mobile app.
+ * Defines all colors used throughout the application for consistency.
+ */
 export const colors = {
   background: "#0B1020",
   surface: "#151C33",

@@ -6,6 +6,14 @@ import { GamePhase } from "../../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A Town role that can jail a player during the day, preventing their actions.
+ * Can then choose to execute the jailed player at night.
+ * Jailed players and the Jailor can communicate privately during the night.
+ * 
+ * @class Jailor
+ * @extends {Role}
+ */
 export class Jailor extends Role {
   name = "Jailor";
   group = RoleGroup.Town;
@@ -20,10 +28,23 @@ export class Jailor extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Jailor instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles chat messages. If a player is jailed, messages are only visible to them and the Jailor.
+   * Otherwise, uses standard message handling.
+   * 
+   * @param {string} message - The chat message
+   * @returns {void}
+   */
   handleMessage(message: string) {
     const socketId = this.player.user.socketId;
     if (this.room.time === GamePhase.Day) {
@@ -39,8 +60,14 @@ export class Jailor extends Role {
     }
   }
 
+  /**
+   * Handles the day action to jail a player.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to jail
+   * @returns {void}
+   */
   handleDayAction(recipient: Player) {
-    //Choose to jail a player
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -57,17 +84,21 @@ export class Jailor extends Role {
     }
   }
 
+  /**
+   * Handles the night action to decide whether to execute the jailed player.
+   * Can toggle between execute and release decisions.
+   * 
+   * @param {Player} _recipient - Not used; affects the jailed player from dayVisiting
+   * @returns {void}
+   */
   handleNightAction(_recipient: Player) {
-    //Choose if the player who is jailed should be executed, or let go
     if (this.dayVisiting == null) {
-      //this.visiting = this;
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
         "You haven't jailed anyone, so you cannot do anything.",
       );
     } else {
       if (this.visiting == null) {
-        //To be exectued
         this.visiting = this.dayVisiting;
         io.to(this.player.user.socketId).emit(
           ServerEvent.ReceiveMessage,
@@ -78,7 +109,6 @@ export class Jailor extends Role {
           "The jailor has decided to execute you",
         );
       } else {
-        //Cancels the execution
         this.visiting = null;
         io.to(this.player.user.socketId).emit(
           ServerEvent.ReceiveMessage,
@@ -92,8 +122,13 @@ export class Jailor extends Role {
     }
   }
 
+  /**
+   * Processes the day action of jailing a player.
+   * Notifies the player they've been jailed and applies roleblock.
+   * 
+   * @returns {void}
+   */
   dayVisit() {
-    //Tells the player that they've been jailed, and roleblocks them. dayVisiting is called at the end of a day session.
     if (this.dayVisiting != null) {
       io.to(this.dayVisiting.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -108,19 +143,29 @@ export class Jailor extends Role {
     }
   }
 
+  /**
+   * Processes the execution of the jailed player.
+   * Inflicts 3 damage to execute the prisoner.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Executes the player being jailed
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      if (this.visiting.damage < 3) this.visiting.damage = 3; //Attacks the victim
+      if (this.visiting.damage < 3) this.visiting.damage = 3;
       this.visiting.attackers.push(this);
     }
   }
 
+  /**
+   * Processes post-visit effects. Resets jail status and provides defense to the jailed player.
+   * If jailed player wasn't executed, increases their defense.
+   * 
+   * @returns {void}
+   */
   handleVisits() {
-    if (this.dayVisiting != null) this.dayVisiting.jailed = null; //Resets if the victim has been jailed
+    if (this.dayVisiting != null) this.dayVisiting.jailed = null;
     if (this.dayVisiting != null) {
-      //Protect the jailee if they weren't executed
       if (this.dayVisiting.baseDefence == 0) this.dayVisiting.defence = 1;
     }
   }

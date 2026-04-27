@@ -15,4 +15,8 @@ const globalForDb = globalThis as unknown as {
 const conn = globalForDb.conn ?? postgres(env.DATABASE_URL);
 if (env.NODE_ENV !== "production") globalForDb.conn = conn;
 
+/**
+ * Drizzle ORM database client.
+ * Provides typed access to all database tables via `db.query.*` and mutation methods.
+ */
 export const db = drizzle(conn, { schema });

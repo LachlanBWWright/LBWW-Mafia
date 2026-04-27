@@ -29,6 +29,10 @@ export type SocketIoCompatible = {
   readonly connected: boolean;
 };
 
+/**
+ * Adapter that wraps a Socket.IO client socket to implement the GameSocket interface.
+ * Provides type-safe event handling using the game's event maps.
+ */
 export class SocketIoClientAdapter implements GameSocket {
   constructor(private socket: SocketIoCompatible) {}
 

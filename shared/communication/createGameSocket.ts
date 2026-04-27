@@ -10,31 +10,32 @@
 import type { GameSocket, GameSocketConfig } from "./clientTypes";
 import { SocketIoClientAdapter, type SocketIoCompatible } from "./socketIoClientAdapter";
 import { PartykitClientAdapter } from "./partykitClientAdapter";
+import { ok, err, Result } from "neverthrow";
 
 export function createGameSocket(
   config: GameSocketConfig,
   rawSocket?: SocketIoCompatible,
-): GameSocket {
+): Result<GameSocket, Error> {
   switch (config.type) {
     case "socketio": {
       if (!rawSocket) {
-        throw new Error(
+        return err(new Error(
           "Socket.IO backend requires a pre-created socket passed as the second argument.",
-        );
+        ));
       }
-      return new SocketIoClientAdapter(rawSocket);
+      return ok(new SocketIoClientAdapter(rawSocket));
     }
 
     case "partykit": {
       const wsUrl = config.url.replace(/^http(s?)/, "ws$1");
       const room = config.room ?? "default";
-      return new PartykitClientAdapter(
+      return ok(new PartykitClientAdapter(
         `${wsUrl}/party/${room}`,
         config.autoConnect ?? true,
-      );
+      ));
     }
 
     default:
-      throw new Error(`Unknown socket backend type: ${String(config.type)}`);
+      return err(new Error(`Unknown socket backend type: ${String(config.type)}`));
   }
 }

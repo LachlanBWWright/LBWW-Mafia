@@ -6,8 +6,19 @@ import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
 
-//This class judges the alignment of the selected target (usually!)
+/**
+ * A Town role that researches players' backgrounds to discover their identities.
+ * Has 3 research sessions. Each session reveals one of two randomly selected players'  roles
+ * with 50% accuracy (may report the actual role or an incorrect one).
+ * 
+ * @class Vetter
+ * @extends {Role}
+ */
 export class Vetter extends Role {
+  /**
+   * Number of remaining research sessions for this Vetter.
+   * @type {number}
+   */
   researchSlots = 3;
 
   name = "Vetter";
@@ -23,12 +34,25 @@ export class Vetter extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Vetter instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action to toggle research mode.
+   * Consumes a research slot when activating research.
+   * Must have research slots remaining to activate.
+   * 
+   * @param {Player} _recipient - Not used; Vetter only affects self
+   * @returns {void}
+   */
   handleNightAction(_recipient: Player) {
-    //Vote on who should be attacked
     if (this.researchSlots == 0)
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -49,11 +73,16 @@ export class Vetter extends Role {
     }
   }
 
+  /**
+   * Processes the research visit by selecting two random players.
+   * Reports one of the two players' roles with 50% chance of accuracy.
+   * Decrements research slots and reports remaining sessions.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Selects two random people to visit
     const visit = fromThrowable(
       () => {
-        //Gets two different players at random
         if (this.visiting === null) return;
         this.visiting.receiveVisit(this);
         this.researchSlots--;

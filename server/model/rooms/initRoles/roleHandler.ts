@@ -37,15 +37,39 @@ import { Player } from "../../player/player.js";
 import { BlankRole } from "../../roles/blankRole.js";
 
 //This generates the an array of role classes to be used, and then returns it to the room.
+/**
+ * Manages role assignment for games, balancing team power dynamically.
+ * Assigns roles to players using power scoring to maintain game balance between Town and Mafia.
+ * Also creates and assigns faction groups for coordinated roles.
+ * 
+ * @class RoleHandler
+ */
 export class RoleHandler {
+  /**
+   * The size of the game room (number of players).
+   * @type {number}
+   */
   roomSize: number;
+
+  /**
+   * Creates a new RoleHandler for a given room size.
+   * 
+   * @param {number} roomSize - The number of players in the game
+   */
   constructor(roomSize: number) {
     this.roomSize = roomSize;
   }
 
+  /**
+   * Assigns a balanced set of roles for all players in the game.
+   * Uses comparative power scoring to ensure Town and Mafia remain balanced.
+   * Removes unique roles from selection pools to prevent duplicates.
+   * 
+   * @returns {(typeof BlankRole)[]} Array of role classes to assign to players
+   */
   assignGame(): (typeof BlankRole)[] {
-    let roleList: (typeof BlankRole)[] = []; //The array of roles to be returned to the room object roleList.push;
-    let comparativePower = 0; //The comparative power, positive is in favour of town, negative in favour of the mafia
+    let roleList: (typeof BlankRole)[] = [];
+    let comparativePower = 0;
 
     //Role Lists
     let randomTownList: (typeof BlankRole)[] = [
@@ -126,6 +150,13 @@ export class RoleHandler {
     return roleList;
   }
 
+  /**
+   * Assigns faction objects to players based on their roles.
+   * Creates a LawmanFaction if any Lawman exists, and a MafiaFaction if any Mafia role exists.
+   * 
+   * @param {Player[]} playerList - List of all players in the game
+   * @returns {any[]} Array of faction objects to manage coordinated role actions
+   */
   assignFactionsFromPlayerList(playerList: Player[]) {
     let factionList = [];
 
@@ -146,7 +177,13 @@ export class RoleHandler {
     return factionList;
   }
 
-  //Returns true if a role is unique, so it can be removed from the propsective role list for additional players
+  /**
+   * Determines if a role is unique and should only appear once per game.
+   * Checks against a hardcoded list of unique roles.
+   * 
+   * @param {typeof BlankRole} role - The role class to check
+   * @returns {boolean} True if the role is unique and should be removed from selection, false otherwise
+   */
   uniqueRoleCheck(role: typeof BlankRole) {
     switch (role) {
       //Town
@@ -174,7 +211,14 @@ export class RoleHandler {
     }
   }
 
-  //Returns the extent to which a role helps the town
+  /**
+   * Calculates the power value of a role for game balance purposes.
+   * Positive values favor Town, negative values favor Mafia/Neutral.
+   * Used to dynamically select roles to maintain competitive balance.
+   * 
+   * @param {typeof BlankRole} role - The role class to evaluate
+   * @returns {number} Power value of the role (higher = more Town-favorable)
+   */
   getPower(role: typeof BlankRole) {
     switch (role) {
       //Town Roles

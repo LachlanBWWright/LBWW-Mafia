@@ -7,6 +7,12 @@
 
 //Keep in alphabetical order
 */
+
+/**
+ * Map of role names to their descriptions and abilities.
+ * Provides information about each role in the Mafia game.
+ * Kept in alphabetical order for consistency.
+ */
 export const roles = new Map([
   [
     "Bodyguard",

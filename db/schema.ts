@@ -17,6 +17,7 @@ import {
  */
 export const createTable = pgTableCreator((name) => `nextjs_${name}`);
 
+/** Blog posts table (legacy, may be deprecated). */
 export const posts = createTable(
   "post",
   () => ({

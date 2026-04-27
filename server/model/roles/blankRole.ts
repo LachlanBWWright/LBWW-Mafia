@@ -3,8 +3,13 @@ import { RoleGroup } from "./roleGroup.js";
 import { Room } from "../rooms/room.js";
 import { Role } from "./abstractRole.js";
 
-//To be used as a 'temp' role, assigned to users before the game has started
-
+/**
+ * A temporary placeholder role assigned to players before the game starts.
+ * Has no special abilities or faction affiliation.
+ * 
+ * @class BlankRole
+ * @extends {Role}
+ */
 export class BlankRole extends Role {
   name = "Blank Role";
   group = RoleGroup.Unaligned;
@@ -19,6 +24,12 @@ export class BlankRole extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new BlankRole instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }

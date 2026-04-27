@@ -6,11 +6,25 @@ import { Room } from "../model/rooms/room.js";
 import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents } from "../../shared/communication/events.js";
 import { ClientEvent } from "../../shared/communication/events.js";
 
+/**
+ * Data attached to each Socket connection.
+ * Stores the player's current room and position in the player list.
+ * 
+ * @typedef {Object} SocketData
+ * @property {Room} roomObject - The game room this player is in
+ * @property {number} position - The player's index in the room's player list
+ */
 export type SocketData = {
   roomObject: Room;
   position: number;
 };
 
+/**
+ * Type-safe Socket instance for game connections.
+ * Properly types client-to-server events, server-to-client events, and attached data.
+ * 
+ * @typedef {Socket} PlayerSocket
+ */
 export type PlayerSocket = Socket<
   ClientToServerEvents,
   ServerToClientEvents,
@@ -18,6 +32,12 @@ export type PlayerSocket = Socket<
   SocketData
 >;
 
+/**
+ * Creates a Socket.IO server configured for game communications.
+ * Sets up CORS and binds to the HTTP server.
+ * 
+ * @returns {Server} Configured Socket.IO server instance
+ */
 export function createSocketIoServer() {
   return new Server<
     ClientToServerEvents,
@@ -31,10 +51,24 @@ export function createSocketIoServer() {
   });
 }
 
+/**
+ * Whether to run in debug mode, disabling CAPTCHA verification.
+ * Set via DEBUG or debug environment variables.
+ * 
+ * @type {boolean}
+ */
 const DEBUG_MODE =
   process.env.DEBUG?.toLowerCase() === "true" ||
   process.env.debug?.toLowerCase() === "true";
 
+/**
+ * Safely executes an action with error logging.
+ * Wraps the action in a try-catch via neverthrow and logs any errors.
+ * 
+ * @param {string} context - Description of the action for error logging
+ * @param {() => void} action - The action to execute safely
+ * @returns {void}
+ */
 const runSafely = (context: string, action: () => void) => {
   const safeAction = fromThrowable(action, (error) => error);
   const result = safeAction();
@@ -44,6 +78,14 @@ const runSafely = (context: string, action: () => void) => {
   }
 };
 
+/**
+ * Adds event listeners to the Socket.IO server for all game events.
+ * Manages player connections, disconnections, and all game actions.
+ * 
+ * @param {Server} socketIoServer - The Socket.IO server to add listeners to
+ * @param {number} roomSize - The maximum number of players per game room
+ * @returns {void}
+ */
 export function addSocketListeners(
   socketIoServer: Server<
     ClientToServerEvents,
@@ -57,6 +99,11 @@ export function addSocketListeners(
 
   socketIoServer.on("connection", (socket: PlayerSocket) => {
     console.log("New Connection");
+    /**
+     * Handles player join requests with CAPTCHA verification.
+     * Creates a new room if the current room is full or not started,
+     * then adds the player to the room.
+     */
     socket.on(
       ClientEvent.PlayerJoinRoom,
       async (captchaToken: string, cb: (code: string | number) => void) => {
@@ -88,6 +135,10 @@ export function addSocketListeners(
       },
     );
 
+    /**
+     * Handles player disconnections.
+     * Removes the player from their room.
+     */
     socket.on(ClientEvent.Disconnect, () => {
       runSafely("Disconnect error", () => {
         if (socket.data.roomObject !== undefined) {
@@ -96,6 +147,10 @@ export function addSocketListeners(
       });
     });
 
+    /**
+     * Handles chat messages sent by players.
+     * Validates message length (1-150 characters) before forwarding to room.
+     */
     socket.on(ClientEvent.MessageSentByUser, (message, isDay: boolean) => {
       runSafely("messageSentByUser error", () => {
         if (message.length > 0 && message.length <= 150) {
@@ -105,6 +160,10 @@ export function addSocketListeners(
       });
     });
 
+    /**
+     * Handles voting actions during day/night phases.
+     * Validates that recipient is a valid player index before processing.
+     */
     socket.on(ClientEvent.HandleVote, (recipient, isDay: boolean) => {
       runSafely("handleVote error", () => {
         if (typeof recipient === "number") {
@@ -114,6 +173,10 @@ export function addSocketListeners(
       });
     });
 
+    /**
+     * Handles visit/action actions during day/night phases.
+     * Validates that recipient is a valid player index or null before processing.
+     */
     socket.on(ClientEvent.HandleVisit, (recipient, isDay: boolean) => {
       runSafely("handleVisit error", () => {
         if (typeof recipient === "number" || recipient === null) {
@@ -123,6 +186,10 @@ export function addSocketListeners(
       });
     });
 
+    /**
+     * Handles private whisper messages during day phases.
+     * Validates recipient index and message length (1-150 characters) before processing.
+     */
     socket.on(ClientEvent.HandleWhisper, (recipient, message, isDay) => {
       runSafely("handleWhisper error", () => {
         if (

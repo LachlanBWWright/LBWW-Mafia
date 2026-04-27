@@ -5,8 +5,25 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A Town role that builds fortifications on other players' houses to protect them.
+ * Can fortify one house at a time with +2 permanent defense.
+ * Can later try to remove fortifications, risking death to either the Fortifier or the original owner.
+ * 
+ * @class Fortifier
+ * @extends {Role}
+ */
 export class Fortifier extends Role {
+  /**
+   * The role of the player whose house is currently fortified.
+   * @type {Role | null}
+   */
   playerFortified: Role | null = null;
+  /**
+   * Whether the Fortifier can currently build new fortifications.
+   * Becomes false after fortifying, true again if fortifications are removed.
+   * @type {boolean}
+   */
   canFortify = true;
 
   name = "Fortifier";
@@ -22,12 +39,25 @@ export class Fortifier extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Fortifier instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action to either fortify a new house or remove existing fortifications.
+   * Can only fortify when canFortify is true; can only remove fortifications when fortifications exist.
+   * Validates targets and provides appropriate error messages.
+   * 
+   * @param {Player} recipient - The target player's house to fortify or defortify
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -67,12 +97,17 @@ export class Fortifier extends Role {
     }
   }
 
+  /**
+   * Processes the visit to either build new fortifications or remove existing ones.
+   * Building increases target's base defense by 2.
+   * Removing fortifications has a 50% chance to kill either the Fortifier or the original owner.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Builds the fortifications
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
       if (this.canFortify) {
-        //Builds fortifications
         this.canFortify = false;
         this.visiting.baseDefence += 2;
         this.playerFortified = this.visiting;
@@ -81,7 +116,6 @@ export class Fortifier extends Role {
           "Your house has been fortified!",
         );
       } else if (this.playerFortified !== null) {
-        //Attempts to remove fortifications
         this.visiting.baseDefence -= 2;
         if (Math.random() > 0.5) {
           io.to(this.player.user.socketId).emit(
@@ -108,8 +142,13 @@ export class Fortifier extends Role {
     }
   }
 
+  /**
+   * Counterattacks attackers on the fortified house.
+   * Inflicts 1 damage to attackers (except self and the original fortress owner).
+   * 
+   * @returns {void}
+   */
   handleVisits() {
-    //Attacks the attackers of the fortified person's house
     if (this.playerFortified != null && this.visiting !== null) {
       for (const attacker of this.visiting.attackers) {
         if (

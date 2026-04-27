@@ -11,11 +11,24 @@ export abstract class RoleMafia extends Role {
 
   group = RoleGroup.Mafia;
 
+  /**
+   * Creates a new RoleMafia instance. All Mafia roles belong to the Mafia role group.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
-    //Group is kept as a constructor parameter for consistency, but mafia classes will always be in the 'mafia' group.
     super(room, player);
   }
 
+  /**
+   * Handles a night vote on a target player for mafia attack.
+   * Validates that the target is alive, not in the same faction, and not the voter.
+   * If valid, records the vote and notifies the faction; otherwise notifies the voter of an invalid vote.
+   * 
+   * @param {Player} recipient - The target player to vote for
+   * @returns {void}
+   */
   handleNightVote(recipient: Player) {
     const recipientRole = recipient.role;
     if (
@@ -30,20 +43,30 @@ export abstract class RoleMafia extends Role {
           recipient.username +
           ".",
       );
-      this.attackVote = recipientRole; //uses role for easier visiting
+      this.attackVote = recipientRole;
     } else {
       this.attackVote = null;
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid Vote.");
     }
   }
 
+  /**
+   * Handles a nighttime action by delegating to night vote logic.
+   * Mafia members vote on their target instead of having independent actions.
+   * 
+   * @param {Player} recipient - The target player
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     this.handleNightVote(recipient);
   }
 
+  /**
+   * Cancels the current night action and notifies the player.
+   * 
+   * @returns {void}
+   */
   cancelNightAction() {
-    //Faction-based classes should override this function
     io.to(this.player.user.socketId).emit(
       ServerEvent.ReceiveMessage,
       "You have cancelled your class' nighttime action.",
@@ -51,6 +74,13 @@ export abstract class RoleMafia extends Role {
     this.visiting = null;
   }
 
+  /**
+   * Processes this role's nighttime visit.
+   * If this role is attacking, performs an attack visit; otherwise performs a default visit.
+   * Resets the attacking flag after processing.
+   * 
+   * @returns {void}
+   */
   visit() {
     if (this.isAttacking) {
       this.visitOverride();
@@ -60,25 +90,35 @@ export abstract class RoleMafia extends Role {
     }
   }
 
-  //For when a member of the mafia attacks someone instead of
+  /**
+   * Performs a mafia attack on the target role.
+   * Notifies the player that they were selected for the attack and inflicts 1 damage.
+   * 
+   * @returns {void}
+   */
   visitOverride() {
-    //This visits a role and attacks them. this.visiting is dictated by the faction Class.
     if (this.visiting != null) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
         "You have been chosen to do the mafia's dirty work.",
       );
       this.visiting.receiveVisit(this);
-      if (this.visiting.damage == 0) this.visiting.damage = 1; //Attacks the victim
+      if (this.visiting.damage == 0) this.visiting.damage = 1;
       this.visiting.attackers.push(this);
     }
   }
 
-  //This should be overriden by child classes, unless they can only attack
+  /**
+   * Performs a default visit on the target role (usually an attack).
+   * Should be overridden by subclasses that have role-specific abilities.
+   * Default behavior inflicts 1 damage to the target.
+   * 
+   * @returns {void}
+   */
   defaultVisit() {
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      if (this.visiting.damage == 0) this.visiting.damage = 1; //Attacks the victim
+      if (this.visiting.damage == 0) this.visiting.damage = 1;
       this.visiting.attackers.push(this);
     }
   }

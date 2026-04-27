@@ -2,6 +2,10 @@ import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "../../shared/trpc/appRouter";
 
+/**
+ * tRPC client configured for the React Native mobile app.
+ * Uses HTTP batching for efficient RPC calls and SuperJSON for serialization.
+ */
 const defaultTrpcUrl = "http://localhost:3000/api/trpc";
 const trpcUrl = process.env.EXPO_PUBLIC_TRPC_URL ?? defaultTrpcUrl;
 

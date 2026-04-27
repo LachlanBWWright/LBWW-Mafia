@@ -5,9 +5,21 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A neutral role that wins by getting a specific Town member voted out.
+ * Automatically assigned a random Town target at game start. If the target dies before day 5,
+ * a new target is assigned.
+ * 
+ * @class Framer
+ * @extends {Role}
+ */
 export class Framer extends Role {
   victoryCondition = false;
-  target: Player | null = null; //Target to kill (player object)
+  /**
+   * The Town player that the Framer is trying to get voted out.
+   * @type {Player | null}
+   */
+  target: Player | null = null;
 
   name = "Framer";
   group = RoleGroup.Neutral;
@@ -22,19 +34,27 @@ export class Framer extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Framer instance and registers itself with the room.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
-
     this.room.framer = this;
   }
 
+  /**
+   * Initializes the Framer by selecting a random Town member as the target.
+   * Notifies the Framer of their target and win condition.
+   * 
+   * @returns {void}
+   */
   initRole() {
-    // Find a random target
     let length = this.room.playerList.length;
     let index = Math.floor(Math.random() * length);
     for (const i of Array.from({ length }, (_, index) => index)) {
-      //console.log((index + i) % length)
-      //console.log(this.room.playerList[(index + i) % length])
       if (
         this.room.playerList[(index + i) % length].role.group === RoleGroup.Town &&
         this.room.playerList[(index + i) % length].isAlive
@@ -51,9 +71,14 @@ export class Framer extends Role {
     }
   }
 
+  /**
+   * Updates the target if the current target dies before day 5.
+   * Selects a new random Town member and notifies the Framer.
+   * 
+   * @returns {void}
+   */
   dayUpdate() {
-    //Updates the target
-    if (this.target?.isAlive || this.victoryCondition) return; //Nothing happens if the target isn't dead, or the player's already won.
+    if (this.target?.isAlive || this.victoryCondition) return;
     let length = this.room.playerList.length;
     let index = Math.floor(Math.random() * length);
     for (const i of Array.from({ length }, (_, index) => index)) {

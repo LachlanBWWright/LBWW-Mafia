@@ -1,6 +1,10 @@
 import { StyleSheet } from "react-native";
 import { colors } from "./colors";
 
+/**
+ * Common stylesheet definitions shared across the mobile app.
+ * Includes base container, text, and input styles using the theme color palette.
+ */
 export const commonStyles = StyleSheet.create({
   container: {
     alignSelf: "stretch",

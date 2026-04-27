@@ -18,14 +18,33 @@ import { ServerEvent, DayTime } from "./events";
 
 type AckCallback = (result: string | number) => void;
 
+/**
+ * Type guard to check if a value is an object (excluding arrays and null).
+ *
+ * @param {unknown} v - Value to check
+ * @returns {boolean} True if v is a non-null, non-array object
+ */
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+/**
+ * Type guard to check if a value is an acknowledgement callback function.
+ *
+ * @param {unknown} v - Value to check
+ * @returns {boolean} True if v is a callback function
+ */
 function isAckCallback(v: unknown): v is AckCallback {
   return typeof v === "function";
 }
 
+/**
+ * Converts raw message data to a typed PlayerList array.
+ * Returns undefined if the data is not a valid PlayerList.
+ *
+ * @param {unknown} raw - Raw data to convert
+ * @returns {PlayerList[] | undefined} Typed player list or undefined
+ */
 function toPlayerList(raw: unknown): PlayerList[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const result: PlayerList[] = [];
@@ -42,6 +61,13 @@ function toPlayerList(raw: unknown): PlayerList[] | undefined {
   return result;
 }
 
+/**
+ * Converts raw message data to a typed PlayerReturned object.
+ * Returns undefined if the data is not a valid PlayerReturned.
+ *
+ * @param {unknown} raw - Raw data to convert
+ * @returns {PlayerReturned | undefined} Typed player data or undefined
+ */
 function toPlayerReturned(raw: unknown): PlayerReturned | undefined {
   if (!isObject(raw)) return undefined;
   if (
@@ -70,6 +96,10 @@ function toPlayerReturned(raw: unknown): PlayerReturned | undefined {
   };
 }
 
+/**
+ * PartyKit WebSocket adapter implementing the GameSocket interface.
+ * Manages event listeners, callback tracking, and message serialization.
+ */
 export class PartykitClientAdapter implements GameSocket {
   private ws: WebSocket | null = null;
   // Internal storage uses unknown element type; the public on/off methods
@@ -233,6 +263,13 @@ export class PartykitClientAdapter implements GameSocket {
     });
   }
 
+  /**
+   * Dispatches a received event to all registered handlers.
+   * Performs type validation and transformation of message data.
+   *
+   * @param {string} event - Event name
+   * @param {unknown[]} args - Event arguments to dispatch
+   */
   private dispatchEvent(event: string, args: unknown[]): void {
     switch (event) {
       case ServerEvent.ReceiveMessage:

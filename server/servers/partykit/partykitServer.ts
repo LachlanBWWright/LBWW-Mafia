@@ -21,6 +21,14 @@ type ClientMessage = {
   callbackId?: string;
 };
 
+/**
+ * Safely executes an action with error logging.
+ * Wraps the action in a try-catch via neverthrow and logs any errors.
+ * 
+ * @param {string} context - Description of the action for error logging
+ * @param {() => void} action - The action to execute safely
+ * @returns {void}
+ */
 const runSafely = (context: string, action: () => void) => {
   const safeAction = fromThrowable(action, (error) => error);
   const result = safeAction();
@@ -29,12 +37,23 @@ const runSafely = (context: string, action: () => void) => {
   }
 };
 
+/**
+ * PartyKit server handler for Mafia game.
+ * Manages one game room per PartyKit party instance.
+ * Handles player connections, messages, and game events.
+ */
 export default class MafiaPartyServer implements Party.Server {
   private gameRoom: Room;
   private roomSize: number;
   private playerSockets = new Map<string, PartykitPlayerSocket>();
   private debugMode: boolean;
 
+  /**
+   * Initializes a new Mafia game room for this PartyKit party instance.
+   * Sets up the GameEmitter singleton for this instance.
+   * 
+   * @param {Party.Room} room - The PartyKit room instance
+   */
   constructor(readonly room: Party.Room) {
     this.roomSize = 13;
 
@@ -45,6 +64,13 @@ export default class MafiaPartyServer implements Party.Server {
     setGameEmitter(emitter);
   }
 
+  /**
+   * Handles HTTP requests to the PartyKit server.
+   * Supports CORS and returns 404 for non-CORS requests.
+   * 
+   * @param {Party.Request} request - The HTTP request
+   * @returns {Response} HTTP response with CORS headers
+   */
   onRequest(request: Party.Request): Response {
     const origin = request.headers.get("Origin") ?? "*";
     const corsHeaders = {
@@ -59,12 +85,29 @@ export default class MafiaPartyServer implements Party.Server {
     return new Response("Not found", { status: 404, headers: corsHeaders });
   }
 
+  /**
+   * Handles new player connections to this party instance.
+   * Creates a socket adapter for the player and stores it.
+   * 
+   * @param {Party.Connection} connection - The new player connection
+   * @param {Party.ConnectionContext} _ctx - Connection context (unused)
+   * @returns {void}
+   */
   onConnect(connection: Party.Connection, _ctx: Party.ConnectionContext) {
     console.log(`PartyKit: New connection ${connection.id}`);
     const playerSocket = new PartykitPlayerSocket(connection);
     this.playerSockets.set(connection.id, playerSocket);
   }
 
+  /**
+   * Handles incoming messages from players.
+   * Routes game events (join, message, vote, visit, whisper) to the game room.
+   * Parses JSON messages and validates event types before processing.
+   * 
+   * @param {string | ArrayBuffer | ArrayBufferView} message - Raw message data
+   * @param {Party.Connection} sender - The connection that sent the message
+   * @returns {void}
+   */
   onMessage(
     message: string | ArrayBuffer | ArrayBufferView,
     sender: Party.Connection,
@@ -185,6 +228,13 @@ export default class MafiaPartyServer implements Party.Server {
     }
   }
 
+  /**
+   * Handles player disconnections.
+   * Removes the player from the game room and cleans up the socket adapter.
+   * 
+   * @param {Party.Connection} connection - The closed connection
+   * @returns {void}
+   */
   onClose(connection: Party.Connection) {
     console.log(`PartyKit: Connection closed ${connection.id}`);
     const playerSocket = this.playerSockets.get(connection.id);
@@ -197,6 +247,13 @@ export default class MafiaPartyServer implements Party.Server {
     this.playerSockets.delete(connection.id);
   }
 
+  /**
+   * Handles connection errors by closing the connection and cleaning up.
+   * 
+   * @param {Party.Connection} connection - The connection that encountered an error
+   * @param {Error} error - The error that occurred
+   * @returns {void}
+   */
   onError(connection: Party.Connection, error: Error) {
     console.error(`PartyKit: Connection error ${connection.id}:`, error);
     this.onClose(connection);

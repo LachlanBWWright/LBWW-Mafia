@@ -13,6 +13,7 @@ import type {
   RouterServices,
   UserSummary,
 } from "@mernmafia/shared/trpc/appRouter";
+import { ok, err } from "neverthrow";
 
 type MatchRow = {
   id: number;
@@ -24,6 +25,13 @@ type MatchRow = {
   actionHistory: string;
 };
 
+/**
+ * Parses a JSON string into an array of strings.
+ * Returns empty array if parsing fails.
+ *
+ * @param {string} value - JSON string to parse
+ * @returns {string[]} Parsed array of strings, or empty array
+ */
 const parseArray = (value: string): string[] => {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -36,6 +44,13 @@ const parseArray = (value: string): string[] => {
   return [];
 };
 
+/**
+ * Parses a JSON string into an array and returns its length.
+ * Returns 0 if parsing fails.
+ *
+ * @param {string} value - JSON string to parse
+ * @returns {number} Length of parsed array, or 0
+ */
 const parseCount = (value: string): number => {
   try {
     const parsed = JSON.parse(value) as unknown;
@@ -48,6 +63,13 @@ const parseCount = (value: string): number => {
   return 0;
 };
 
+/**
+ * Fetches participants for a list of match IDs.
+ * Returns a map of match ID to its participants.
+ *
+ * @param {number[]} matchIds - Array of match IDs to fetch participants for
+ * @returns {Promise<Map<number, MatchParticipantSummary[]>>} Map of match ID to participants
+ */
 const getParticipantsByMatchIds = async (
   matchIds: number[],
 ): Promise<Map<number, MatchParticipantSummary[]>> => {
@@ -79,6 +101,15 @@ const getParticipantsByMatchIds = async (
   return participantMap;
 };
 
+/**
+ * Retrieves recent matches for a specific username.
+ * Returns matches ordered by most recent first, deduplicated by match ID.
+ *
+ * @param {object} options - Options object
+ * @param {string} options.username - Username to fetch matches for
+ * @param {number} options.limit - Maximum number of matches to return
+ * @returns {Promise<RecentMatchSummary[]>} Recent matches with participant info
+ */
 const getRecentMatches = async ({
   username,
   limit,
@@ -137,6 +168,15 @@ const getRecentMatches = async ({
   }));
 };
 
+/**
+ * Searches users by name or email.
+ * Returns matching users ordered by email verification status.
+ *
+ * @param {object} options - Options object
+ * @param {string} options.query - Search query (name or email)
+ * @param {number} options.limit - Maximum number of results to return
+ * @returns {Promise<UserSummary[]>} Matching users
+ */
 const searchUsers = async ({
   query,
   limit,
@@ -167,6 +207,13 @@ const searchUsers = async ({
   return rows;
 };
 
+/**
+ * Updates a user's admin status.
+ *
+ * @param {object} options - Options object
+ * @param {string} options.userId - User ID to update
+ * @param {boolean} options.isAdmin - New admin status
+ */
 const setUserAdmin = async ({
   userId,
   isAdmin,
@@ -180,41 +227,63 @@ const setUserAdmin = async ({
     .where(eq(users.id, userId));
 };
 
+/**
+ * Persists a completed match and its participants to the database.
+ * Returns the ID of the newly created match.
+ *
+ * @param {PersistMatchInput} input - Match data to persist
+ * @returns {Promise<{ id: number }>} Match ID of the persisted match
+ * @throws {Error} If failed to insert match
+ */
 const persistMatch = async (input: PersistMatchInput): Promise<{ id: number }> => {
-  const inserted = await db
-    .insert(matches)
-    .values({
-      roomName: input.roomName,
-      startedAt: new Date(input.startedAt),
-      endedAt: new Date(input.endedAt),
-      winningFaction: input.winningFaction,
-      winningRoles: JSON.stringify(input.winningRoles),
-      playerCount: input.participants.length,
-      conversationHistory: JSON.stringify(input.conversationHistory),
-      actionHistory: JSON.stringify(input.actionHistory),
-    })
-    .returning({ id: matches.id });
+  const result = await (async () => {
+    const inserted = await db
+      .insert(matches)
+      .values({
+        roomName: input.roomName,
+        startedAt: new Date(input.startedAt),
+        endedAt: new Date(input.endedAt),
+        winningFaction: input.winningFaction,
+        winningRoles: JSON.stringify(input.winningRoles),
+        playerCount: input.participants.length,
+        conversationHistory: JSON.stringify(input.conversationHistory),
+        actionHistory: JSON.stringify(input.actionHistory),
+      })
+      .returning({ id: matches.id });
 
-  const matchId = inserted[0]?.id;
-  if (!matchId) {
-    throw new Error("Failed to insert match: no record returned");
+    const matchId = inserted[0]?.id;
+    if (!matchId) {
+      return err(new Error("Failed to insert match: no record returned"));
+    }
+
+    if (input.participants.length > 0) {
+      await db.insert(matchParticipants).values(
+        input.participants.map((p) => ({
+          matchId,
+          userId: p.userId ?? null,
+          username: p.username,
+          role: p.role,
+          won: p.won,
+        })),
+      );
+    }
+
+    return ok({ id: matchId });
+  })();
+
+  if (result.isErr()) {
+    throw result.error;
   }
 
-  if (input.participants.length > 0) {
-    await db.insert(matchParticipants).values(
-      input.participants.map((p) => ({
-        matchId,
-        userId: p.userId ?? null,
-        username: p.username,
-        role: p.role,
-        won: p.won,
-      })),
-    );
-  }
-
-  return { id: matchId };
+  return result.value;
 };
 
+/**
+ * Rotates the active game room ID.
+ * Generates a new random UUID and updates the singleton active room record.
+ *
+ * @returns {Promise<{roomId: string}>} The new active room ID
+ */
 const rotateActiveRoom = async (): Promise<{ roomId: string }> => {
   const roomId = crypto.randomUUID();
   await db

@@ -6,6 +6,13 @@ import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
 
+/**
+ * A Town role that tracks other players' movements at night.
+ * Reveals who the tracked player visited during the night.
+ * 
+ * @class Tracker
+ * @extends {Role}
+ */
 export class Tracker extends Role {
   name = "Tracker";
   group = RoleGroup.Town;
@@ -20,12 +27,24 @@ export class Tracker extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Tracker instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by allowing the Tracker to choose a player to track.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to track
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -42,13 +61,23 @@ export class Tracker extends Role {
     }
   }
 
+  /**
+   * Processes the track visit by registering the tracker for visit observation.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a role, and gives their defence a minimum of one
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
     }
   }
 
+  /**
+   * Handles the visit results by reporting where the tracked player visited.
+   * If the target didn't visit anyone, reports that instead.
+   * 
+   * @returns {void}
+   */
   handleVisits() {
     const handleVisits = fromThrowable(
       () => {

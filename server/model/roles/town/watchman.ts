@@ -6,6 +6,16 @@ import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
 
+/**
+ * A Town role that watches other players to see who visits them at night.
+ * Reports visitor information with varying accuracy based on visitor count:
+ * - No visitors: Reports that nobody visited
+ * - One visitor: Reveals the visitor's identity (or a false lead if random check)
+ * - Multiple visitors: Lists all live visitors (or provides names with 50% chance of alibi)
+ * 
+ * @class Watchman
+ * @extends {Role}
+ */
 export class Watchman extends Role {
   name = "Watchman";
   group = RoleGroup.Town;
@@ -20,12 +30,24 @@ export class Watchman extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Watchman instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by allowing the Watchman to choose a player to watch.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to watch
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -42,20 +64,32 @@ export class Watchman extends Role {
     }
   }
 
+  /**
+   * Processes the watch visit by registering as a visitor.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a role, and gives their defence a minimum of one
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
     }
   }
 
+  /**
+   * Processes visitor information and reports to the Watchman.
+   * Handles different cases based on number of visitors:
+   * - 1 visitor (only Watchman): Reports nobody visited
+   * - 2 visitors (Watchman + 1): Reveals the visitor (or false lead)
+   * - 3+ visitors: Lists all or provides alibi option
+   * 
+   * @returns {void}
+   */
   handleVisits() {
     const handleVisits = fromThrowable(
       () => {
         if (this.visiting != null) {
           let allVisitors = this.visiting.visitors.length;
           if (allVisitors == 1) {
-            //Tells the player that nobody's visited their target - The one visiter being the watchman themself.
             io.to(this.player.user.socketId).emit(
               ServerEvent.ReceiveMessage,
               "Nobody visited your target.",
@@ -71,7 +105,6 @@ export class Watchman extends Role {
               alibi == this.visiting.visitors[1] ||
               alibi == this.visiting
             ) {
-              //Reveals the only player visited if the random selection is dead, visitor, the person being watched, or the watchman
               if (this.visiting.visitors[0] == this) {
                 io.to(this.player.user.socketId).emit(
                   ServerEvent.ReceiveMessage,
@@ -88,7 +121,6 @@ export class Watchman extends Role {
                 );
               }
             } else {
-              //Reveals the visitor, alongside the 'red herring' alibi.
               let realVisitor;
               if (this.visiting.visitors[0] == this) {
                 realVisitor = this.visiting.visitors[1];
@@ -120,7 +152,6 @@ export class Watchman extends Role {
             let visitorList = [];
             for (const visitor of this.visiting.visitors) {
               if (visitor.player.isAlive && visitor != this) {
-                //Lists all visitors, excluding the watchman itself
                 visitorList.push(visitor);
               }
             }

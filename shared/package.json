@@ -4,6 +4,7 @@
   "private": true,
   "peerDependencies": {
     "@trpc/server": "*",
+    "neverthrow": "*",
     "superjson": "*",
     "zod": "*"
   }

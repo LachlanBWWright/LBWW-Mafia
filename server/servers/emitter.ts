@@ -4,6 +4,7 @@
  * All game logic imports `io` from this module, which delegates to the active emitter.
  */
 import type { GameEmitter } from "../../shared/communication/serverTypes.js";
+import { ok, err, Result } from "neverthrow";
 
 let _emitter: GameEmitter | null = null;
 
@@ -11,13 +12,13 @@ export function setGameEmitter(emitter: GameEmitter): void {
   _emitter = emitter;
 }
 
-export function getGameEmitter(): GameEmitter {
+export function getGameEmitter(): Result<GameEmitter, Error> {
   if (!_emitter) {
-    throw new Error(
+    return err(new Error(
       "GameEmitter not initialized. Call setGameEmitter() from the backend entry point first.",
-    );
+    ));
   }
-  return _emitter;
+  return ok(_emitter);
 }
 
 /**
@@ -27,9 +28,19 @@ export function getGameEmitter(): GameEmitter {
  */
 export const io: GameEmitter = {
   to(target: string) {
-    return getGameEmitter().to(target);
+    const res = getGameEmitter();
+    if (res.isErr()) {
+      console.warn(res.error);
+      return { emit: () => {} } as any;
+    }
+    return res.value.to(target);
   },
   in(target: string) {
-    return getGameEmitter().in(target);
+    const res = getGameEmitter();
+    if (res.isErr()) {
+      console.warn(res.error);
+      return { disconnectSockets: () => {} } as any;
+    }
+    return res.value.in(target);
   },
 };

@@ -44,18 +44,48 @@ export abstract class Role {
   nightTapped: Role | boolean = false;
   jailed: Role | null = null;
 
+  /**
+   * Creates a new Role instance.
+   * 
+   * @param {Room} room - The game room this role belongs to
+   * @param {Player} player - The player assigned to this role
+   */
   constructor(room: Room, player: Player) {
     this.room = room;
     this.player = player;
   }
 
+  /**
+   * Assigns this role to a faction.
+   * 
+   * @param {Faction} faction - The faction to assign
+   * @returns {void}
+   */
   assignFaction(faction: Faction) {
     this.faction = faction;
   }
 
+  /**
+   * Initializes the role at game start. Override in subclasses for role-specific setup.
+   * 
+   * @returns {void}
+   */
   initRole() {}
+
+  /**
+   * Called at the start of each day phase. Override in subclasses for role-specific logic.
+   * 
+   * @returns {void}
+   */
   dayUpdate() {}
 
+  /**
+   * Handles incoming chat messages based on the current game phase.
+   * Silenced players are notified, day phase messages are broadcast, and night messages are faction-scoped.
+   * 
+   * @param {string} message - The chat message content
+   * @returns {void}
+   */
   handleMessage(message: string) {
     const socketId = this.player.user.socketId;
     if (this.room.time === GamePhase.Day) {
@@ -94,32 +124,76 @@ export abstract class Role {
     }
   }
 
+  /**
+   * Handles a daytime action on a target player. Override in subclasses for role-specific logic.
+   * Default implementation sends a message indicating the role has no day action.
+   * 
+   * @param {Player} _recipient - The target player (not used in base implementation)
+   * @returns {void}
+   */
   handleDayAction(_recipient: Player) {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no daytime action.");
   }
 
+  /**
+   * Cancels the player's current day action visit and notifies them.
+   * 
+   * @returns {void}
+   */
   cancelDayAction() {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You have cancelled your class' daytime action.");
     this.dayVisiting = null;
   }
 
+  /**
+   * Handles a nighttime action on a target player. Override in subclasses for role-specific logic.
+   * Default implementation sends a message indicating the role has no night action.
+   * 
+   * @param {Player} _recipient - The target player (not used in base implementation)
+   * @returns {void}
+   */
   handleNightAction(_recipient: Player) {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no nighttime action.");
   }
 
+  /**
+   * Handles a nighttime factional vote. Override in subclasses for role-specific logic.
+   * Default implementation sends a message indicating the role has no night voting.
+   * 
+   * @param {Player} _recipient - The target player (not used in base implementation)
+   * @returns {void}
+   */
   handleNightVote(_recipient: Player) {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no nighttime factional voting.");
   }
 
+  /**
+   * Cancels the player's current night action visit and notifies them.
+   * 
+   * @returns {void}
+   */
   cancelNightAction() {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You have cancelled your class' nighttime action.");
     this.visiting = null;
   }
 
+  /**
+   * Registers that another role is visiting this role.
+   * 
+   * @param {Role} role - The role that is visiting
+   * @returns {void}
+   */
   receiveVisit(role: Role) {
     this.visitors.push(role);
   }
 
+  /**
+   * Processes incoming damage based on this role's defense.
+   * If damage exceeds defense, the player dies. Otherwise, damage is reset at end of phase.
+   * Notifies the player and broadcasts their death if applicable.
+   * 
+   * @returns {boolean} True if the player died, false otherwise
+   */
   handleDamage() {
     if (this.baseDefence > this.defence) this.defence = this.baseDefence;
     if (this.damage > this.defence) {
@@ -148,9 +222,39 @@ export abstract class Role {
     return false;
   }
 
+  /**
+   * Processes daytime visits. Override in subclasses for role-specific logic.
+   * 
+   * @returns {void}
+   */
   dayVisit() {}
+
+  /**
+   * Processes nighttime visits. Override in subclasses for role-specific logic.
+   * 
+   * @returns {void}
+   */
   visit() {}
+
+  /**
+   * Called when another role visits this role during daytime. Override in subclasses for role-specific logic.
+   * 
+   * @param {Role} _role - The role that is visiting
+   * @returns {void}
+   */
   receiveDayVisit(_role: Role) {}
+
+  /**
+   * Processes all daytime visits to this role. Override in subclasses for role-specific logic.
+   * 
+   * @returns {void}
+   */
   handleDayVisits() {}
+
+  /**
+   * Processes all nighttime visits to this role. Override in subclasses for role-specific logic.
+   * 
+   * @returns {void}
+   */
   handleVisits() {}
 }

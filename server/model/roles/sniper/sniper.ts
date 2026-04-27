@@ -5,7 +5,19 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A vigilante role that eliminates targets through sniping.
+ * Kill amount varies based on the target's activity: 3 damage if the target didn't visit elsewhere,
+ * 1 damage if visited the same target as before.
+ * 
+ * @class Sniper
+ * @extends {Role}
+ */
 export class Sniper extends Role {
+  /**
+   * The last role that was sniped to prevent consecutive kills on the same target.
+   * @type {Role | null}
+   */
   lastVisited: Role | null = null;
 
   name = "Sniper";
@@ -21,10 +33,23 @@ export class Sniper extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Sniper instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by allowing the Sniper to choose a target to snipe.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to snipe
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
@@ -42,13 +67,24 @@ export class Sniper extends Role {
     }
   }
 
+  /**
+   * Processes the visit, recording the target for damage calculation.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a role, and gives their defence a minimum of one
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
     } else this.lastVisited = null;
   }
 
+  /**
+   * Calculates and applies damage based on the target's visit activity.
+   * If the target did not visit elsewhere or self-visited: 3 damage.
+   * If the target visited the same player as before: 1 damage.
+   * 
+   * @returns {void}
+   */
   handleVisits() {
     if (this.visiting != null) {
       if (

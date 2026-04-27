@@ -5,6 +5,14 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
+/**
+ * A Town role that wiretaps players' communications.
+ * Taps daytime messages via day action and nighttime messages via night action.
+ * Can hear all messages sent by tapped players during the next period.
+ * 
+ * @class Tapper
+ * @extends {Role}
+ */
 export class Tapper extends Role {
   name = "Tapper";
   group = RoleGroup.Town;
@@ -19,12 +27,24 @@ export class Tapper extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Tapper instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the day action by allowing the Tapper to wiretap a player's daytime communications.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to tap
+   * @returns {void}
+   */
   handleDayAction(recipient: Player) {
-    //Handles the class' daytime action
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -41,8 +61,14 @@ export class Tapper extends Role {
     }
   }
 
+  /**
+   * Handles the night action by allowing the Tapper to wiretap a player's nighttime communications.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to tap
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -59,8 +85,12 @@ export class Tapper extends Role {
     }
   }
 
+  /**
+   * Processes the day tap by notifying the target and registering the tap for message capture.
+   * 
+   * @returns {void}
+   */
   dayVisit() {
-    //Visits a player, so that the wiretapper can see any messages that they send overnight.
     if (this.dayVisiting != null) {
       io.to(this.dayVisiting.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -72,8 +102,12 @@ export class Tapper extends Role {
     }
   }
 
+  /**
+   * Processes the night tap by registering the tap to capture day messages.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a player, so that the wiretapper can see who they whisper to tomorrow.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
       this.visiting.dayTapped = this;

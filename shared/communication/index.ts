@@ -1,3 +1,7 @@
+/**
+ * Central export point for socket communication types and utilities.
+ * Re-exports event types, adapters, and factories for both client and server.
+ */
 export type {
   ClientToServerEvents,
   ServerToClientEvents,

@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
+import { err, ok } from "neverthrow";
 
 export type SessionUser = {
   id: string;
@@ -78,6 +79,10 @@ const t = initTRPC.context<AppRouterContext>().create({
   transformer: superjson,
 });
 
+/**
+ * Middleware that ensures a user is authenticated.
+ * Returns an error result if no session user is present.
+ */
 const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.sessionUser) {
     throw new TRPCError({
@@ -93,6 +98,10 @@ const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   });
 });
 
+/**
+ * Middleware that ensures the request has the backend secret.
+ * Returns an error result if the bearer token does not match the backend secret.
+ */
 const backendProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.isBackend) {
     throw new TRPCError({
@@ -103,6 +112,10 @@ const backendProcedure = t.procedure.use(({ ctx, next }) => {
   return next();
 });
 
+/**
+ * Middleware that ensures a user is authenticated and has admin privileges.
+ * Returns an error result if the user is not an admin.
+ */
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (!ctx.sessionUser.isAdmin) {
     throw new TRPCError({
@@ -113,6 +126,13 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   return next();
 });
 
+/**
+ * Creates the tRPC application router with all RPC procedures.
+ * Provides endpoints for match history, user search, and admin operations.
+ *
+ * @param {RouterServices} services - Service layer implementations
+ * @returns {object} tRPC router with match, room, and admin procedure groups
+ */
 export function createAppRouter(services: RouterServices) {
   return t.router({
     match: t.router({
@@ -153,12 +173,17 @@ export function createAppRouter(services: RouterServices) {
             limit: z.number().int().min(1).max(50).default(10),
           }),
         )
-        .query(({ ctx, input }) => {
+        .query(async ({ ctx, input }) => {
           const username = ctx.sessionUser.name?.trim();
-          if (!username) {
-            throw new TRPCError({ code: "BAD_REQUEST", message: "No username available" });
+          const usernameResult = username
+            ? ok(username)
+            : err(new Error("No username available"));
+          
+          if (usernameResult.isErr()) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: usernameResult.error.message });
           }
-          return services.getRecentMatches({ username, limit: input.limit });
+          
+          return services.getRecentMatches({ username: usernameResult.value, limit: input.limit });
         }),
     }),
     room: t.router({

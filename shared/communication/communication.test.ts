@@ -143,67 +143,79 @@ describe("createGameSocket", () => {
       id: "mock-id",
       connected: false,
     };
-    const socket = createGameSocket(
+    const socketRes = createGameSocket(
       { type: "socketio", url: "http://localhost:8000", autoConnect: false },
       mockSocket,
     );
+    expect(socketRes.isOk()).toBe(true);
+    const socket = socketRes.value;
     expect(socket).toBeTruthy();
     expect(socket instanceof SocketIoClientAdapter).toBe(true);
     expect(socket.id).toBe("mock-id");
     expect(socket.connected).toBe(false);
   });
 
-  it("throws for socketio without rawSocket", () => {
-    expect(() => {
-      createGameSocket({ type: "socketio", url: "http://localhost:8000" });
-    }).toThrow(/Socket\.IO backend requires/);
+  it("returns Err for socketio without rawSocket", () => {
+    const res = createGameSocket({ type: "socketio", url: "http://localhost:8000" });
+    expect(res.isErr()).toBe(true);
+    expect(res.error.message).toMatch(/Socket\.IO backend requires/);
   });
 
   it("creates PartykitClientAdapter for partykit type", () => {
-    const socket = createGameSocket({
+    const socketRes = createGameSocket({
       type: "partykit",
       url: "http://localhost:1999",
       room: "test-room",
       autoConnect: false,
     });
+    expect(socketRes.isOk()).toBe(true);
+    const socket = socketRes.value;
     expect(socket).toBeTruthy();
     expect(socket instanceof PartykitClientAdapter).toBe(true);
     expect(socket.connected).toBe(false);
   });
 
   it("uses default room for partykit when not specified", () => {
-    const socket = createGameSocket({
+    const socketRes = createGameSocket({
       type: "partykit",
       url: "http://localhost:1999",
       autoConnect: false,
     });
+    expect(socketRes.isOk()).toBe(true);
+    const socket = socketRes.value;
     expect(socket).toBeTruthy();
     expect(socket instanceof PartykitClientAdapter).toBe(true);
   });
 
-  it("throws for unknown backend type", () => {
+  it("returns Err for unknown backend type", () => {
     const config = JSON.parse('{"type":"unknown","url":"http://localhost:8000"}') as GameSocketConfig;
-    expect(() => { createGameSocket(config); }).toThrow(/Unknown socket backend type/);
+    const res = createGameSocket(config);
+    expect(res.isErr()).toBe(true);
+    expect(res.error.message).toMatch(/Unknown socket backend type/);
   });
 
   it("converts http URL to ws URL for partykit", () => {
-    const socket = createGameSocket({
+    const socketRes = createGameSocket({
       type: "partykit",
       url: "http://example.com",
       room: "game-room",
       autoConnect: false,
     });
+    expect(socketRes.isOk()).toBe(true);
+    const socket = socketRes.value;
     expect(socket).toBeTruthy();
     expect(socket instanceof PartykitClientAdapter).toBe(true);
   });
 
   it("handles https URL for partykit", () => {
-    const socket = createGameSocket({
+    const socketRes = createGameSocket({
       type: "partykit",
       url: "https://example.com",
       room: "game-room",
       autoConnect: false,
     });
+    expect(socketRes.isOk()).toBe(true);
+    const socket = socketRes.value;
     expect(socket).toBeTruthy();
     expect(socket instanceof PartykitClientAdapter).toBe(true);
   });

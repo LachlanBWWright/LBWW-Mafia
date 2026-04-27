@@ -11,6 +11,12 @@ import type { VisitCapability } from "@mernmafia/shared/game/playerActionRules";
 import { defaultVisitCapability } from "@mernmafia/shared/game/playerActionRules";
 import type { GameSocket, SocketBackendType } from "@mernmafia/shared/communication/clientTypes";
 
+/**
+ * Resolves the socket backend type from environment configuration.
+ *
+ * @param {string | undefined} value - Backend type from environment ("partykit" or undefined)
+ * @returns {SocketBackendType} Resolved backend type, defaults to "socketio"
+ */
 function resolveBackend(value: string | undefined): SocketBackendType {
   return value === "partykit" ? "partykit" : "socketio";
 }
@@ -25,6 +31,13 @@ const JOIN_ERROR = { CAPTCHA_FAILED: 2, ROOM_FULL: 3 } as const;
 export type Player = { name: string; isAlive?: boolean; role?: string };
 type ChatMessage = { id: number; text: string };
 
+/**
+ * Creates and configures a socket connection based on the configured backend.
+ * Supports both Socket.IO and PartyKit adapters.
+ *
+ * @param {string} roomId - The game room ID to connect to
+ * @returns {GameSocket | null} Configured game socket, or null if URL is not set
+ */
 function buildSocket(roomId: string): GameSocket | null {
   if (!SOCKET_URL) return null;
   if (SOCKET_BACKEND === "partykit") {
@@ -75,6 +88,12 @@ type JoinContext = {
   setCanVote: (b: boolean) => void;
 };
 
+/**
+ * Initiates the game room join flow, including socket connection and captcha verification.
+ * Sets appropriate status messages based on success or failure.
+ *
+ * @param {JoinContext} ctx - Join context with socket and state setters
+ */
 function performJoin(ctx: JoinContext) {
   if (ctx.joiningRef.current) return;
   if (!SOCKET_URL) { ctx.setJoinStatus("Socket server URL is not configured."); return; }
@@ -113,6 +132,14 @@ function performJoin(ctx: JoinContext) {
   });
 }
 
+/**
+ * React hook for managing game lobby state and socket communication.
+ * Handles player list, messages, voting, and role assignments.
+ * Auto-connects on mount and cleans up on unmount.
+ *
+ * @param {string} roomId - The game room ID to connect to
+ * @returns {GameLobbyState & GameLobbyActions} Current lobby state and action functions
+ */
 export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions {
   const [joinStatus, setJoinStatus] = useState("");
   const [playerName, setPlayerName] = useState("");

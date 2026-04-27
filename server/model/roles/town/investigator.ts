@@ -5,7 +5,13 @@ import { RoleGroup } from "../roleGroup.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
-//This class judges the alignment of the selected target (usually!)
+/**
+ * A Town role that inspects players and guesses their role.
+ * Provides three possible role guesses with 30% chance of accuracy.
+ * 
+ * @class Investigator
+ * @extends {Role}
+ */
 export class Investigator extends Role {
   name = "Investigator";
   group = RoleGroup.Town;
@@ -20,12 +26,24 @@ export class Investigator extends Role {
   nightVisitFaction = false;
   nightVote = false;
 
+  /**
+   * Creates a new Investigator instance.
+   * 
+   * @param {Room} room - The game room
+   * @param {Player} player - The player assigned this role
+   */
   constructor(room: Room, player: Player) {
     super(room, player);
   }
 
+  /**
+   * Handles the night action by allowing the Investigator to choose a player to inspect.
+   * Validates that the target is not self and is alive.
+   * 
+   * @param {Player} recipient - The target player to inspect
+   * @returns {void}
+   */
   handleNightAction(recipient: Player) {
-    //Vote on who should be attacked
     if (recipient == this.player) {
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
@@ -42,17 +60,20 @@ export class Investigator extends Role {
     }
   }
 
+  /**
+   * Processes the inspection visit by generating three role guesses.
+   * Each guess has a 30% chance of being the actual target role; otherwise a random role.
+   * 
+   * @returns {void}
+   */
   visit() {
-    //Visits a role, and tries to determine their alignment.
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
       let possibleRoles = [];
       for (const randomRoll of [Math.random(), Math.random(), Math.random()]) {
         if (randomRoll < 0.3) {
-          //Give the targets role
           possibleRoles.push(this.visiting.name);
         } else {
-          //Give a random player's role
           possibleRoles.push(
             this.room.playerList[
               Math.floor(Math.random() * this.room.playerList.length)

@@ -29,7 +29,9 @@ describe("GameEmitter singleton", () => {
     };
 
     setGameEmitter(mockEmitter);
-    const retrieved = getGameEmitter();
+    const retrievedRes = getGameEmitter();
+    expect(retrievedRes.isOk()).toBe(true);
+    const retrieved = retrievedRes.value;
     expect(retrieved).toBe(mockEmitter);
 
     retrieved.to("room-1").emit(ServerEvent.ReceiveMessage, "Hello");
