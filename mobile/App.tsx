@@ -1,30 +1,26 @@
 import "react-native-reanimated";
 import "./global.css";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import {
-  DarkTheme,
-  NavigationContainer,
-  Theme,
-} from "@react-navigation/native";
-import {
-  createNativeStackNavigator,
-  NativeStackNavigationProp,
-} from "@react-navigation/native-stack";
-import { HomeScreen } from "./screens/HomeScreen";
-import { PrivateGameLobbyScreen } from "./screens/PrivateGameLobbyScreen";
-import { PublicGameLobbyScreen } from "./screens/PublicGameLobbyScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { GameScreen } from "./screens/GameScreen";
 import React from "react";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import { NavigationContainer, DarkTheme, type Theme } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { AppStateProvider } from "./context/AppStateContext";
+import { LandingScreen } from "./screens/LandingScreen";
+import { LobbyScreen } from "./screens/LobbyScreen";
+import { RolesScreen } from "./screens/RolesScreen";
+import { AboutScreen } from "./screens/AboutScreen";
+import { HistoryScreen } from "./screens/HistoryScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
+import { AdminScreen } from "./screens/AdminScreen";
 import { colors } from "./styles/colors";
 
 export type StackParamList = {
-  HomeScreen: undefined;
-  PrivateGameLobbyScreen: undefined;
-  PublicGameLobbyScreen: { name: string };
-  SettingsScreen: undefined;
-  GameScreen: { title: string; name: string };
+  Home: undefined;
+  Lobby: undefined;
+  Roles: undefined;
+  About: undefined;
+  History: undefined;
+  Profile: undefined;
+  Admin: undefined;
 };
 
 const Stack = createNativeStackNavigator<StackParamList>();
@@ -34,98 +30,33 @@ const appTheme: Theme = {
   colors: {
     ...DarkTheme.colors,
     background: colors.background,
-    card: colors.surface,
+    card: colors.card,
     border: colors.border,
-    text: colors.textPrimary,
-    primary: colors.accent,
-    notification: colors.danger,
+    text: colors.foreground,
+    primary: colors.primary,
+    notification: colors.destructive,
   },
 };
 
-const styles = StyleSheet.create({
-  headerRight: {
-    flexDirection: "row",
-  },
-  iconPadding: {
-    paddingHorizontal: 7,
-  },
-});
-
-function HeaderRight({
-  navigation,
-}: {
-  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">;
-}) {
-  return (
-    <View style={styles.headerRight}>
-      <Pressable onPress={() => navigation.navigate("SettingsScreen")}>
-        <Icon
-          name="settings"
-          size={30}
-          color={colors.accent}
-          style={styles.iconPadding}
-        />
-      </Pressable>
-    </View>
-  );
-}
-
-function HeaderLeft() {
-  return <Text />;
-}
-
-const homeScreenOptions = (
-  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">,
-) => ({
-  title: "LBWW Mafia",
-  headerRight: () => <HeaderRight navigation={navigation} />,
-  headerStyle: { backgroundColor: colors.surface },
-  headerTintColor: colors.textPrimary,
-});
-
-const gameScreenOptions = (title: string) => ({
-  title: title,
-  headerLeft: HeaderLeft,
-  headerStyle: { backgroundColor: colors.surface },
-  headerTintColor: colors.textPrimary,
-});
-
 export default function App() {
   return (
-    <NavigationContainer theme={appTheme}>
-      <Stack.Navigator
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          contentStyle: { backgroundColor: colors.background },
-        }}
-      >
-        <Stack.Screen
-          name="HomeScreen"
-          component={HomeScreen}
-          options={({ navigation }) => homeScreenOptions(navigation)}
-        />
-        <Stack.Screen
-          name="PrivateGameLobbyScreen"
-          component={PrivateGameLobbyScreen}
-          options={{ title: "Private Games" }}
-        />
-        <Stack.Screen
-          name="PublicGameLobbyScreen"
-          component={PublicGameLobbyScreen}
-          options={{ title: "Public Games" }}
-        />
-        <Stack.Screen
-          name="SettingsScreen"
-          component={SettingsScreen}
-          options={{ title: "Settings" }}
-        />
-        <Stack.Screen
-          name="GameScreen"
-          component={GameScreen}
-          options={({ route }) => gameScreenOptions(route.params.title)}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <AppStateProvider>
+      <NavigationContainer theme={appTheme}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
+          <Stack.Screen name="Home" component={LandingScreen} />
+          <Stack.Screen name="Lobby" component={LobbyScreen} />
+          <Stack.Screen name="Roles" component={RolesScreen} />
+          <Stack.Screen name="About" component={AboutScreen} />
+          <Stack.Screen name="History" component={HistoryScreen} />
+          <Stack.Screen name="Profile" component={ProfileScreen} />
+          <Stack.Screen name="Admin" component={AdminScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </AppStateProvider>
   );
 }

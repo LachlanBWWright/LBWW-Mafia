@@ -1,34 +1,29 @@
 import { StyleSheet } from "react-native";
 import { colors } from "./colors";
 
-/**
- * Common stylesheet definitions shared across the mobile app.
- * Includes base container, text, and input styles using the theme color palette.
- */
 export const commonStyles = StyleSheet.create({
   container: {
-    alignSelf: "stretch",
-    marginTop: "auto",
     flex: 1,
-    padding: 20,
     backgroundColor: colors.background,
+    padding: 16,
   },
   centeredText: {
-    justifyContent: "flex-start",
-    alignSelf: "center",
     color: colors.textPrimary,
+    textAlign: "center",
   },
   rowContainer: {
     flexDirection: "row",
   },
   button: {
-    margin: 4,
+    marginTop: 8,
   },
   inputBorder: {
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 10,
-    margin: 4,
+    borderRadius: 8,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     color: colors.textPrimary,
     backgroundColor: colors.surface,
   },

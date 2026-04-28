@@ -1,15 +1,48 @@
-/**
- * Theme color palette for the mobile app.
- * Defines all colors used throughout the application for consistency.
- */
 export const colors = {
-  background: "#0B1020",
-  surface: "#151C33",
-  surfaceMuted: "#1E2744",
-  border: "#32406A",
-  textPrimary: "#E6ECFF",
-  textSecondary: "#AAB7E5",
-  accent: "#5B8CFF",
-  danger: "#FF5C7A",
+  background: "#060912",
+  foreground: "#E9EEFF",
+  card: "#0F1528",
+  popover: "#0F1528",
+  primary: "#5B8CFF",
+  primaryForeground: "#F2F6FF",
+  secondary: "#19213A",
+  secondaryForeground: "#DCE5FF",
+  muted: "#19213A",
+  mutedForeground: "#A8B4D9",
+  accent: "#1E2947",
+  accentForeground: "#E9EEFF",
+  destructive: "#A93F57",
+  destructiveForeground: "#FFE7ED",
+  border: "#283456",
+  input: "#1E2947",
+  ring: "#5B8CFF",
   success: "#3DDC97",
+  chart1: "#4D7CFE",
+  chart2: "#36D39E",
+  chart3: "#E8B94A",
+  chart4: "#B16CF3",
+  chart5: "#F36A8F",
+  surface: "#0F1528",
+  surfaceMuted: "#19213A",
+  textPrimary: "#E9EEFF",
+  textSecondary: "#A8B4D9",
+  danger: "#A93F57",
+};
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  "2xl": 24,
+  "3xl": 32,
+};
+
+export const radius = {
+  sm: 6,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  "2xl": 20,
 };

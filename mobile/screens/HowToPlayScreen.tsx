@@ -1,59 +1,11 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableNativeFeedback,
-  StyleSheet,
-} from "react-native";
+import React from "react";
+import { Text, View } from "react-native";
 import { commonStyles } from "../styles/commonStyles";
-import { colors } from "../styles/colors";
-
-const styles = StyleSheet.create({
-  question: {
-    fontWeight: "bold",
-    fontSize: 20,
-    color: colors.textPrimary,
-  },
-  answer: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-});
 
 export function HowToPlayScreen() {
-  interface htpItem {
-    question: string;
-    answer: string;
-  }
-  const items: Array<htpItem> = [
-    { question: "Question", answer: "Lorem ipsum blah blah blah" },
-    { question: "Question", answer: "Lorem ipsum blah blah blah" },
-    { question: "Question", answer: "Lorem ipsum blah blah blah" },
-    { question: "Question", answer: "Lorem ipsum blah blah blah" },
-  ];
-
   return (
     <View style={commonStyles.container}>
-      <FlatList
-        data={items}
-        renderItem={({ item }) => (
-          <HowToPlayItem question={item.question} answer={item.answer} />
-        )}
-      />
-    </View>
-  );
-}
-
-function HowToPlayItem(props: { question: string; answer: string }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <View>
-      <TouchableNativeFeedback onPress={() => setOpen(!open)}>
-        <Text style={styles.question}>{props.question}</Text>
-      </TouchableNativeFeedback>
-      {open ? <Text style={styles.answer}>{props.answer}</Text> : <></>}
+      <Text style={commonStyles.centeredText}>How-to-play content moved into Roles, About, and the Lobby quick-start flow.</Text>
     </View>
   );
 }
