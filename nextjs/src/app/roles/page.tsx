@@ -6,43 +6,10 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-
-type RoleEntry = {
-  name: string;
-  category: string;
-  ability: string;
-};
-
-const townRoles: RoleEntry[] = [
-  { name: "Doctor", category: "Town Protective", ability: "Protect a player from attacks." },
-  { name: "Judge", category: "Town Investigative", ability: "Investigate alignments with uncertainty." },
-  { name: "Watchman", category: "Town Investigative", ability: "See visitors to your target." },
-  { name: "Investigator", category: "Town Investigative", ability: "Inspect faction clues at night." },
-  { name: "Lawman", category: "Town Support", ability: "Coordinate with Lawman faction members." },
-  { name: "Vetter", category: "Town Investigative", ability: "Vet two players to compare identities." },
-  { name: "Tapper", category: "Town Support", ability: "Tap players to expose whispers/actions." },
-  { name: "Tracker", category: "Town Investigative", ability: "Track who a target visits." },
-  { name: "Bodyguard", category: "Town Protective", ability: "Guard a player and counter attackers." },
-  { name: "Nimby", category: "Town Utility", ability: "Punish hostile visits to your target area." },
-  { name: "Sacrificer", category: "Town Protective", ability: "Absorb damage for allies." },
-  { name: "Fortifier", category: "Town Protective", ability: "Increase a target's defense." },
-  { name: "Roleblocker", category: "Town Support", ability: "Prevent a player from acting." },
-  { name: "Jailor", category: "Town Control", ability: "Jail and execute key suspects." },
-];
-
-const mafiaRoles: RoleEntry[] = [
-  { name: "Mafia", category: "Mafia Killing", ability: "Perform faction attacks at night." },
-  { name: "Mafia Roleblocker", category: "Mafia Support", ability: "Roleblock priority targets." },
-  { name: "Mafia Investigator", category: "Mafia Investigative", ability: "Discover threat roles." },
-];
-
-const neutralRoles: RoleEntry[] = [
-  { name: "Maniac", category: "Neutral Killing", ability: "Eliminate players for solo victory." },
-  { name: "Sniper", category: "Neutral Killing", ability: "Take precision shots with constraints." },
-  { name: "Framer", category: "Neutral Evil", ability: "Manipulate voting outcomes around targets." },
-  { name: "Confesser", category: "Neutral Chaos", ability: "Win by being voted out." },
-  { name: "Peacemaker", category: "Neutral Benign", ability: "Force a draw by prolonged peace." },
-];
+import {
+  roleSections,
+  type RoleCatalogEntry,
+} from "@mernmafia/shared/game/roles";
 
 function RoleSection({
   title,
@@ -51,7 +18,7 @@ function RoleSection({
 }: {
   title: string;
   accentClass: string;
-  roles: RoleEntry[];
+  roles: readonly RoleCatalogEntry[];
 }) {
   return (
     <section className="mb-12">
@@ -65,9 +32,7 @@ function RoleSection({
               <CardTitle>{role.name}</CardTitle>
               <CardDescription>{role.category}</CardDescription>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              {role.ability}
-            </CardContent>
+            <CardContent className="text-sm text-muted-foreground">{role.summary}</CardContent>
           </Card>
         ))}
       </div>
@@ -90,9 +55,23 @@ export default function RolesPage() {
             </p>
           </div>
 
-          <RoleSection title="Town" accentClass="text-primary" roles={townRoles} />
-          <RoleSection title="Mafia" accentClass="text-destructive" roles={mafiaRoles} />
-          <RoleSection title="Neutral" accentClass="text-muted-foreground" roles={neutralRoles} />
+          {roleSections.map((section) => {
+            const accentClass =
+              section.faction === "town"
+                ? "text-primary"
+                : section.faction === "mafia"
+                  ? "text-destructive"
+                  : "text-muted-foreground";
+
+            return (
+              <RoleSection
+                key={section.title}
+                title={section.title}
+                accentClass={accentClass}
+                roles={section.roles}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

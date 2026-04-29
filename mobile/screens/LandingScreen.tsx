@@ -1,35 +1,20 @@
 import React from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
 import { StackParamList } from "../App";
 import { Button, Card, EmptyState, Screen } from "../components/ui";
-import { colors } from "../styles/colors";
 
 type LandingScreenProps = NativeStackScreenProps<StackParamList, "Home">;
 
 export function LandingScreen({ navigation }: LandingScreenProps) {
   return (
     <Screen navigation={navigation} activeRoute="Home" scroll>
-      <View style={{ gap: 16 }}>
-        <View style={{ gap: 12 }}>
-          <Text
-            style={{
-              color: colors.foreground,
-              fontSize: 44,
-              lineHeight: 46,
-              fontWeight: "900",
-              letterSpacing: -1.2,
-            }}
-          >
-            LBWW <Text style={{ color: colors.primary }}>Mafia</Text>
+      <View className="gap-4">
+        <View className="gap-3">
+          <Text className="text-[44px] font-black leading-[46px] tracking-[-1.2px] text-foreground">
+            LBWW <Text className="text-primary">Mafia</Text>
           </Text>
-          <Text
-            style={{
-              color: colors.mutedForeground,
-              fontSize: 16,
-              lineHeight: 23,
-            }}
-          >
+          <Text className="text-base leading-6 text-muted-foreground">
             Enter a live game instantly, coordinate through chat, and make your
             move before the timer runs out.
           </Text>
@@ -40,23 +25,17 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
         </Button>
 
         <Card>
-          <Text
-            style={{
-              color: colors.foreground,
-              fontSize: 18,
-              fontWeight: "800",
-            }}
-          >
+          <Text className="text-lg font-extrabold text-foreground">
             Quick Start
           </Text>
-          <View style={{ gap: 10 }}>
-            <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+          <View className="gap-2.5">
+            <Text className="text-sm text-muted-foreground">
               1. Join a public room.
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+            <Text className="text-sm text-muted-foreground">
               2. Watch day/night countdowns.
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 14 }}>
+            <Text className="text-sm text-muted-foreground">
               3. Chat, vote, visit, and whisper from the player panel.
             </Text>
           </View>
@@ -66,7 +45,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           title="Need a reference point?"
           description="Roles, About, History, Profile, and Admin each map to the web app's navigation model."
           action={
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View className="flex-row gap-2">
               <Button variant="secondary" size="sm" onPress={() => navigation.navigate("Roles")}>
                 Roles
               </Button>

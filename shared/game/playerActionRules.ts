@@ -1,3 +1,5 @@
+import { roleFactionsByName } from "./roles.js";
+
 /** Enum representing the two game phases as seen by clients (capitalized, used in wire protocol). */
 export enum DayTime {
   Day = "Day",
@@ -22,26 +24,6 @@ export const defaultVisitCapability: VisitCapability = {
   nightVisitFaction: false,
 };
 
-const roleFactionMap: Record<string, string> = {
-  Doctor: "town",
-  Judge: "town",
-  Watchman: "town",
-  Investigator: "town",
-  Lawman: "town",
-  Vetter: "town",
-  Tapper: "town",
-  Tracker: "town",
-  Bodyguard: "town",
-  Nimby: "town",
-  Sacrificer: "town",
-  Fortifier: "town",
-  Roleblocker: "town",
-  Jailor: "town",
-  Mafia: "mafia",
-  "Mafia Roleblocker": "mafia",
-  "Mafia Investigator": "mafia",
-};
-
 /**
  * Determines the faction affiliation of a role from the provided role name.
  * 
@@ -52,7 +34,7 @@ export const getRoleFaction = (role?: string): string | null => {
   if (!role) {
     return null;
   }
-  return roleFactionMap[role] ?? null;
+  return roleFactionsByName.get(role) ?? null;
 };
 
 /**

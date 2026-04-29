@@ -5,7 +5,6 @@ import { StackParamList } from "../App";
 import { searchUsers, setUserAdmin, type UserSummary } from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
 import { Badge, Button, Card, EmptyState, Input, Screen, SectionHeader } from "../components/ui";
-import { colors } from "../styles/colors";
 
 type AdminScreenProps = NativeStackScreenProps<StackParamList, "Admin">;
 
@@ -56,10 +55,10 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
           description="The mobile app does not yet have the same authenticated session exchange as the web app."
         />
       ) : (
-        <View style={{ gap: 16 }}>
+        <View className="gap-4">
           <Card>
             <SectionHeader title="Admin User Search" />
-            <View style={{ gap: 10 }}>
+            <View className="gap-2.5">
               <Input
                 value={query}
                 onChangeText={setQuery}
@@ -69,23 +68,23 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
                 {searching ? "Searching..." : "Search"}
               </Button>
               {status ? (
-                <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                <Text className="text-xs text-muted-foreground">
                   {status}
                 </Text>
               ) : null}
             </View>
           </Card>
 
-          <View style={{ gap: 10 }}>
+          <View className="gap-2.5">
             {users.map((user) => (
               <Card key={user.id}>
-                <View style={{ gap: 8 }}>
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 8 }}>
-                    <View style={{ flex: 1, gap: 2 }}>
-                      <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "800" }}>
+                <View className="gap-2">
+                  <View className="flex-row justify-between gap-2">
+                    <View className="flex-1 gap-0.5">
+                      <Text className="text-[15px] font-extrabold text-foreground">
                         {user.name ?? "Unnamed user"}
                       </Text>
-                      <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+                      <Text className="text-xs text-muted-foreground">
                         {user.email}
                       </Text>
                     </View>

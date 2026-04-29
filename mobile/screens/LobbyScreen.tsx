@@ -17,7 +17,6 @@ import {
 import { StackParamList } from "../App";
 import { useAppState } from "../context/AppStateContext";
 import { Button, Badge, Card, EmptyState, Input, ListRow, Screen, SectionHeader } from "../components/ui";
-import { colors } from "../styles/colors";
 import { useGameLobby } from "../lib/useGameLobby";
 
 type LobbyScreenProps = NativeStackScreenProps<StackParamList, "Lobby">;
@@ -52,11 +51,11 @@ export function LobbyScreen({ navigation }: LobbyScreenProps) {
       {lobby.playerName ? (
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={{ flex: 1 }}
+          className="flex-1"
         >
-          <View style={{ flex: 1, gap: 12 }}>
-            <Card style={{ paddingBottom: 12 }}>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          <View className="flex-1 gap-3">
+            <Card className="pb-3">
+              <View className="flex-row flex-wrap gap-2">
                 <Badge variant="secondary">{lobby.time}</Badge>
                 <Badge variant="outline">Day {lobby.dayNumber}</Badge>
                 <Badge variant="outline">{lobby.timeLeft}s left</Badge>
@@ -64,22 +63,22 @@ export function LobbyScreen({ navigation }: LobbyScreenProps) {
                   {isCurrentUserAlive ? "Alive" : "Dead"}
                 </Badge>
               </View>
-              <Text style={{ color: colors.mutedForeground, fontSize: 13, lineHeight: 18 }}>
-                You joined as <Text style={{ color: colors.foreground, fontWeight: "700" }}>{lobby.playerName}</Text>
+              <Text className="text-sm leading-[18px] text-muted-foreground">
+                You joined as <Text className="font-bold text-foreground">{lobby.playerName}</Text>
                 {lobby.currentUserRole ? (
                   <>
                     {" "}
-                    • <Text style={{ color: colors.primary }}>{lobby.currentUserRole}</Text>
+                    • <Text className="text-primary">{lobby.currentUserRole}</Text>
                   </>
                 ) : null}
               </Text>
             </Card>
 
-            <View style={{ flexDirection: "row", gap: 8 }}>
+            <View className="flex-row gap-2">
               <Button
                 variant={activeTab === "chat" ? "primary" : "secondary"}
                 size="sm"
-                style={{ flex: 1 }}
+                className="flex-1"
                 onPress={() => setActiveTab("chat")}
               >
                 Chat
@@ -87,35 +86,38 @@ export function LobbyScreen({ navigation }: LobbyScreenProps) {
               <Button
                 variant={activeTab === "players" ? "primary" : "secondary"}
                 size="sm"
-                style={{ flex: 1 }}
+                className="flex-1"
                 onPress={() => setActiveTab("players")}
               >
                 Players
               </Button>
             </View>
 
-            <View style={{ flex: 1 }}>
+            <View className="flex-1">
               {activeTab === "chat" ? (
-                <Card style={{ flex: 1 }}>
-                  <SectionHeader title="Chat" subtitle={lobby.canTalk ? "Send a public message or whisper from the player list." : "You cannot talk right now."} />
+                <Card className="flex-1">
+                  <SectionHeader
+                    title="Chat"
+                    subtitle={lobby.canTalk ? "Send a public message or whisper from the player list." : "You cannot talk right now."}
+                  />
                   <ScrollView
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
+                    className="flex-1"
+                    contentContainerClassName="gap-2 pb-3"
                     showsVerticalScrollIndicator={false}
                   >
                     {lobby.messages.length === 0 ? (
-                      <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                      <Text className="text-sm text-muted-foreground">
                         No messages yet.
                       </Text>
                     ) : (
                       lobby.messages.map((message) => (
-                        <Text key={message.id} style={{ color: colors.foreground, fontSize: 14, lineHeight: 20 }}>
+                        <Text key={message.id} className="text-sm leading-5 text-foreground">
                           {message.text}
                         </Text>
                       ))
                     )}
                   </ScrollView>
-                  <View style={{ gap: 8 }}>
+                  <View className="gap-2">
                     <Input
                       value={lobby.messageDraft}
                       onChangeText={lobby.setMessageDraft}
@@ -132,18 +134,18 @@ export function LobbyScreen({ navigation }: LobbyScreenProps) {
                   </View>
                 </Card>
               ) : (
-                <Card style={{ flex: 1 }}>
+                <Card className="flex-1">
                   <SectionHeader
                     title="Players"
                     subtitle="Vote, visit, and whisper from the row actions."
                   />
                   <ScrollView
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
+                    className="flex-1"
+                    contentContainerClassName="gap-2 pb-3"
                     showsVerticalScrollIndicator={false}
                   >
                     {lobby.players.length === 0 ? (
-                      <Text style={{ color: colors.mutedForeground, fontSize: 13 }}>
+                      <Text className="text-sm text-muted-foreground">
                         Waiting for players...
                       </Text>
                     ) : (
@@ -183,7 +185,7 @@ export function LobbyScreen({ navigation }: LobbyScreenProps) {
                             subtitle={player.role ? `Role: ${player.role}` : "Role hidden"}
                             tone={player.isAlive === false ? "danger" : player.isAlive ? "success" : "muted"}
                             trailing={
-                              <View style={{ flexDirection: "row", gap: 6 }}>
+                              <View className="flex-row gap-1.5">
                                 {showVisit ? (
                                   <Button
                                     variant="outline"
@@ -226,7 +228,7 @@ export function LobbyScreen({ navigation }: LobbyScreenProps) {
             </View>
 
             {lobby.joinStatus ? (
-              <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>
+              <Text className="text-xs text-muted-foreground">
                 {lobby.joinStatus}
               </Text>
             ) : null}

@@ -5,7 +5,6 @@ import { StackParamList } from "../App";
 import { fetchRecentMatches, type RecentMatchSummary } from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
 import { Badge, Button, Card, EmptyState, LoadingCard, Screen } from "../components/ui";
-import { colors } from "../styles/colors";
 
 type HistoryScreenProps = NativeStackScreenProps<StackParamList, "History">;
 
@@ -56,20 +55,20 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
       ) : matches.length === 0 ? (
         <EmptyState title="No recent matches found." description="This player has no match history yet." />
       ) : (
-        <View style={{ gap: 12 }}>
+        <View className="gap-3">
           {matches.map((match) => (
             <Card key={match.id}>
-              <View style={{ gap: 8 }}>
-                <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-                  <Text style={{ color: colors.foreground, fontSize: 15, fontWeight: "800" }}>
+              <View className="gap-2">
+                <View className="flex-row flex-wrap items-center gap-2">
+                  <Text className="text-[15px] font-extrabold text-foreground">
                     Match #{match.id}
                   </Text>
                   <Badge variant="secondary">{match.winningFaction} won</Badge>
                 </View>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                <Text className="text-xs leading-[18px] text-muted-foreground">
                   {new Date(match.endedAt).toLocaleString()} • {match.roomName}
                 </Text>
-                <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+                <Text className="text-xs leading-[18px] text-muted-foreground">
                   Winners: {match.winningRoles.join(", ") || "None"} • Events:{" "}
                   {match.conversationCount + match.actionCount}
                 </Text>
