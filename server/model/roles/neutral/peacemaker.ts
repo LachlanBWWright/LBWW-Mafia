@@ -2,13 +2,14 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A neutral role that wins by roleblocker another player at night.
  * Can block a single player each night to prevent their actions.
- * 
+ *
  * @class Peacemaker
  * @extends {Role}
  */
@@ -17,8 +18,8 @@ export class Peacemaker extends Role {
 
   name = "Peacemaker";
   group = RoleGroup.Neutral;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = true;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -30,7 +31,7 @@ export class Peacemaker extends Role {
 
   /**
    * Creates a new Peacemaker instance and registers itself with the room.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -43,7 +44,7 @@ export class Peacemaker extends Role {
   /**
    * Handles the night action by allowing the Peacemaker to choose a player to block.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to block
    * @returns {void}
    */
@@ -60,13 +61,16 @@ export class Peacemaker extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the block visit by marking the target as roleblocked.
-   * 
+   *
    * @returns {void}
    */
   visit() {

@@ -5,12 +5,13 @@ import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 
 /**
  * A Town role that researches players' backgrounds to discover their identities.
  * Has 3 research sessions. Each session reveals one of two randomly selected players'  roles
  * with 50% accuracy (may report the actual role or an incorrect one).
- * 
+ *
  * @class Vetter
  * @extends {Role}
  */
@@ -23,8 +24,8 @@ export class Vetter extends Role {
 
   name = "Vetter";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -36,7 +37,7 @@ export class Vetter extends Role {
 
   /**
    * Creates a new Vetter instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -48,7 +49,7 @@ export class Vetter extends Role {
    * Handles the night action to toggle research mode.
    * Consumes a research slot when activating research.
    * Must have research slots remaining to activate.
-   * 
+   *
    * @param {Player} _recipient - Not used; Vetter only affects self
    * @returns {void}
    */
@@ -77,7 +78,7 @@ export class Vetter extends Role {
    * Processes the research visit by selecting two random players.
    * Reports one of the two players' roles with 50% chance of accuracy.
    * Decrements research slots and reports remaining sessions.
-   * 
+   *
    * @returns {void}
    */
   visit() {

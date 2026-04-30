@@ -2,21 +2,22 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A neutral killer role that wins by eliminating all other players.
  * Can attack anyone at night without factional restrictions.
- * 
+ *
  * @class Maniac
  * @extends {Role}
  */
 export class Maniac extends Role {
   name = "Maniac";
   group = RoleGroup.Maniac;
-  baseDefence = 1;
-  defence = 1;
+  baseDefence = CombatLevel.Low;
+  defence = CombatLevel.Low;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class Maniac extends Role {
 
   /**
    * Creates a new Maniac instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -39,7 +40,7 @@ export class Maniac extends Role {
   /**
    * Handles the night action by allowing the Maniac to choose a player to attack.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to attack
    * @returns {void}
    */
@@ -56,19 +57,22 @@ export class Maniac extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the visit by attacking the target with 1 damage.
-   * 
+   *
    * @returns {void}
    */
   visit() {
     if (this.visiting != null) {
-      if (this.visiting.damage == 0) {
-        this.visiting.damage = 1;
+      if (this.visiting.damage == CombatLevel.None) {
+        this.visiting.damage = CombatLevel.Low;
       }
       this.visiting.receiveVisit(this);
     }

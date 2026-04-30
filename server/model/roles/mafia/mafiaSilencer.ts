@@ -2,21 +2,22 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A Mafia role with silencing abilities. Can silence a player during the night phase,
  * preventing them from speaking the next day.
- * 
+ *
  * @class MafiaSilencer
  * @extends {RoleMafia}
  */
 export class MafiaSilencer extends RoleMafia {
   name = "Mafia Silencer";
   group = RoleGroup.Mafia;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = true;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class MafiaSilencer extends RoleMafia {
 
   /**
    * Creates a new MafiaSilencer instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -39,7 +40,7 @@ export class MafiaSilencer extends RoleMafia {
   /**
    * Handles the night action by allowing the silencer to choose a player to silence.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to silence
    * @returns {void}
    */
@@ -56,14 +57,17 @@ export class MafiaSilencer extends RoleMafia {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Performs the silence visit by marking the target as silenced.
    * Silence succeeds on Town targets; has a 50% chance to succeed on other roles.
-   * 
+   *
    * @returns {void}
    */
   defaultVisit() {

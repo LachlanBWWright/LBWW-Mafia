@@ -4,6 +4,7 @@ import { io } from "../../servers/emitter.js";
 import { Faction } from "./abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Role } from "../roles/abstractRole.js";
+import { CombatLevel } from "../roles/combatLevel.js";
 
 export class MafiaFaction extends Faction {
   attackList: Role[] = [];
@@ -11,7 +12,7 @@ export class MafiaFaction extends Faction {
   /**
    * Finds all Mafia members from the given player list and adds them to memberList.
    * Initializes all found members with faction information.
-   * 
+   *
    * @param {Player[]} playerList - List of all players in the game
    * @returns {void}
    */
@@ -29,7 +30,7 @@ export class MafiaFaction extends Faction {
    * Handles night phase voting by collecting attack votes from all members
    * and selecting a random attacker to carry out an attack on a voted target.
    * Clears the attack list after vote resolution.
-   * 
+   *
    * @returns {void}
    */
   handleNightVote() {
@@ -44,7 +45,8 @@ export class MafiaFaction extends Faction {
       let victim =
         this.attackList[Math.floor(Math.random() * this.attackList.length)];
       const attacker =
-        this.memberList[Math.floor(Math.random() * this.memberList.length)].role;
+        this.memberList[Math.floor(Math.random() * this.memberList.length)]
+          .role;
       attacker.visiting = victim;
       attacker.isAttacking = true;
     }
@@ -53,7 +55,7 @@ export class MafiaFaction extends Faction {
 
   /**
    * Sends a night chat message to all Mafia faction members, prefixed with the sender's username.
-   * 
+   *
    * @param {string} message - The chat message content
    * @param {string} playerUsername - The username of the player sending the message
    * @returns {void}
@@ -71,7 +73,7 @@ export class MafiaFaction extends Faction {
 
   /**
    * Sends a message to all members of the Mafia faction.
-   * 
+   *
    * @param {string} message - The message to send
    * @returns {void}
    */
@@ -84,14 +86,15 @@ export class MafiaFaction extends Faction {
   /**
    * Processes a Mafia member's visit to a target role.
    * Notifies the target of the visit and inflicts 1 damage on them, registering the attacker.
-   * 
+   *
    * @param {Role} role - The Mafia member role that is visiting
    * @returns {void}
    */
   visit(role: Role) {
     if (role.visiting != null) {
       role.visiting.receiveVisit(role);
-      if (role.visiting.damage == 0) role.visiting.damage = 1;
+      if (role.visiting.damage == CombatLevel.None)
+        role.visiting.damage = CombatLevel.Low;
       role.visiting.attackers.push(role);
     }
   }
@@ -99,7 +102,7 @@ export class MafiaFaction extends Faction {
   /**
    * Removes members who have died or are no longer part of the Mafia faction.
    * A member is retained only if they are alive and belong to the Mafia role group.
-   * 
+   *
    * @returns {void}
    */
   removeMembers() {

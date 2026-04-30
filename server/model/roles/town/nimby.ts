@@ -2,13 +2,14 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A Town role that can go on alert at night for protection.
  * Has a limited number of alert slots (3) and counterattacks visitors while alert.
- * 
+ *
  * @class Nimby
  * @extends {Role}
  */
@@ -21,8 +22,8 @@ export class Nimby extends Role {
 
   name = "Nimby";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -34,7 +35,7 @@ export class Nimby extends Role {
 
   /**
    * Creates a new Nimby instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -45,7 +46,7 @@ export class Nimby extends Role {
   /**
    * Handles the night action by toggling alert status.
    * Uses one alert slot if turning on alert. Must have slots remaining.
-   * 
+   *
    * @param {Player} _recipient - Not used; Nimby only affects self
    * @returns {void}
    */
@@ -72,13 +73,13 @@ export class Nimby extends Role {
 
   /**
    * Processes the alert visit by increasing self defense and consuming an alert slot.
-   * 
+   *
    * @returns {void}
    */
   visit() {
     if (this.visiting != null) {
-      if (this.visiting.defence == 0) {
-        this.visiting.defence = 1;
+      if (this.visiting.defence == CombatLevel.None) {
+        this.visiting.defence = CombatLevel.Low;
         this.alertSlots--;
       }
       this.visiting.receiveVisit(this);
@@ -88,14 +89,15 @@ export class Nimby extends Role {
   /**
    * Counterattacks any visitors to self while on alert.
    * Inflicts 1 damage to counterattacked visitors (except self and duplicate entries).
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {
     if (this.visiting != null) {
       for (const visitor of this.visiting.visitors) {
         if (visitor != this && visitor != this.visiting) {
-          if (visitor.damage == 0) visitor.damage = 1;
+          if (visitor.damage == CombatLevel.None)
+            visitor.damage = CombatLevel.Low;
         }
       }
     }

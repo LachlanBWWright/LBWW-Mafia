@@ -5,19 +5,20 @@ import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 
 /**
  * A Town role that tracks other players' movements at night.
  * Reveals who the tracked player visited during the night.
- * 
+ *
  * @class Tracker
  * @extends {Role}
  */
 export class Tracker extends Role {
   name = "Tracker";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -29,7 +30,7 @@ export class Tracker extends Role {
 
   /**
    * Creates a new Tracker instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -40,7 +41,7 @@ export class Tracker extends Role {
   /**
    * Handles the night action by allowing the Tracker to choose a player to track.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to track
    * @returns {void}
    */
@@ -57,13 +58,16 @@ export class Tracker extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the track visit by registering the tracker for visit observation.
-   * 
+   *
    * @returns {void}
    */
   visit() {
@@ -75,7 +79,7 @@ export class Tracker extends Role {
   /**
    * Handles the visit results by reporting where the tracked player visited.
    * If the target didn't visit anyone, reports that instead.
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {

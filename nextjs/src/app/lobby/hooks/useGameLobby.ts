@@ -4,12 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { SocketIoClientAdapter } from "@mernmafia/shared/communication/socketIoClientAdapter";
 import { PartykitClientAdapter } from "@mernmafia/shared/communication/partykitClientAdapter";
-import type { PlayerList, PlayerReturned } from "@mernmafia/shared/communication/events";
-import { ServerEvent, ClientEvent } from "@mernmafia/shared/communication/events";
+import type {
+  PlayerList,
+  PlayerReturned,
+} from "@mernmafia/shared/communication/events";
+import {
+  ServerEvent,
+  ClientEvent,
+} from "@mernmafia/shared/communication/events";
 import { DayTime } from "@mernmafia/shared/game/playerActionRules";
 import type { VisitCapability } from "@mernmafia/shared/game/playerActionRules";
 import { defaultVisitCapability } from "@mernmafia/shared/game/playerActionRules";
-import type { GameSocket, SocketBackendType } from "@mernmafia/shared/communication/clientTypes";
+import type {
+  GameSocket,
+  SocketBackendType,
+} from "@mernmafia/shared/communication/clientTypes";
 
 /**
  * Resolves the socket backend type from environment configuration.
@@ -26,6 +35,9 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "";
 const CAPTCHA_TOKEN =
   process.env.NEXT_PUBLIC_CAPTCHA_TOKEN ??
   (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
+const JOIN_TIMEOUT_MS = 7000;
+const AUTO_JOIN_DELAY_MS = 0;
+const TIMER_INTERVAL_MS = 1000;
 const JOIN_ERROR = { CAPTCHA_FAILED: 2, ROOM_FULL: 3 } as const;
 
 export type Player = { name: string; isAlive?: boolean; role?: string };
@@ -96,8 +108,14 @@ type JoinContext = {
  */
 function performJoin(ctx: JoinContext) {
   if (ctx.joiningRef.current) return;
-  if (!SOCKET_URL) { ctx.setJoinStatus("Socket server URL is not configured."); return; }
-  if (!CAPTCHA_TOKEN) { ctx.setJoinStatus("Captcha token is not configured."); return; }
+  if (!SOCKET_URL) {
+    ctx.setJoinStatus("Socket server URL is not configured.");
+    return;
+  }
+  if (!CAPTCHA_TOKEN) {
+    ctx.setJoinStatus("Captcha token is not configured.");
+    return;
+  }
   ctx.joiningRef.current = true;
   ctx.setJoining(true);
   ctx.setJoinStatus("Joining game room...");
@@ -105,30 +123,34 @@ function performJoin(ctx: JoinContext) {
     ctx.setJoinStatus("Could not connect to the game server.");
     ctx.joiningRef.current = false;
     ctx.setJoining(false);
-  }, 7000);
+  }, JOIN_TIMEOUT_MS);
   ctx.socket.connect(() => {
-  ctx.socket.emit(ClientEvent.PlayerJoinRoom, CAPTCHA_TOKEN, (result: string | number) => {
-    clearTimeout(timeout);
-    if (typeof result === "string") {
-      ctx.playerNameRef.current = result;
-      ctx.setPlayerName(result);
-      ctx.setCurrentUserRole(undefined);
-      ctx.setVisitCapability(defaultVisitCapability);
-      ctx.setJoinStatus("");
-      ctx.setMessages(() => []);
-      ctx.msgIdRef.current = 0;
-      ctx.setCanTalk(true);
-      ctx.setCanVote(true);
-    } else if (result === JOIN_ERROR.ROOM_FULL) {
-      ctx.setJoinStatus("Room is full. Please try again.");
-    } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
-      ctx.setJoinStatus("Failed captcha verification.");
-    } else {
-      ctx.setJoinStatus("Unable to join room.");
-    }
-    ctx.joiningRef.current = false;
-    ctx.setJoining(false);
-  });
+    ctx.socket.emit(
+      ClientEvent.PlayerJoinRoom,
+      CAPTCHA_TOKEN,
+      (result: string | number) => {
+        clearTimeout(timeout);
+        if (typeof result === "string") {
+          ctx.playerNameRef.current = result;
+          ctx.setPlayerName(result);
+          ctx.setCurrentUserRole(undefined);
+          ctx.setVisitCapability(defaultVisitCapability);
+          ctx.setJoinStatus("");
+          ctx.setMessages(() => []);
+          ctx.msgIdRef.current = 0;
+          ctx.setCanTalk(true);
+          ctx.setCanVote(true);
+        } else if (result === JOIN_ERROR.ROOM_FULL) {
+          ctx.setJoinStatus("Room is full. Please try again.");
+        } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
+          ctx.setJoinStatus("Failed captcha verification.");
+        } else {
+          ctx.setJoinStatus("Unable to join room.");
+        }
+        ctx.joiningRef.current = false;
+        ctx.setJoining(false);
+      },
+    );
   });
 }
 
@@ -140,7 +162,9 @@ function performJoin(ctx: JoinContext) {
  * @param {string} roomId - The game room ID to connect to
  * @returns {GameLobbyState & GameLobbyActions} Current lobby state and action functions
  */
-export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions {
+export function useGameLobby(
+  roomId: string,
+): GameLobbyState & GameLobbyActions {
   const [joinStatus, setJoinStatus] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [joining, setJoining] = useState(false);
@@ -152,7 +176,9 @@ export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions 
   const [timeLeft, setTimeLeft] = useState(0);
   const [canTalk, setCanTalk] = useState(true);
   const [canVote, setCanVote] = useState(true);
-  const [visitCapability, setVisitCapability] = useState<VisitCapability>(defaultVisitCapability);
+  const [visitCapability, setVisitCapability] = useState<VisitCapability>(
+    defaultVisitCapability,
+  );
   const [currentUserRole, setCurrentUserRole] = useState<string | undefined>();
 
   // Socket is created once via lazy useState initializer (never changes after mount)
@@ -169,35 +195,64 @@ export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions 
     const appendMsg = (text: string) => {
       msgIdRef.current += 1;
       const id = msgIdRef.current;
-      setMessages((cur) => (cur.some((m) => m.id === id) ? cur : [...cur, { id, text }]));
+      setMessages((cur) =>
+        cur.some((m) => m.id === id) ? cur : [...cur, { id, text }],
+      );
     };
 
     const joinCtx: JoinContext = {
-      socket, joiningRef, playerNameRef, msgIdRef,
-      setJoinStatus, setJoining, setPlayerName, setCurrentUserRole,
-      setVisitCapability, setMessages, setCanTalk, setCanVote,
+      socket,
+      joiningRef,
+      playerNameRef,
+      msgIdRef,
+      setJoinStatus,
+      setJoining,
+      setPlayerName,
+      setCurrentUserRole,
+      setVisitCapability,
+      setMessages,
+      setCanTalk,
+      setCanVote,
     };
 
     const onNewPlayer = (p: { name: string }) =>
-      setPlayers((cur) => (cur.some((x) => x.name === p.name) ? cur : [...cur, { name: p.name }]));
+      setPlayers((cur) =>
+        cur.some((x) => x.name === p.name) ? cur : [...cur, { name: p.name }],
+      );
     const onRemovePlayer = (p: { name: string }) =>
       setPlayers((cur) => cur.filter((x) => x.name !== p.name));
     const onPlayerList = (list: PlayerList[]) => setPlayers(list);
     const onAssignRole = (data: PlayerReturned) => {
-      setPlayers((cur) => cur.map((p) => (p.name === data.name ? { ...p, role: data.role } : p)));
+      setPlayers((cur) =>
+        cur.map((p) => (p.name === data.name ? { ...p, role: data.role } : p)),
+      );
       setCurrentUserRole(data.role);
       setVisitCapability({
-        dayVisitSelf: data.dayVisitSelf, dayVisitOthers: data.dayVisitOthers,
-        dayVisitFaction: data.dayVisitFaction, nightVisitSelf: data.nightVisitSelf,
-        nightVisitOthers: data.nightVisitOthers, nightVisitFaction: data.nightVisitFaction,
+        dayVisitSelf: data.dayVisitSelf,
+        dayVisitOthers: data.dayVisitOthers,
+        dayVisitFaction: data.dayVisitFaction,
+        nightVisitSelf: data.nightVisitSelf,
+        nightVisitOthers: data.nightVisitOthers,
+        nightVisitFaction: data.nightVisitFaction,
       });
     };
     const onFactionRole = (d: { name: string; role: string }) =>
-      setPlayers((cur) => cur.map((p) => (p.name === d.name ? { ...p, role: d.role } : p)));
+      setPlayers((cur) =>
+        cur.map((p) => (p.name === d.name ? { ...p, role: d.role } : p)),
+      );
     const onUpdateRole = (d: { name: string; role?: string }) =>
       setPlayers((cur) =>
-        cur.map((p) => (p.name === d.name ? { ...p, isAlive: false, role: d.role ?? p.role } : p)));
-    const onDayTime = (info: { time: DayTime; dayNumber: number; timeLeft: number }) => {
+        cur.map((p) =>
+          p.name === d.name
+            ? { ...p, isAlive: false, role: d.role ?? p.role }
+            : p,
+        ),
+      );
+    const onDayTime = (info: {
+      time: DayTime;
+      dayNumber: number;
+      timeLeft: number;
+    }) => {
       setTime(info.time);
       setDayNumber(info.dayNumber);
       setTimeLeft(info.timeLeft);
@@ -217,7 +272,7 @@ export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions 
     socket.on(ServerEvent.UpdateDayTime, onDayTime);
     socket.on(ServerEvent.UpdatePlayerVisit, () => undefined);
 
-    const autoJoin = setTimeout(() => performJoin(joinCtx), 0);
+    const autoJoin = setTimeout(() => performJoin(joinCtx), AUTO_JOIN_DELAY_MS);
 
     return () => {
       clearTimeout(autoJoin);
@@ -242,22 +297,35 @@ export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions 
     if (timeLeft <= 0) return;
     const timer = setInterval(() => {
       setTimeLeft((cur) => (cur > 0 ? cur - 1 : 0));
-    }, 1000);
+    }, TIMER_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [timeLeft]);
 
   const joinGame = () => {
     if (!socket) return;
     performJoin({
-      socket, joiningRef, playerNameRef, msgIdRef,
-      setJoinStatus, setJoining, setPlayerName, setCurrentUserRole,
-      setVisitCapability, setMessages, setCanTalk, setCanVote,
+      socket,
+      joiningRef,
+      playerNameRef,
+      msgIdRef,
+      setJoinStatus,
+      setJoining,
+      setPlayerName,
+      setCurrentUserRole,
+      setVisitCapability,
+      setMessages,
+      setCanTalk,
+      setCanVote,
     });
   };
 
   const sendMessage = () => {
     if (!socket || !messageDraft.trim()) return;
-    socket.emit(ClientEvent.MessageSentByUser, messageDraft.trim(), time === DayTime.Day);
+    socket.emit(
+      ClientEvent.MessageSentByUser,
+      messageDraft.trim(),
+      time === DayTime.Day,
+    );
     setMessageDraft("");
   };
 
@@ -273,13 +341,34 @@ export function useGameLobby(roomId: string): GameLobbyState & GameLobbyActions 
 
   const whisperToPlayer = (index: number) => {
     if (!socket || !messageDraft.trim()) return;
-    socket.emit(ClientEvent.HandleWhisper, index, messageDraft.trim(), time === DayTime.Day);
+    socket.emit(
+      ClientEvent.HandleWhisper,
+      index,
+      messageDraft.trim(),
+      time === DayTime.Day,
+    );
     setMessageDraft("");
   };
 
   return {
-    joinStatus, playerName, joining, players, messages, messageDraft,
-    time, dayNumber, timeLeft, canTalk, canVote, visitCapability, currentUserRole,
-    joinGame, sendMessage, voteForPlayer, visitPlayer, whisperToPlayer, setMessageDraft,
+    joinStatus,
+    playerName,
+    joining,
+    players,
+    messages,
+    messageDraft,
+    time,
+    dayNumber,
+    timeLeft,
+    canTalk,
+    canVote,
+    visitCapability,
+    currentUserRole,
+    joinGame,
+    sendMessage,
+    voteForPlayer,
+    visitPlayer,
+    whisperToPlayer,
+    setMessageDraft,
   };
 }

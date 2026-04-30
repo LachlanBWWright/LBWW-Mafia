@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { GamePhase } from "../../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
@@ -10,15 +11,15 @@ import { io } from "../../../servers/emitter.js";
  * A Town role that can jail a player during the day, preventing their actions.
  * Can then choose to execute the jailed player at night.
  * Jailed players and the Jailor can communicate privately during the night.
- * 
+ *
  * @class Jailor
  * @extends {Role}
  */
 export class Jailor extends Role {
   name = "Jailor";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = true;
@@ -30,7 +31,7 @@ export class Jailor extends Role {
 
   /**
    * Creates a new Jailor instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -41,7 +42,7 @@ export class Jailor extends Role {
   /**
    * Handles chat messages. If a player is jailed, messages are only visible to them and the Jailor.
    * Otherwise, uses standard message handling.
-   * 
+   *
    * @param {string} message - The chat message
    * @returns {void}
    */
@@ -50,7 +51,10 @@ export class Jailor extends Role {
     if (this.room.time === GamePhase.Day) {
       super.handleMessage(message);
     } else if (this.dayVisiting != null) {
-      io.to(socketId).emit(ServerEvent.ReceiveChatMessage, `Jailor: ${message}`);
+      io.to(socketId).emit(
+        ServerEvent.ReceiveChatMessage,
+        `Jailor: ${message}`,
+      );
       io.to(this.dayVisiting.player.user.socketId).emit(
         ServerEvent.ReceiveChatMessage,
         `Jailor: ${message}`,
@@ -63,7 +67,7 @@ export class Jailor extends Role {
   /**
    * Handles the day action to jail a player.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to jail
    * @returns {void}
    */
@@ -80,14 +84,17 @@ export class Jailor extends Role {
       );
       this.dayVisiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Handles the night action to decide whether to execute the jailed player.
    * Can toggle between execute and release decisions.
-   * 
+   *
    * @param {Player} _recipient - Not used; affects the jailed player from dayVisiting
    * @returns {void}
    */
@@ -125,7 +132,7 @@ export class Jailor extends Role {
   /**
    * Processes the day action of jailing a player.
    * Notifies the player they've been jailed and applies roleblock.
-   * 
+   *
    * @returns {void}
    */
   dayVisit() {
@@ -146,13 +153,14 @@ export class Jailor extends Role {
   /**
    * Processes the execution of the jailed player.
    * Inflicts 3 damage to execute the prisoner.
-   * 
+   *
    * @returns {void}
    */
   visit() {
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      if (this.visiting.damage < 3) this.visiting.damage = 3;
+      if (this.visiting.damage < CombatLevel.High)
+        this.visiting.damage = CombatLevel.High;
       this.visiting.attackers.push(this);
     }
   }
@@ -160,13 +168,14 @@ export class Jailor extends Role {
   /**
    * Processes post-visit effects. Resets jail status and provides defense to the jailed player.
    * If jailed player wasn't executed, increases their defense.
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {
     if (this.dayVisiting != null) this.dayVisiting.jailed = null;
     if (this.dayVisiting != null) {
-      if (this.dayVisiting.baseDefence == 0) this.dayVisiting.defence = 1;
+      if (this.dayVisiting.baseDefence == CombatLevel.None)
+        this.dayVisiting.defence = CombatLevel.Low;
     }
   }
 }

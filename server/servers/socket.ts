@@ -3,13 +3,17 @@ import axios from "axios";
 import { fromThrowable, ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
-import type { ClientToServerEvents, ServerToClientEvents, InterServerEvents } from "../../shared/communication/events.js";
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+} from "../../shared/communication/events.js";
 import { ClientEvent } from "../../shared/communication/events.js";
 
 /**
  * Data attached to each Socket connection.
  * Stores the player's current room and position in the player list.
- * 
+ *
  * @typedef {Object} SocketData
  * @property {Room} roomObject - The game room this player is in
  * @property {number} position - The player's index in the room's player list
@@ -22,7 +26,7 @@ export type SocketData = {
 /**
  * Type-safe Socket instance for game connections.
  * Properly types client-to-server events, server-to-client events, and attached data.
- * 
+ *
  * @typedef {Socket} PlayerSocket
  */
 export type PlayerSocket = Socket<
@@ -35,7 +39,7 @@ export type PlayerSocket = Socket<
 /**
  * Creates a Socket.IO server configured for game communications.
  * Sets up CORS and binds to the HTTP server.
- * 
+ *
  * @returns {Server} Configured Socket.IO server instance
  */
 export function createSocketIoServer() {
@@ -54,17 +58,21 @@ export function createSocketIoServer() {
 /**
  * Whether to run in debug mode, disabling CAPTCHA verification.
  * Set via DEBUG or debug environment variables.
- * 
+ *
  * @type {boolean}
  */
 const DEBUG_MODE =
   process.env.DEBUG?.toLowerCase() === "true" ||
   process.env.debug?.toLowerCase() === "true";
 
+const CAPTCHA_FAILURE_CODE = 2;
+const CHAT_MESSAGE_MIN_LENGTH = 1;
+const CHAT_MESSAGE_MAX_LENGTH = 150;
+
 /**
  * Safely executes an action with error logging.
  * Wraps the action in a try-catch via neverthrow and logs any errors.
- * 
+ *
  * @param {string} context - Description of the action for error logging
  * @param {() => void} action - The action to execute safely
  * @returns {void}
@@ -81,7 +89,7 @@ const runSafely = (context: string, action: () => void) => {
 /**
  * Adds event listeners to the Socket.IO server for all game events.
  * Manages player connections, disconnections, and all game actions.
- * 
+ *
  * @param {Server} socketIoServer - The Socket.IO server to add listeners to
  * @param {number} roomSize - The maximum number of players per game room
  * @returns {void}
@@ -125,11 +133,11 @@ export function addSocketListeners(
                 console.log("Result: " + result);
                 cb(result);
               }
-            } else cb(2);
+            } else cb(CAPTCHA_FAILURE_CODE);
           },
           (error) => {
             console.error(`Captcha verification failed: ${String(error)}`);
-            cb(2);
+            cb(CAPTCHA_FAILURE_CODE);
           },
         );
       },
@@ -153,7 +161,10 @@ export function addSocketListeners(
      */
     socket.on(ClientEvent.MessageSentByUser, (message, isDay: boolean) => {
       runSafely("messageSentByUser error", () => {
-        if (message.length > 0 && message.length <= 150) {
+        if (
+          message.length >= CHAT_MESSAGE_MIN_LENGTH &&
+          message.length <= CHAT_MESSAGE_MAX_LENGTH
+        ) {
           if (socket.data.roomObject !== undefined)
             socket.data.roomObject.handleSentMessage(socket, message, isDay);
         }
@@ -194,8 +205,8 @@ export function addSocketListeners(
       runSafely("handleWhisper error", () => {
         if (
           typeof recipient === "number" &&
-          message.length > 0 &&
-          message.length <= 150
+          message.length >= CHAT_MESSAGE_MIN_LENGTH &&
+          message.length <= CHAT_MESSAGE_MAX_LENGTH
         ) {
           if (socket.data.roomObject !== undefined)
             socket.data.roomObject.handleWhisper(

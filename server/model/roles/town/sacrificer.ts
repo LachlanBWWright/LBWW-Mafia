@@ -2,21 +2,22 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A Town role that sacrifices themselves to protect a target from attacks.
  * If the protected target is attacked, the Sacrificer dies and reveals all attackers to the target.
- * 
+ *
  * @class Sacrificer
  * @extends {Role}
  */
 export class Sacrificer extends Role {
   name = "Sacrificer";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class Sacrificer extends Role {
 
   /**
    * Creates a new Sacrificer instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -39,7 +40,7 @@ export class Sacrificer extends Role {
   /**
    * Handles the night action by allowing the Sacrificer to choose a player to protect.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to protect
    * @returns {void}
    */
@@ -56,13 +57,16 @@ export class Sacrificer extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the protect visit by registering for the visit.
-   * 
+   *
    * @returns {void}
    */
   visit() {
@@ -74,12 +78,12 @@ export class Sacrificer extends Role {
   /**
    * Processes attacks on the protected target. If attacked, sacrifices self and reveals attackers.
    * Gives the target maximum defense (3) and identifies all attackers to them.
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {
     if (this.visiting != null && this.visiting.attackers.length > 0) {
-      this.visiting.defence = 3;
+      this.visiting.defence = CombatLevel.High;
       io.to(this.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
         "You have died protecting your target.",
@@ -88,7 +92,7 @@ export class Sacrificer extends Role {
         ServerEvent.ReceiveMessage,
         "You were attacked, but were saved by a sacrificer!",
       );
-      this.damage = 99;
+      this.damage = CombatLevel.Critical;
       for (const attacker of this.visiting.attackers) {
         io.to(this.visiting.player.user.socketId).emit(
           ServerEvent.ReceiveMessage,

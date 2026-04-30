@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
@@ -9,7 +10,7 @@ import { io } from "../../../servers/emitter.js";
  * A neutral role that wins by getting a specific Town member voted out.
  * Automatically assigned a random Town target at game start. If the target dies before day 5,
  * a new target is assigned.
- * 
+ *
  * @class Framer
  * @extends {Role}
  */
@@ -23,8 +24,8 @@ export class Framer extends Role {
 
   name = "Framer";
   group = RoleGroup.Neutral;
-  baseDefence = 1;
-  defence = 1;
+  baseDefence = CombatLevel.Low;
+  defence = CombatLevel.Low;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -36,7 +37,7 @@ export class Framer extends Role {
 
   /**
    * Creates a new Framer instance and registers itself with the room.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -48,7 +49,7 @@ export class Framer extends Role {
   /**
    * Initializes the Framer by selecting a random Town member as the target.
    * Notifies the Framer of their target and win condition.
-   * 
+   *
    * @returns {void}
    */
   initRole() {
@@ -56,7 +57,8 @@ export class Framer extends Role {
     let index = Math.floor(Math.random() * length);
     for (const i of Array.from({ length }, (_, index) => index)) {
       if (
-        this.room.playerList[(index + i) % length].role.group === RoleGroup.Town &&
+        this.room.playerList[(index + i) % length].role.group ===
+          RoleGroup.Town &&
         this.room.playerList[(index + i) % length].isAlive
       ) {
         this.target = this.room.playerList[(index + i) % length];
@@ -74,7 +76,7 @@ export class Framer extends Role {
   /**
    * Updates the target if the current target dies before day 5.
    * Selects a new random Town member and notifies the Framer.
-   * 
+   *
    * @returns {void}
    */
   dayUpdate() {
@@ -83,7 +85,8 @@ export class Framer extends Role {
     let index = Math.floor(Math.random() * length);
     for (const i of Array.from({ length }, (_, index) => index)) {
       if (
-        this.room.playerList[(index + i) % length].role.group === RoleGroup.Town &&
+        this.room.playerList[(index + i) % length].role.group ===
+          RoleGroup.Town &&
         this.room.playerList[(index + i) % length].isAlive
       ) {
         this.target = this.room.playerList[(index + i) % length];

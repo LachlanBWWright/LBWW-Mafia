@@ -2,21 +2,22 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A Town role that inspects players and guesses their role.
  * Provides three possible role guesses with 30% chance of accuracy.
- * 
+ *
  * @class Investigator
  * @extends {Role}
  */
 export class Investigator extends Role {
   name = "Investigator";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class Investigator extends Role {
 
   /**
    * Creates a new Investigator instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -39,7 +40,7 @@ export class Investigator extends Role {
   /**
    * Handles the night action by allowing the Investigator to choose a player to inspect.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to inspect
    * @returns {void}
    */
@@ -56,14 +57,17 @@ export class Investigator extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the inspection visit by generating three role guesses.
    * Each guess has a 30% chance of being the actual target role; otherwise a random role.
-   * 
+   *
    * @returns {void}
    */
   visit() {

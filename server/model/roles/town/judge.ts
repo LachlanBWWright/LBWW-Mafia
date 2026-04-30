@@ -2,21 +2,22 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A Town role that judges players and determines their factional alignment.
  * Has a 70% chance to correctly identify alignment; otherwise returns a random alignment.
- * 
+ *
  * @class Judge
  * @extends {Role}
  */
 export class Judge extends Role {
   name = "Judge";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class Judge extends Role {
 
   /**
    * Creates a new Judge instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -39,7 +40,7 @@ export class Judge extends Role {
   /**
    * Handles the night action by allowing the Judge to choose a player to inspect.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to judge
    * @returns {void}
    */
@@ -56,14 +57,17 @@ export class Judge extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the inspection visit by determining factional alignment.
    * Has a 30% chance to return false information; otherwise returns actual alignment.
-   * 
+   *
    * @returns {void}
    */
   visit() {

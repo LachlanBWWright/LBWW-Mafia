@@ -5,6 +5,7 @@ import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 
 /**
  * A Town role that watches other players to see who visits them at night.
@@ -12,15 +13,15 @@ import { RoleGroup } from "../roleGroup.js";
  * - No visitors: Reports that nobody visited
  * - One visitor: Reveals the visitor's identity (or a false lead if random check)
  * - Multiple visitors: Lists all live visitors (or provides names with 50% chance of alibi)
- * 
+ *
  * @class Watchman
  * @extends {Role}
  */
 export class Watchman extends Role {
   name = "Watchman";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -32,7 +33,7 @@ export class Watchman extends Role {
 
   /**
    * Creates a new Watchman instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -43,7 +44,7 @@ export class Watchman extends Role {
   /**
    * Handles the night action by allowing the Watchman to choose a player to watch.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to watch
    * @returns {void}
    */
@@ -60,13 +61,16 @@ export class Watchman extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the watch visit by registering as a visitor.
-   * 
+   *
    * @returns {void}
    */
   visit() {
@@ -81,7 +85,7 @@ export class Watchman extends Role {
    * - 1 visitor (only Watchman): Reports nobody visited
    * - 2 visitors (Watchman + 1): Reveals the visitor (or false lead)
    * - 3+ visitors: Lists all or provides alibi option
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {

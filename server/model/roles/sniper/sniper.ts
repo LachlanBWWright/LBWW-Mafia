@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
@@ -9,7 +10,7 @@ import { io } from "../../../servers/emitter.js";
  * A vigilante role that eliminates targets through sniping.
  * Kill amount varies based on the target's activity: 3 damage if the target didn't visit elsewhere,
  * 1 damage if visited the same target as before.
- * 
+ *
  * @class Sniper
  * @extends {Role}
  */
@@ -22,8 +23,8 @@ export class Sniper extends Role {
 
   name = "Sniper";
   group = RoleGroup.Sniper;
-  baseDefence = 1;
-  defence = 1;
+  baseDefence = CombatLevel.Low;
+  defence = CombatLevel.Low;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -35,7 +36,7 @@ export class Sniper extends Role {
 
   /**
    * Creates a new Sniper instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -46,7 +47,7 @@ export class Sniper extends Role {
   /**
    * Handles the night action by allowing the Sniper to choose a target to snipe.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to snipe
    * @returns {void}
    */
@@ -63,13 +64,16 @@ export class Sniper extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the visit, recording the target for damage calculation.
-   * 
+   *
    * @returns {void}
    */
   visit() {
@@ -82,7 +86,7 @@ export class Sniper extends Role {
    * Calculates and applies damage based on the target's visit activity.
    * If the target did not visit elsewhere or self-visited: 3 damage.
    * If the target visited the same player as before: 1 damage.
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {
@@ -91,9 +95,11 @@ export class Sniper extends Role {
         this.visiting.visiting == this.visiting ||
         this.visiting.visiting == null
       ) {
-        if (this.visiting.damage < 3) this.visiting.damage = 3;
+        if (this.visiting.damage < CombatLevel.High)
+          this.visiting.damage = CombatLevel.High;
       } else if (this.lastVisited == this.visiting) {
-        if (this.visiting.damage == 0) this.visiting.damage = 1;
+        if (this.visiting.damage == CombatLevel.None)
+          this.visiting.damage = CombatLevel.Low;
       }
       this.lastVisited = this.visiting;
     }

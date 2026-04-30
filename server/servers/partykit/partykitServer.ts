@@ -24,11 +24,14 @@ type ClientMessage = {
 /**
  * Safely executes an action with error logging.
  * Wraps the action in a try-catch via neverthrow and logs any errors.
- * 
+ *
  * @param {string} context - Description of the action for error logging
  * @param {() => void} action - The action to execute safely
  * @returns {void}
  */
+const DEFAULT_ROOM_SIZE = 13;
+const MAX_MESSAGE_LENGTH = 150;
+
 const runSafely = (context: string, action: () => void) => {
   const safeAction = fromThrowable(action, (error) => error);
   const result = safeAction();
@@ -51,11 +54,11 @@ export default class MafiaPartyServer implements Party.Server {
   /**
    * Initializes a new Mafia game room for this PartyKit party instance.
    * Sets up the GameEmitter singleton for this instance.
-   * 
+   *
    * @param {Party.Room} room - The PartyKit room instance
    */
   constructor(readonly room: Party.Room) {
-    this.roomSize = 13;
+    this.roomSize = DEFAULT_ROOM_SIZE;
 
     this.gameRoom = new Room(this.roomSize, room.id);
 
@@ -67,7 +70,7 @@ export default class MafiaPartyServer implements Party.Server {
   /**
    * Handles HTTP requests to the PartyKit server.
    * Supports CORS and returns 404 for non-CORS requests.
-   * 
+   *
    * @param {Party.Request} request - The HTTP request
    * @returns {Response} HTTP response with CORS headers
    */
@@ -88,7 +91,7 @@ export default class MafiaPartyServer implements Party.Server {
   /**
    * Handles new player connections to this party instance.
    * Creates a socket adapter for the player and stores it.
-   * 
+   *
    * @param {Party.Connection} connection - The new player connection
    * @param {Party.ConnectionContext} _ctx - Connection context (unused)
    * @returns {void}
@@ -103,7 +106,7 @@ export default class MafiaPartyServer implements Party.Server {
    * Handles incoming messages from players.
    * Routes game events (join, message, vote, visit, whisper) to the game room.
    * Parses JSON messages and validates event types before processing.
-   * 
+   *
    * @param {string | ArrayBuffer | ArrayBufferView} message - Raw message data
    * @param {Party.Connection} sender - The connection that sent the message
    * @returns {void}
@@ -145,7 +148,7 @@ export default class MafiaPartyServer implements Party.Server {
         const isDay = parsed.args[1];
         if (typeof msg !== "string" || typeof isDay !== "boolean") break;
         runSafely("messageSentByUser error", () => {
-          if (msg.length > 0 && msg.length <= 150) {
+          if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
             if (playerSocket.data.roomObject !== undefined) {
               playerSocket.data.roomObject.handleSentMessage(
                 playerSocket,
@@ -212,7 +215,7 @@ export default class MafiaPartyServer implements Party.Server {
         )
           break;
         runSafely("handleWhisper error", () => {
-          if (msg.length > 0 && msg.length <= 150) {
+          if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
             if (playerSocket.data.roomObject !== undefined) {
               playerSocket.data.roomObject.handleWhisper(
                 playerSocket,
@@ -231,7 +234,7 @@ export default class MafiaPartyServer implements Party.Server {
   /**
    * Handles player disconnections.
    * Removes the player from the game room and cleans up the socket adapter.
-   * 
+   *
    * @param {Party.Connection} connection - The closed connection
    * @returns {void}
    */
@@ -249,7 +252,7 @@ export default class MafiaPartyServer implements Party.Server {
 
   /**
    * Handles connection errors by closing the connection and cleaning up.
-   * 
+   *
    * @param {Party.Connection} connection - The connection that encountered an error
    * @param {Error} error - The error that occurred
    * @returns {void}

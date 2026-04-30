@@ -3,6 +3,7 @@ import { io } from "../../servers/emitter.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
 import { RoleGroup } from "./roleGroup.js";
+import { CombatLevel } from "./combatLevel.js";
 import { GamePhase } from "../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { fromThrowable } from "neverthrow";
@@ -15,9 +16,9 @@ export abstract class Role {
   abstract readonly group: RoleGroup;
   faction?: Faction;
 
-  abstract baseDefence: number;
-  defence = 0;
-  damage = 0;
+  abstract baseDefence: CombatLevel;
+  defence = CombatLevel.None;
+  damage = CombatLevel.None;
 
   abstract readonly dayVisitSelf: boolean;
   abstract readonly dayVisitOthers: boolean;
@@ -46,7 +47,7 @@ export abstract class Role {
 
   /**
    * Creates a new Role instance.
-   * 
+   *
    * @param {Room} room - The game room this role belongs to
    * @param {Player} player - The player assigned to this role
    */
@@ -57,7 +58,7 @@ export abstract class Role {
 
   /**
    * Assigns this role to a faction.
-   * 
+   *
    * @param {Faction} faction - The faction to assign
    * @returns {void}
    */
@@ -67,14 +68,14 @@ export abstract class Role {
 
   /**
    * Initializes the role at game start. Override in subclasses for role-specific setup.
-   * 
+   *
    * @returns {void}
    */
   initRole() {}
 
   /**
    * Called at the start of each day phase. Override in subclasses for role-specific logic.
-   * 
+   *
    * @returns {void}
    */
   dayUpdate() {}
@@ -82,7 +83,7 @@ export abstract class Role {
   /**
    * Handles incoming chat messages based on the current game phase.
    * Silenced players are notified, day phase messages are broadcast, and night messages are faction-scoped.
-   * 
+   *
    * @param {string} message - The chat message content
    * @returns {void}
    */
@@ -90,7 +91,10 @@ export abstract class Role {
     const socketId = this.player.user.socketId;
     if (this.room.time === GamePhase.Day) {
       if (this.silenced) {
-        io.to(socketId).emit(ServerEvent.ReceiveChatMessage, "You have been silenced and cannot talk");
+        io.to(socketId).emit(
+          ServerEvent.ReceiveChatMessage,
+          "You have been silenced and cannot talk",
+        );
       } else {
         io.to(this.room.name).emit(
           ServerEvent.ReceiveChatMessage,
@@ -98,13 +102,19 @@ export abstract class Role {
         );
       }
     } else if (this.jailed != null) {
-      io.to(socketId).emit(ServerEvent.ReceiveChatMessage, `${this.player.username}: ${message}`);
+      io.to(socketId).emit(
+        ServerEvent.ReceiveChatMessage,
+        `${this.player.username}: ${message}`,
+      );
       io.to(this.jailed.player.user.socketId).emit(
         ServerEvent.ReceiveChatMessage,
         `${this.player.username}: ${message}`,
       );
     } else if (typeof this.faction === "undefined") {
-      io.to(socketId).emit(ServerEvent.ReceiveMessage, "You cannot speak at night.");
+      io.to(socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You cannot speak at night.",
+      );
     } else {
       const faction = this.faction;
       const handleNightMessage = fromThrowable(
@@ -127,59 +137,74 @@ export abstract class Role {
   /**
    * Handles a daytime action on a target player. Override in subclasses for role-specific logic.
    * Default implementation sends a message indicating the role has no day action.
-   * 
+   *
    * @param {Player} _recipient - The target player (not used in base implementation)
    * @returns {void}
    */
   handleDayAction(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no daytime action.");
+    io.to(this.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      "Your class has no daytime action.",
+    );
   }
 
   /**
    * Cancels the player's current day action visit and notifies them.
-   * 
+   *
    * @returns {void}
    */
   cancelDayAction() {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You have cancelled your class' daytime action.");
+    io.to(this.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      "You have cancelled your class' daytime action.",
+    );
     this.dayVisiting = null;
   }
 
   /**
    * Handles a nighttime action on a target player. Override in subclasses for role-specific logic.
    * Default implementation sends a message indicating the role has no night action.
-   * 
+   *
    * @param {Player} _recipient - The target player (not used in base implementation)
    * @returns {void}
    */
   handleNightAction(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no nighttime action.");
+    io.to(this.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      "Your class has no nighttime action.",
+    );
   }
 
   /**
    * Handles a nighttime factional vote. Override in subclasses for role-specific logic.
    * Default implementation sends a message indicating the role has no night voting.
-   * 
+   *
    * @param {Player} _recipient - The target player (not used in base implementation)
    * @returns {void}
    */
   handleNightVote(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Your class has no nighttime factional voting.");
+    io.to(this.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      "Your class has no nighttime factional voting.",
+    );
   }
 
   /**
    * Cancels the player's current night action visit and notifies them.
-   * 
+   *
    * @returns {void}
    */
   cancelNightAction() {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You have cancelled your class' nighttime action.");
+    io.to(this.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      "You have cancelled your class' nighttime action.",
+    );
     this.visiting = null;
   }
 
   /**
    * Registers that another role is visiting this role.
-   * 
+   *
    * @param {Role} role - The role that is visiting
    * @returns {void}
    */
@@ -191,7 +216,7 @@ export abstract class Role {
    * Processes incoming damage based on this role's defense.
    * If damage exceeds defense, the player dies. Otherwise, damage is reset at end of phase.
    * Notifies the player and broadcasts their death if applicable.
-   * 
+   *
    * @returns {boolean} True if the player died, false otherwise
    */
   handleDamage() {
@@ -205,7 +230,7 @@ export abstract class Role {
         `${this.player.username} has died. Their role was ${this.name.toLowerCase()}.`,
       );
       this.player.isAlive = false;
-      this.damage = 0;
+      this.damage = CombatLevel.None;
       this.attackers = [];
       io.to(this.room.name).emit(ServerEvent.UpdatePlayerRole, {
         name: this.player.username,
@@ -213,32 +238,35 @@ export abstract class Role {
       });
       return true;
     }
-    if (this.damage !== 0) {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "You were attacked, but you survived!");
+    if (this.damage !== CombatLevel.None) {
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "You were attacked, but you survived!",
+      );
     }
     this.defence = this.baseDefence;
-    this.damage = 0;
+    this.damage = CombatLevel.None;
     this.attackers = [];
     return false;
   }
 
   /**
    * Processes daytime visits. Override in subclasses for role-specific logic.
-   * 
+   *
    * @returns {void}
    */
   dayVisit() {}
 
   /**
    * Processes nighttime visits. Override in subclasses for role-specific logic.
-   * 
+   *
    * @returns {void}
    */
   visit() {}
 
   /**
    * Called when another role visits this role during daytime. Override in subclasses for role-specific logic.
-   * 
+   *
    * @param {Role} _role - The role that is visiting
    * @returns {void}
    */
@@ -246,14 +274,14 @@ export abstract class Role {
 
   /**
    * Processes all daytime visits to this role. Override in subclasses for role-specific logic.
-   * 
+   *
    * @returns {void}
    */
   handleDayVisits() {}
 
   /**
    * Processes all nighttime visits to this role. Override in subclasses for role-specific logic.
-   * 
+   *
    * @returns {void}
    */
   handleVisits() {}

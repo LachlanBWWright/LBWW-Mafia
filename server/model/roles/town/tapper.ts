@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
@@ -9,15 +10,15 @@ import { io } from "../../../servers/emitter.js";
  * A Town role that wiretaps players' communications.
  * Taps daytime messages via day action and nighttime messages via night action.
  * Can hear all messages sent by tapped players during the next period.
- * 
+ *
  * @class Tapper
  * @extends {Role}
  */
 export class Tapper extends Role {
   name = "Tapper";
   group = RoleGroup.Town;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = true;
@@ -29,7 +30,7 @@ export class Tapper extends Role {
 
   /**
    * Creates a new Tapper instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -40,7 +41,7 @@ export class Tapper extends Role {
   /**
    * Handles the day action by allowing the Tapper to wiretap a player's daytime communications.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to tap
    * @returns {void}
    */
@@ -57,14 +58,17 @@ export class Tapper extends Role {
       );
       this.dayVisiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Handles the night action by allowing the Tapper to wiretap a player's nighttime communications.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to tap
    * @returns {void}
    */
@@ -81,13 +85,16 @@ export class Tapper extends Role {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Processes the day tap by notifying the target and registering the tap for message capture.
-   * 
+   *
    * @returns {void}
    */
   dayVisit() {
@@ -104,7 +111,7 @@ export class Tapper extends Role {
 
   /**
    * Processes the night tap by registering the tap to capture day messages.
-   * 
+   *
    * @returns {void}
    */
   visit() {

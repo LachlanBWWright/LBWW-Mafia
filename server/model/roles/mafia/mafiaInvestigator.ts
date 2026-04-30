@@ -2,21 +2,22 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { RoleMafia } from "./abstractMafiaRole.js";
 import { RoleGroup } from "../roleGroup.js";
+import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../../servers/emitter.js";
 
 /**
  * A Mafia role with investigation abilities. Can inspect other players to reveal their role
  * during the night phase instead of attacking.
- * 
+ *
  * @class MafiaInvestigator
  * @extends {RoleMafia}
  */
 export class MafiaInvestigator extends RoleMafia {
   name = "Mafia Investigator";
   group = RoleGroup.Mafia;
-  baseDefence = 0;
-  defence = 0;
+  baseDefence = CombatLevel.None;
+  defence = CombatLevel.None;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class MafiaInvestigator extends RoleMafia {
 
   /**
    * Creates a new MafiaInvestigator instance.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
@@ -39,7 +40,7 @@ export class MafiaInvestigator extends RoleMafia {
   /**
    * Handles the night action by allowing the investigator to choose a player to inspect.
    * Validates that the target is not self and is alive.
-   * 
+   *
    * @param {Player} recipient - The target player to inspect
    * @returns {void}
    */
@@ -56,13 +57,16 @@ export class MafiaInvestigator extends RoleMafia {
       );
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, "Invalid choice.");
+      io.to(this.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        "Invalid choice.",
+      );
     }
   }
 
   /**
    * Performs the inspection visit by revealing the target role to the investigator.
-   * 
+   *
    * @returns {void}
    */
   defaultVisit() {

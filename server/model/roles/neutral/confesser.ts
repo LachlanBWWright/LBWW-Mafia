@@ -2,11 +2,12 @@ import { Player } from "../../player/player.js";
 import { RoleGroup } from "../roleGroup.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
+import { CombatLevel } from "../combatLevel.js";
 
 /**
  * A neutral role that wins by confessing something during the game.
  * Has no actions and a passive victory condition.
- * 
+ *
  * @class Confesser
  * @extends {Role}
  */
@@ -15,8 +16,8 @@ export class Confesser extends Role {
 
   name = "Confesser";
   group = RoleGroup.Neutral;
-  baseDefence = 1;
-  defence = 1;
+  baseDefence = CombatLevel.Low;
+  defence = CombatLevel.Low;
   roleblocker = false;
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -28,7 +29,7 @@ export class Confesser extends Role {
 
   /**
    * Creates a new Confesser instance and registers itself with the room.
-   * 
+   *
    * @param {Room} room - The game room
    * @param {Player} player - The player assigned this role
    */
