@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -13,6 +14,7 @@ import { io } from "../../../servers/emitter.js";
  * @class Nimby
  * @extends {Role}
  */
+
 export class Nimby extends Role {
   /**
    * Number of remaining alert slots for this Nimby.
@@ -52,22 +54,19 @@ export class Nimby extends Role {
    */
   handleNightAction(_recipient: Player) {
     if (this.alertSlots == 0)
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have no alerts left!",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.NimbyNoAlerts,
+      });
     else if (this.visiting == null) {
       this.visiting = this;
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have decided to go on alert.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.NimbyDecidedAlert,
+      });
     } else {
       this.visiting = null;
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have decided not to go on alert.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.NimbyDecidedNotAlert,
+      });
     }
   }
 

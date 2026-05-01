@@ -1,6 +1,7 @@
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { Player } from "../player/player.js";
+import type { GameMessage } from "@mernmafia/shared/communication/messages";
 
 export abstract class Faction {
   memberList: Player[] = [];
@@ -8,7 +9,7 @@ export abstract class Faction {
   /**
    * Initializes all members of this faction by assigning the faction to each member's role
    * and broadcasting their role information to all faction members.
-   * 
+   *
    * @returns {void}
    */
   initializeMembers() {
@@ -26,7 +27,7 @@ export abstract class Faction {
   /**
    * Finds all members of this faction from the given player list and adds them to memberList.
    * Must be implemented by subclasses to identify which players belong to this faction.
-   * 
+   *
    * @param {Player[]} playerList - List of all players in the game
    * @returns {void}
    * @abstract
@@ -36,17 +37,17 @@ export abstract class Faction {
   /**
    * Sends a message to all members of this faction.
    * Must be implemented by subclasses to determine how messages are delivered.
-   * 
+   *
    * @param {string} message - The message to send to faction members
    * @returns {void}
    * @abstract
    */
-  abstract sendMessage(message: string): void;
+  abstract sendMessage(message: GameMessage): void;
 
   /**
    * Handles factional decisions during the night phase, such as coordinating votes.
    * Must be implemented by subclasses to define faction-specific behavior.
-   * 
+   *
    * @returns {void}
    * @abstract
    */
@@ -55,7 +56,7 @@ export abstract class Faction {
   /**
    * Handles night chat messages from a faction member.
    * Must be implemented by subclasses to handle faction-specific message routing.
-   * 
+   *
    * @param {string} message - The chat message
    * @param {string} playerUsername - The username of the player sending the message
    * @returns {void}
@@ -66,7 +67,7 @@ export abstract class Faction {
   /**
    * Removes members from this faction if they have died or been converted to another faction.
    * Must be implemented by subclasses to define faction-specific removal logic.
-   * 
+   *
    * @returns {void}
    * @abstract
    */

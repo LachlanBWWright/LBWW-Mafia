@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 export abstract class RoleMafia extends Role {
@@ -38,19 +39,19 @@ export abstract class RoleMafia extends Role {
       recipient.isAlive &&
       this.faction !== undefined
     ) {
-      this.faction.sendMessage(
-        this.player.username +
-          " has voted to attack " +
-          recipient.username +
-          ".",
-      );
+      this.faction.sendMessage({
+        key: MessageKey.MafiaVotedToAttack,
+        params: {
+          playerName: this.player.username,
+          targetName: recipient.username,
+        },
+      });
       this.attackVote = recipientRole;
     } else {
       this.attackVote = null;
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid Vote.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.MafiaInvalidVote,
+      });
     }
   }
 
@@ -71,10 +72,9 @@ export abstract class RoleMafia extends Role {
    * @returns {void}
    */
   cancelNightAction() {
-    io.to(this.player.user.socketId).emit(
-      ServerEvent.ReceiveMessage,
-      "You have cancelled your class' nighttime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.CancelledNightAction,
+    });
     this.visiting = null;
   }
 
@@ -102,10 +102,9 @@ export abstract class RoleMafia extends Role {
    */
   visitOverride() {
     if (this.visiting != null) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have been chosen to do the mafia's dirty work.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.MafiaChosenAttacker,
+      });
       this.visiting.receiveVisit(this);
       if (this.visiting.damage == CombatLevel.None)
         this.visiting.damage = CombatLevel.Low;

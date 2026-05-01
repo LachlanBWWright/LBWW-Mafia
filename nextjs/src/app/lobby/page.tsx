@@ -3,6 +3,8 @@ import { db } from "~/server/db";
 import { activeRoom } from "@mernmafia/db/schema";
 import LobbyClient from "./LobbyClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function LobbyPage() {
   const rows = await db
     .select({ roomId: activeRoom.roomId })

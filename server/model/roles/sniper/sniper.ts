@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -14,6 +15,7 @@ import { io } from "../../../servers/emitter.js";
  * @class Sniper
  * @extends {Role}
  */
+
 export class Sniper extends Role {
   /**
    * The last role that was sniped to prevent consecutive kills on the same target.
@@ -53,21 +55,19 @@ export class Sniper extends Role {
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot snipe yourself.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.SniperCannotSnipeSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to snipe " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.SniperChoseToSnipe,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 

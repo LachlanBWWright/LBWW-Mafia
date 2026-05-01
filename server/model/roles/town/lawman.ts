@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -13,6 +14,7 @@ import { io } from "../../../servers/emitter.js";
  * @class Lawman
  * @extends {Role}
  */
+
 export class Lawman extends Role {
   /**
    * Whether this Lawman has gone insane from shooting a Town member.
@@ -53,26 +55,23 @@ export class Lawman extends Role {
    */
   handleNightAction(recipient: Player) {
     if (this.isInsane) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have gone insane, and have no control over who you shoot.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.LawmanInsane,
+      });
     } else if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot shoot yourself.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.LawmanCannotShootSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to attack " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.ChoseToAttack,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 
@@ -84,10 +83,9 @@ export class Lawman extends Role {
   visit() {
     if (this.visiting != null) {
       if (this.isInsane)
-        io.to(this.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "You have gone insane, and are shooting someone randomly!",
-        );
+        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.LawmanInsaneShooting,
+        });
       if (this.visiting.damage == CombatLevel.None)
         this.visiting.damage = CombatLevel.Low;
       this.visiting.attackers.push(this);
@@ -95,10 +93,9 @@ export class Lawman extends Role {
       this.visiting.receiveVisit(this);
       if (this.visiting.group == RoleGroup.Town) {
         this.isInsane = true;
-        io.to(this.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "You just shot a member of the town, and have been driven insane by the guilt!",
-        );
+        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.LawmanShotTownMember,
+        });
       }
     }
   }

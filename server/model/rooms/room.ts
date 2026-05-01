@@ -5,6 +5,7 @@ import { Player } from "../player/player.js";
 import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { DayTime } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../servers/emitter.js";
 import { Confesser } from "../roles/neutral/confesser.js";
 import { Faction } from "../factions/abstractFaction.js";
@@ -108,6 +109,14 @@ export class Room {
     return this.playerList.find((p) => p.user === user) ?? null;
   }
 
+  private isActionInWrongPhase(isDay: boolean) {
+    return (
+      (!isDay && this.time === GamePhase.Day) ||
+      (isDay && this.time === GamePhase.Night) ||
+      this.time === GamePhase.Idle
+    );
+  }
+
   /**
    * Adds a connected client to the lobby.
    * Returns an error code on failure or the assigned username on success.
@@ -127,19 +136,18 @@ export class Room {
     playerSocket.data.position = position;
 
     this.emitUserList(socketId);
-    io.to(this.name).emit(
-      ServerEvent.ReceiveMessage,
-      `${username} has joined the room!`,
-    );
+    io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.PlayerJoinedRoom,
+      params: { playerName: username },
+    });
     this.recordConversation(`${username} has joined the room!`, username);
     io.to(this.name).emit(ServerEvent.ReceiveNewPlayer, { name: username });
 
     if (this.userList.length === this.size) {
       this.started = true;
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        "The room is full! Starting the game!",
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.RoomFullStartingGame,
+      });
       this.emitUserList(this.name);
       void rotateActiveRoom().catch((error) => {
         console.error("Failed to rotate active room", error);
@@ -159,10 +167,10 @@ export class Room {
       if (index === -1) return;
       const user = this.userList[index];
       io.to(this.name).emit(ServerEvent.RemovePlayer, { name: user.username });
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        `${user.username} has left the room!`,
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.PlayerLeftRoom,
+        params: { playerName: user.username },
+      });
       this.recordConversation(
         `${user.username} has left the room!`,
         user.username,
@@ -174,10 +182,10 @@ export class Room {
     } else {
       const player = this.playerList.find((p) => p.user.socketId === socketId);
       if (!player) return;
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        `${player.username} has abandoned the game!`,
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.PlayerAbandonedGame,
+        params: { playerName: player.username },
+      });
       player.role.damage = CombatLevel.Fatal;
     }
   }
@@ -217,10 +225,9 @@ export class Room {
           if (player.isAlive) {
             player.role.handleMessage(message);
           } else {
-            io.to(playerSocket.id).emit(
-              ServerEvent.ReceiveMessage,
-              "You cannot speak, as you are dead.",
-            );
+            io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+              key: MessageKey.CannotSpeakYouAreDead,
+            });
           }
           this.recordConversation(message, player.username);
         } else {
@@ -238,10 +245,9 @@ export class Room {
 
     const result = handle();
     if (result.isErr()) {
-      io.to(playerSocket.id).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot speak, as you are dead. Or an error occured.",
-      );
+      io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.CannotSpeakDeadOrError,
+      });
       console.error(result.error);
     }
   }
@@ -252,62 +258,74 @@ export class Room {
     isDay: boolean,
   ) {
     this.runSafely(() => {
-      if (
-        (!isDay && this.time === GamePhase.Day) ||
-        (isDay && this.time === GamePhase.Night) ||
-        this.time === GamePhase.Idle ||
-        playerSocket.data.position === undefined
-      )
-        return;
+      if (this.isActionInWrongPhase(isDay)) return;
+      if (playerSocket.data.position === undefined) return;
 
       const foundPlayer = this.getPlayerFromSocket(playerSocket);
       const foundRecipient = this.playerList[recipient];
       if (!foundPlayer || !foundRecipient) return;
 
       if (foundPlayer.hasVoted) {
-        io.to(playerSocket.id).emit(
-          ServerEvent.ReceiveMessage,
-          "You cannot change your vote.",
-        );
-      } else if (foundPlayer === foundRecipient) {
-        io.to(playerSocket.id).emit(
-          ServerEvent.ReceiveMessage,
-          "You cannot vote for yourself.",
-        );
-      } else if (this.time !== GamePhase.Day) {
-        if (foundPlayer.role.nightVote) {
-          foundPlayer.hasVoted = true;
-          foundPlayer.role.handleNightVote(foundRecipient);
-        } else {
-          io.to(playerSocket.id).emit(
-            ServerEvent.ReceiveMessage,
-            "You cannot vote at night.",
-          );
-        }
-      } else if (this.confesserVotedOut) {
-        io.to(playerSocket.id).emit(
-          ServerEvent.ReceiveMessage,
-          "The town voted out a confessor, disabling voting.",
-        );
-      } else if (foundRecipient.isAlive && !foundPlayer.hasVoted) {
-        this.recordAction(
-          "vote",
-          foundPlayer.username,
-          foundRecipient.username,
-        );
-        foundPlayer.hasVoted = true;
-        foundRecipient.votesReceived++;
-        const voteMsg =
-          foundRecipient.votesReceived > 1
-            ? `${foundPlayer.username} has voted for ${foundRecipient.username} to be executed! There are ${foundRecipient.votesReceived} votes for ${foundRecipient.username} to be killed.`
-            : `${foundPlayer.username} has voted for ${foundRecipient.username} to be executed! There is 1 vote for ${foundRecipient.username} to be killed.`;
-        io.to(this.name).emit(ServerEvent.ReceiveMessage, voteMsg);
-      } else {
-        io.to(playerSocket.id).emit(
-          ServerEvent.ReceiveMessage,
-          "Your vote was invalid.",
-        );
+        io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.CannotChangeVote,
+        });
+        return;
       }
+
+      if (foundPlayer === foundRecipient) {
+        io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.CannotVoteForYourself,
+        });
+        return;
+      }
+
+      if (this.time !== GamePhase.Day) {
+        if (!foundPlayer.role.nightVote) {
+          io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+            key: MessageKey.CannotVoteAtNight,
+          });
+          return;
+        }
+        foundPlayer.hasVoted = true;
+        foundPlayer.role.handleNightVote(foundRecipient);
+        return;
+      }
+
+      if (this.confesserVotedOut) {
+        io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.VotingDisabledConfeser,
+        });
+        return;
+      }
+
+      if (!foundRecipient.isAlive) {
+        io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.VoteInvalid,
+        });
+        return;
+      }
+
+      this.recordAction("vote", foundPlayer.username, foundRecipient.username);
+      foundPlayer.hasVoted = true;
+      foundRecipient.votesReceived++;
+      const voteMsg =
+        foundRecipient.votesReceived > 1
+          ? {
+              key: MessageKey.VoteCastMultipleVotes,
+              params: {
+                voterName: foundPlayer.username,
+                targetName: foundRecipient.username,
+                count: foundRecipient.votesReceived,
+              },
+            }
+          : {
+              key: MessageKey.VoteCastSingleVote,
+              params: {
+                voterName: foundPlayer.username,
+                targetName: foundRecipient.username,
+              },
+            };
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, voteMsg);
     });
   }
 
@@ -318,72 +336,75 @@ export class Room {
     isDay: boolean,
   ) {
     this.runSafely(() => {
-      if (
-        (!isDay && this.time === GamePhase.Day) ||
-        (isDay && this.time === GamePhase.Night) ||
-        this.time === GamePhase.Idle ||
-        playerSocket.data.position === undefined
-      )
-        return;
+      if (this.isActionInWrongPhase(isDay)) return;
+      if (playerSocket.data.position === undefined) return;
 
       const foundPlayer = this.getPlayerFromSocket(playerSocket);
       const foundRecipient = this.playerList[recipient];
       if (!foundPlayer || !foundRecipient) return;
 
       if (this.time === GamePhase.Night) {
-        io.to(foundPlayer.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "You cannot whisper at night.",
-        );
-      } else if (this.time === GamePhase.Day && foundRecipient.isAlive) {
-        this.recordAction(
-          "whisper",
-          foundPlayer.username,
-          foundRecipient.username,
-        );
-        if (WHISPER_OVERHEARD_PROBABILITY > Math.random()) {
-          io.to(foundPlayer.user.socketId).emit(
-            ServerEvent.ReceiveMessage,
-            "Your whispers were overheard by the town!",
-          );
-          io.to(this.name).emit(
-            ServerEvent.ReceiveMessage,
-            `${foundPlayer.username} tried to whisper "${message}" to ${foundRecipient.username}, but was overheard by the town!`,
-          );
-        } else {
-          io.to(foundRecipient.user.socketId).emit(
-            ServerEvent.ReceiveWhisperMessage,
-            `Whisper from ${foundPlayer.username}: ${message}`,
-          );
-          this.recordConversation(
+        io.to(foundPlayer.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.CannotWhisperAtNight,
+        });
+        return;
+      }
+
+      if (!foundRecipient.isAlive) {
+        io.to(foundPlayer.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.InvalidWhisperRecipient,
+        });
+        return;
+      }
+
+      this.recordAction(
+        "whisper",
+        foundPlayer.username,
+        foundRecipient.username,
+      );
+      if (WHISPER_OVERHEARD_PROBABILITY > Math.random()) {
+        io.to(foundPlayer.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.WhispersOverheardBySender,
+        });
+        io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.WhisperOverheardBroadcast,
+          params: {
+            senderName: foundPlayer.username,
             message,
-            foundPlayer.username,
-            foundRecipient.username,
-            "whisper",
-          );
-          io.to(foundPlayer.user.socketId).emit(
-            ServerEvent.ReceiveWhisperMessage,
-            `Whisper to ${foundRecipient.username}: ${message}`,
-          );
-          const senderTap = foundPlayer.role.dayTapped;
-          if (senderTap instanceof Role) {
-            io.to(senderTap.player.user.socketId).emit(
-              ServerEvent.ReceiveWhisperMessage,
-              `${foundPlayer.username} whispered "${message}" to ${foundRecipient.username}.`,
-            );
-          }
-          const recipientTap = foundRecipient.role.dayTapped;
-          if (recipientTap instanceof Role) {
-            io.to(recipientTap.player.user.socketId).emit(
-              ServerEvent.ReceiveWhisperMessage,
-              `${foundPlayer.username} whispered "${message}" to ${foundRecipient.username}.`,
-            );
-          }
-        }
-      } else {
-        io.to(foundPlayer.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "You didn't whisper to a valid recipient, or they are dead.",
+            recipientName: foundRecipient.username,
+          },
+        });
+        return;
+      }
+
+      io.to(foundRecipient.user.socketId).emit(
+        ServerEvent.ReceiveWhisperMessage,
+        `Whisper from ${foundPlayer.username}: ${message}`,
+      );
+      this.recordConversation(
+        message,
+        foundPlayer.username,
+        foundRecipient.username,
+        "whisper",
+      );
+      io.to(foundPlayer.user.socketId).emit(
+        ServerEvent.ReceiveWhisperMessage,
+        `Whisper to ${foundRecipient.username}: ${message}`,
+      );
+
+      const tappedMessage = `${foundPlayer.username} whispered "${message}" to ${foundRecipient.username}.`;
+      const senderTap = foundPlayer.role.dayTapped;
+      if (senderTap instanceof Role) {
+        io.to(senderTap.player.user.socketId).emit(
+          ServerEvent.ReceiveWhisperMessage,
+          tappedMessage,
+        );
+      }
+      const recipientTap = foundRecipient.role.dayTapped;
+      if (recipientTap instanceof Role) {
+        io.to(recipientTap.player.user.socketId).emit(
+          ServerEvent.ReceiveWhisperMessage,
+          tappedMessage,
         );
       }
     });
@@ -395,13 +416,8 @@ export class Room {
     isDay: boolean,
   ) {
     this.runSafely(() => {
-      if (
-        (!isDay && this.time === GamePhase.Day) ||
-        (isDay && this.time === GamePhase.Night) ||
-        this.time === GamePhase.Idle ||
-        playerSocket.data.position === undefined
-      )
-        return;
+      if (this.isActionInWrongPhase(isDay)) return;
+      if (playerSocket.data.position === undefined) return;
 
       const foundPlayer = this.getPlayerFromSocket(playerSocket);
       const foundRecipient =
@@ -409,32 +425,36 @@ export class Room {
       if (!foundPlayer) return;
 
       if (this.time === GamePhase.Day) {
-        if (foundRecipient != null) {
-          this.recordAction(
-            "day-visit",
-            foundPlayer.username,
-            foundRecipient.username,
-          );
-          foundPlayer.role.handleDayAction(foundRecipient);
-        } else {
+        if (foundRecipient == null) {
           foundPlayer.role.cancelDayAction();
+          return;
         }
-      } else if (this.time === GamePhase.Night) {
+        this.recordAction(
+          "day-visit",
+          foundPlayer.username,
+          foundRecipient.username,
+        );
+        foundPlayer.role.handleDayAction(foundRecipient);
+        return;
+      }
+
+      if (this.time === GamePhase.Night) {
         if (foundPlayer.role.roleblocked) {
-          io.to(playerSocket.id).emit(
-            ServerEvent.ReceiveMessage,
-            "You are roleblocked, and cannot call commands.",
-          );
-        } else if (foundRecipient != null) {
-          this.recordAction(
-            "night-visit",
-            foundPlayer.username,
-            foundRecipient.username,
-          );
-          foundPlayer.role.handleNightAction(foundRecipient);
-        } else {
-          foundPlayer.role.cancelNightAction();
+          io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
+            key: MessageKey.RoleblockedCannotCommand,
+          });
+          return;
         }
+        if (foundRecipient == null) {
+          foundPlayer.role.cancelNightAction();
+          return;
+        }
+        this.recordAction(
+          "night-visit",
+          foundPlayer.username,
+          foundRecipient.username,
+        );
+        foundPlayer.role.handleNightAction(foundRecipient);
       }
     });
   }
@@ -458,14 +478,16 @@ export class Room {
       const player = new Player(user);
       this.playerList.push(player);
 
-      const RoleClass = this.roleList[index];
-      if (!RoleClass) {
+      const RoleClassOrDef = this.roleList[index];
+      if (!RoleClassOrDef) {
         console.error(
           `No role class found at index ${index} — roleList has ${this.roleList.length} entries`,
         );
         continue;
       }
-      const role = new RoleClass(this, player);
+
+      // Use roleHandler to instantiate (handles both classes and custom definitions)
+      const role = roleHandler.instantiateRole(RoleClassOrDef, this, player);
       player.assignRole(role);
 
       io.to(user.socketId).emit(ServerEvent.AssignPlayerRole, {
@@ -493,7 +515,9 @@ export class Room {
 
   startFirstDaySession(sessionLength: number) {
     this.time = GamePhase.Day;
-    io.to(this.name).emit(ServerEvent.ReceiveMessage, "Day 1 has started.");
+    io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.Day1Started,
+    });
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
       time: DayTime.Day,
       dayNumber: 1,
@@ -504,10 +528,9 @@ export class Room {
         for (const player of this.playerList) {
           if (player.isAlive) player.role.dayVisit();
         }
-        io.to(this.name).emit(
-          ServerEvent.ReceiveMessage,
-          "Night 1 has started.",
-        );
+        io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.Night1Started,
+        });
       });
       this.startNightSession(1, sessionLength);
     }, DAY_START_DELAY_MS);
@@ -517,24 +540,22 @@ export class Room {
     this.time = GamePhase.Day;
 
     if (this.endDay <= dayNumber) {
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        "Nobody has died in three consecutive days, so the game has ended.",
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.GameEndedNobodyDied,
+      });
       if (this.peacemaker !== null) {
         this.peacemaker.victoryCondition = true;
         io.to(this.peacemaker.player.user.socketId).emit(
           ServerEvent.ReceiveMessage,
-          "You have won the game by causing a tie!",
+          { key: MessageKey.PeacemakerWon },
         );
       }
       this.endGame("nobody");
       return;
     } else if (this.endDay - 1 <= dayNumber) {
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        "The game will end in a draw if nobody dies today or tonight.",
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.DrawWarnOneDay,
+      });
     }
 
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
@@ -542,10 +563,10 @@ export class Room {
       dayNumber,
       timeLeft: Math.floor(sessionLength / 1000 + DAY_END_EXTRA_SECONDS),
     });
-    io.to(this.name).emit(
-      ServerEvent.ReceiveMessage,
-      `Day ${dayNumber} has started.`,
-    );
+    io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.DayNStarted,
+      params: { dayNumber },
+    });
 
     const livingPlayerList: Player[] = [];
     for (const player of this.playerList) {
@@ -559,10 +580,10 @@ export class Room {
 
     const votesRequired =
       Math.floor(livingPlayerList.length / 2) + VOTE_QUORUM_OFFSET;
-    io.to(this.name).emit(
-      ServerEvent.ReceiveMessage,
-      `It takes ${votesRequired} votes for the town to kill a player.`,
-    );
+    io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.VotesRequired,
+      params: { count: votesRequired },
+    });
 
     setTimeout(
       () => {
@@ -573,23 +594,23 @@ export class Room {
                 this.endDay = dayNumber + DRAW_TRIGGER_DAYS;
 
                 if (livingPlayer.role instanceof Confesser) {
-                  io.to(this.name).emit(
-                    ServerEvent.ReceiveMessage,
-                    `${livingPlayer.username} was a confesser! Voting has been disabled for the remainder of the game.`,
-                  );
+                  io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+                    key: MessageKey.ConfeserVotedOut,
+                    params: { playerName: livingPlayer.username },
+                  });
                   this.confesserVotedOut = true;
                   livingPlayer.role.victoryCondition = true;
                   io.to(this.name).emit(ServerEvent.DisableVoting);
                 } else {
-                  io.to(this.name).emit(
-                    ServerEvent.ReceiveMessage,
-                    `${livingPlayer.username} has been voted out by the town.`,
-                  );
+                  io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+                    key: MessageKey.PlayerVotedOutByTown,
+                    params: { playerName: livingPlayer.username },
+                  });
                 }
 
                 io.to(livingPlayer.user.socketId).emit(
                   ServerEvent.ReceiveMessage,
-                  "You have been voted out of the town.",
+                  { key: MessageKey.YouHaveBeenVotedOut },
                 );
                 io.to(livingPlayer.user.socketId).emit(
                   ServerEvent.BlockMessages,
@@ -606,17 +627,17 @@ export class Room {
                   this.framer.victoryCondition = true;
                   io.to(this.framer.player.user.socketId).emit(
                     ServerEvent.ReceiveMessage,
-                    "You have successfully gotten your target voted out!",
+                    { key: MessageKey.FramerTargetVotedOut },
                   );
                 }
               }
             }
           }
 
-          io.to(this.name).emit(
-            ServerEvent.ReceiveMessage,
-            `Night ${dayNumber} has started.`,
-          );
+          io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+            key: MessageKey.NightNStarted,
+            params: { dayNumber },
+          });
 
           for (const player of this.playerList) {
             if (player.isAlive) {
@@ -665,10 +686,9 @@ export class Room {
         for (const player of this.playerList) {
           if (player.role.roleblocked && !player.role.roleblocker) {
             player.role.visiting = null;
-            io.to(player.user.socketId).emit(
-              ServerEvent.ReceiveMessage,
-              "You were roleblocked!",
-            );
+            io.to(player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+              key: MessageKey.YouWereRoleblocked,
+            });
             player.role.roleblocked = false;
           } else if (player.role.visiting != null && !player.role.roleblocker) {
             player.role.visit();
@@ -748,23 +768,22 @@ export class Room {
     });
 
     if (winningFactionName === "nobody") {
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        "The game has ended with a draw!",
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.GameEndedDraw,
+      });
     } else if (winningFactionName === RoleGroup.Neutral) {
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        "The neutral players have won!",
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.NeutralPlayersWon,
+      });
     } else {
-      const suffix = winningFactionName.endsWith("s") ? "have" : "has";
-      io.to(this.name).emit(
-        ServerEvent.ReceiveMessage,
-        `The ${winningFactionName} ${suffix} won!`,
-      );
+      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.FactionWon,
+        params: { factionName: winningFactionName },
+      });
     }
-    io.to(this.name).emit(ServerEvent.ReceiveMessage, "Closing the room!");
+    io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.ClosingRoom,
+    });
     io.to(this.name).emit(ServerEvent.BlockMessages);
     io.in(this.name).disconnectSockets();
   }

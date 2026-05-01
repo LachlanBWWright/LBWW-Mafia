@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -13,6 +14,7 @@ import { io } from "../../../servers/emitter.js";
  * @class Maniac
  * @extends {Role}
  */
+
 export class Maniac extends Role {
   name = "Maniac";
   group = RoleGroup.Maniac;
@@ -46,21 +48,19 @@ export class Maniac extends Role {
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot attack yourself.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.ManiacCannotAttackSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to attack " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.ChoseToAttack,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 

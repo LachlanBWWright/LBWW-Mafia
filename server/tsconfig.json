@@ -3,7 +3,7 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "baseUrl": "./",
+    "rootDir": "..",
     "paths": {
       "@mernmafia/shared/*": ["../shared/*"],
       "@mernmafia/db/*": ["../db/*"]

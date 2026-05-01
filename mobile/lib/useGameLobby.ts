@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
-import type { DayTime, VisitCapability } from "../../shared/game/playerActionRules";
+import type {
+  DayTime,
+  VisitCapability,
+} from "../../shared/game/playerActionRules";
 import {
   defaultVisitCapability,
   DayTime as DayTimeEnum,
@@ -12,6 +15,9 @@ import type {
 } from "../../shared/communication/clientTypes";
 import { SocketIoClientAdapter } from "../../shared/communication/socketIoClientAdapter";
 import { PartykitClientAdapter } from "../../shared/communication/partykitClientAdapter";
+import { createTranslator } from "../../shared/communication/messages";
+import { en } from "../../shared/communication/locales/en";
+import type { GameMessage } from "../../shared/communication/messages";
 
 type Player = {
   name: string;
@@ -121,7 +127,9 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
           : [...current, player],
       );
     const onRemovePlayer = (player: Player) =>
-      setPlayers((current) => current.filter((entry) => entry.name !== player.name));
+      setPlayers((current) =>
+        current.filter((entry) => entry.name !== player.name),
+      );
     const onAssignRole = (player: Player & VisitCapability) => {
       setPlayers((current) =>
         current.map((entry) =>
@@ -153,13 +161,19 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
         ),
       );
     };
-    const onDayTime = (info: { time: DayTime; dayNumber: number; timeLeft: number }) => {
+    const onDayTime = (info: {
+      time: DayTime;
+      dayNumber: number;
+      timeLeft: number;
+    }) => {
       setTime(info.time);
       setDayNumber(info.dayNumber);
       setTimeLeft(info.timeLeft);
     };
+    const t = createTranslator(en);
+    const onGameMessage = (msg: GameMessage) => appendMsg(t(msg));
 
-    socket.on(ServerEvent.ReceiveMessage, appendMsg);
+    socket.on(ServerEvent.ReceiveMessage, onGameMessage);
     socket.on(ServerEvent.ReceiveChatMessage, appendMsg);
     socket.on(ServerEvent.ReceiveWhisperMessage, appendMsg);
     socket.on(ServerEvent.BlockMessages, () => setCanTalk(false));
@@ -175,7 +189,7 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
 
     return () => {
       clearTimeout(timer);
-      socket.off(ServerEvent.ReceiveMessage, appendMsg);
+      socket.off(ServerEvent.ReceiveMessage, onGameMessage);
       socket.off(ServerEvent.ReceiveChatMessage, appendMsg);
       socket.off(ServerEvent.ReceiveWhisperMessage, appendMsg);
       socket.off(ServerEvent.BlockMessages);
@@ -272,7 +286,11 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
     if (!socketRef.current) {
       return;
     }
-    socketRef.current.emit(ClientEvent.HandleVisit, index, time === DayTimeEnum.Day);
+    socketRef.current.emit(
+      ClientEvent.HandleVisit,
+      index,
+      time === DayTimeEnum.Day,
+    );
   };
 
   const whisperToPlayer = (index: number) => {

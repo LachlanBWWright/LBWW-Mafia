@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -14,6 +15,7 @@ import { io } from "../../../servers/emitter.js";
  * @class Framer
  * @extends {Role}
  */
+
 export class Framer extends Role {
   victoryCondition = false;
   /**
@@ -62,12 +64,10 @@ export class Framer extends Role {
         this.room.playerList[(index + i) % length].isAlive
       ) {
         this.target = this.room.playerList[(index + i) % length];
-        io.to(this.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "Your target is " +
-            this.target.username +
-            ". You will win the game if you get them voted out. If your target dies before day 5, they will be replaced.",
-        );
+        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.FramerTarget,
+          params: { targetName: this.target.username },
+        });
         break;
       }
     }
@@ -90,12 +90,10 @@ export class Framer extends Role {
         this.room.playerList[(index + i) % length].isAlive
       ) {
         this.target = this.room.playerList[(index + i) % length];
-        io.to(this.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "Your new target is " +
-            this.target.username +
-            ". You will win the game if you get them voted out. If your target dies before day 5, they will be replaced.",
-        );
+        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.FramerNewTarget,
+          params: { targetName: this.target.username },
+        });
         break;
       }
     }

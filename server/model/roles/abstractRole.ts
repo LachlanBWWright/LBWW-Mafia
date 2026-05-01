@@ -6,27 +6,29 @@ import { RoleGroup } from "./roleGroup.js";
 import { CombatLevel } from "./combatLevel.js";
 import { GamePhase } from "../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { fromThrowable } from "neverthrow";
+import type { RoleInterface } from "./roleInterface.js";
 
-export abstract class Role {
+export class Role implements RoleInterface {
   readonly room: Room;
   readonly player: Player;
 
-  abstract readonly name: string;
-  abstract readonly group: RoleGroup;
+  name = "Role";
+  group = RoleGroup.Unaligned;
   faction?: Faction;
 
-  abstract baseDefence: CombatLevel;
+  baseDefence = CombatLevel.None;
   defence = CombatLevel.None;
   damage = CombatLevel.None;
 
-  abstract readonly dayVisitSelf: boolean;
-  abstract readonly dayVisitOthers: boolean;
-  abstract readonly dayVisitFaction: boolean;
-  abstract readonly nightVisitSelf: boolean;
-  abstract readonly nightVisitOthers: boolean;
-  abstract readonly nightVisitFaction: boolean;
-  abstract readonly nightVote: boolean;
+  dayVisitSelf = false;
+  dayVisitOthers = false;
+  dayVisitFaction = false;
+  nightVisitSelf = false;
+  nightVisitOthers = false;
+  nightVisitFaction = false;
+  nightVote = false;
   attackVote?: Role | null;
   isAttacking?: boolean;
   isInsane?: boolean;
@@ -38,7 +40,7 @@ export abstract class Role {
   visitors: Role[] = [];
   attackers: Role[] = [];
 
-  abstract readonly roleblocker: boolean;
+  roleblocker = false;
   roleblocked = false;
   silenced = false;
   dayTapped: Role | boolean = false;
@@ -91,10 +93,9 @@ export abstract class Role {
     const socketId = this.player.user.socketId;
     if (this.room.time === GamePhase.Day) {
       if (this.silenced) {
-        io.to(socketId).emit(
-          ServerEvent.ReceiveChatMessage,
-          "You have been silenced and cannot talk",
-        );
+        io.to(socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.SilencedCannotTalk,
+        });
       } else {
         io.to(this.room.name).emit(
           ServerEvent.ReceiveChatMessage,
@@ -111,10 +112,9 @@ export abstract class Role {
         `${this.player.username}: ${message}`,
       );
     } else if (typeof this.faction === "undefined") {
-      io.to(socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot speak at night.",
-      );
+      io.to(socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.CannotSpeakAtNight,
+      });
     } else {
       const faction = this.faction;
       const handleNightMessage = fromThrowable(
@@ -142,10 +142,9 @@ export abstract class Role {
    * @returns {void}
    */
   handleDayAction(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(
-      ServerEvent.ReceiveMessage,
-      "Your class has no daytime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.NoDayAction,
+    });
   }
 
   /**
@@ -154,10 +153,9 @@ export abstract class Role {
    * @returns {void}
    */
   cancelDayAction() {
-    io.to(this.player.user.socketId).emit(
-      ServerEvent.ReceiveMessage,
-      "You have cancelled your class' daytime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.CancelledDayAction,
+    });
     this.dayVisiting = null;
   }
 
@@ -169,10 +167,9 @@ export abstract class Role {
    * @returns {void}
    */
   handleNightAction(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(
-      ServerEvent.ReceiveMessage,
-      "Your class has no nighttime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.NoNightAction,
+    });
   }
 
   /**
@@ -183,10 +180,9 @@ export abstract class Role {
    * @returns {void}
    */
   handleNightVote(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(
-      ServerEvent.ReceiveMessage,
-      "Your class has no nighttime factional voting.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.NoNightVote,
+    });
   }
 
   /**
@@ -195,10 +191,9 @@ export abstract class Role {
    * @returns {void}
    */
   cancelNightAction() {
-    io.to(this.player.user.socketId).emit(
-      ServerEvent.ReceiveMessage,
-      "You have cancelled your class' nighttime action.",
-    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.CancelledNightAction,
+    });
     this.visiting = null;
   }
 
@@ -223,12 +218,17 @@ export abstract class Role {
     if (this.baseDefence > this.defence) this.defence = this.baseDefence;
     if (this.damage > this.defence) {
       const socketId = this.player.user.socketId;
-      io.to(socketId).emit(ServerEvent.ReceiveMessage, "You have died!");
+      io.to(socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.YouHaveDied,
+      });
       io.to(socketId).emit(ServerEvent.BlockMessages);
-      io.to(this.room.name).emit(
-        ServerEvent.ReceiveMessage,
-        `${this.player.username} has died. Their role was ${this.name.toLowerCase()}.`,
-      );
+      io.to(this.room.name).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.PlayerHasDied,
+        params: {
+          playerName: this.player.username,
+          roleName: this.name.toLowerCase(),
+        },
+      });
       this.player.isAlive = false;
       this.damage = CombatLevel.None;
       this.attackers = [];
@@ -239,10 +239,9 @@ export abstract class Role {
       return true;
     }
     if (this.damage !== CombatLevel.None) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You were attacked, but you survived!",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.AttackedButSurvived,
+      });
     }
     this.defence = this.baseDefence;
     this.damage = CombatLevel.None;

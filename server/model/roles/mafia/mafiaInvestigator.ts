@@ -4,6 +4,7 @@ import { RoleMafia } from "./abstractMafiaRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -13,6 +14,7 @@ import { io } from "../../../servers/emitter.js";
  * @class MafiaInvestigator
  * @extends {RoleMafia}
  */
+
 export class MafiaInvestigator extends RoleMafia {
   name = "Mafia Investigator";
   group = RoleGroup.Mafia;
@@ -46,21 +48,19 @@ export class MafiaInvestigator extends RoleMafia {
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot inspect yourself.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.CannotInspectSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to inspect " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.ChoseToInspect,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 
@@ -72,13 +72,13 @@ export class MafiaInvestigator extends RoleMafia {
   defaultVisit() {
     if (this.visiting != null) {
       this.visiting.receiveVisit(this);
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        this.visiting.player.username +
-          "'s role is " +
-          this.visiting.name +
-          ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.MafiaInvestigatorResult,
+        params: {
+          targetName: this.visiting.player.username,
+          roleName: this.visiting.name,
+        },
+      });
     }
   }
 }

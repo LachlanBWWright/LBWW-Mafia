@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
@@ -17,6 +18,7 @@ import { CombatLevel } from "../combatLevel.js";
  * @class Watchman
  * @extends {Role}
  */
+
 export class Watchman extends Role {
   name = "Watchman";
   group = RoleGroup.Town;
@@ -50,21 +52,19 @@ export class Watchman extends Role {
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot watch yourself.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.WatchmanCannotWatchSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to watch " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.WatchmanChoseToWatch,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 
@@ -94,10 +94,9 @@ export class Watchman extends Role {
         if (this.visiting != null) {
           let allVisitors = this.visiting.visitors.length;
           if (allVisitors == 1) {
-            io.to(this.player.user.socketId).emit(
-              ServerEvent.ReceiveMessage,
-              "Nobody visited your target.",
-            );
+            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+              key: MessageKey.WatchmanNobodyVisited,
+            });
           } else if (allVisitors == 2) {
             let alibi =
               this.room.playerList[
@@ -112,16 +111,22 @@ export class Watchman extends Role {
               if (this.visiting.visitors[0] == this) {
                 io.to(this.player.user.socketId).emit(
                   ServerEvent.ReceiveMessage,
-                  "Your target was visited by " +
-                    this.visiting.visitors[1].player.username +
-                    ".",
+                  {
+                    key: MessageKey.WatchmanTargetVisitedBy,
+                    params: {
+                      targetName: this.visiting.visitors[1].player.username,
+                    },
+                  },
                 );
               } else {
                 io.to(this.player.user.socketId).emit(
                   ServerEvent.ReceiveMessage,
-                  "Your target was visited by " +
-                    this.visiting.visitors[0].player.username +
-                    ".",
+                  {
+                    key: MessageKey.WatchmanTargetVisitedBy,
+                    params: {
+                      targetName: this.visiting.visitors[0].player.username,
+                    },
+                  },
                 );
               }
             } else {
@@ -135,46 +140,43 @@ export class Watchman extends Role {
               if (Math.random() > 0.5) {
                 io.to(this.player.user.socketId).emit(
                   ServerEvent.ReceiveMessage,
-                  "Your target was visited by " +
-                    realVisitor.player.username +
-                    " or " +
-                    alibi.player.username +
-                    ".",
+                  {
+                    key: MessageKey.WatchmanTargetVisitedByTwo,
+                    params: {
+                      name1: realVisitor.player.username,
+                      name2: alibi.player.username,
+                    },
+                  },
                 );
               } else {
                 io.to(this.player.user.socketId).emit(
                   ServerEvent.ReceiveMessage,
-                  "Your target was visited by " +
-                    alibi.player.username +
-                    " or " +
-                    realVisitor.player.username +
-                    ".",
+                  {
+                    key: MessageKey.WatchmanTargetVisitedByTwo,
+                    params: {
+                      name1: alibi.player.username,
+                      name2: realVisitor.player.username,
+                    },
+                  },
                 );
               }
             }
           } else {
-            let visitorList = [];
+            const visitorList = [];
             for (const visitor of this.visiting.visitors) {
               if (visitor.player.isAlive && visitor != this) {
-                visitorList.push(visitor);
+                visitorList.push(visitor.player.username);
               }
             }
-
-            let visitorAnnouncement = "The list of visitors is: ";
-            for (const visitor of visitorList.slice(0, -1)) {
-              visitorAnnouncement = visitorAnnouncement.concat(
-                visitor.player.username + ", ",
-              );
-            }
-            visitorAnnouncement = visitorAnnouncement.concat(
-              "and " +
-                visitorList[visitorList.length - 1].player.username +
-                ".",
-            );
-            io.to(this.player.user.socketId).emit(
-              ServerEvent.ReceiveMessage,
-              visitorAnnouncement,
-            );
+            const lastEntry = visitorList[visitorList.length - 1] ?? "";
+            const list =
+              visitorList.length > 1
+                ? visitorList.slice(0, -1).join(", ") + ", and " + lastEntry
+                : lastEntry;
+            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+              key: MessageKey.WatchmanVisitorList,
+              params: { list },
+            });
           }
         }
       },

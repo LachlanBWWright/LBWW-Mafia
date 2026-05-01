@@ -2,6 +2,7 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { Role } from "../abstractRole.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
@@ -14,6 +15,7 @@ import { CombatLevel } from "../combatLevel.js";
  * @class Tracker
  * @extends {Role}
  */
+
 export class Tracker extends Role {
   name = "Tracker";
   group = RoleGroup.Town;
@@ -47,21 +49,19 @@ export class Tracker extends Role {
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot track yourself.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.TrackerCannotTrackSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to track " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.TrackerChoseToTrack,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 
@@ -87,17 +87,14 @@ export class Tracker extends Role {
       () => {
         if (this.visiting != null) {
           if (this.visiting.visiting)
-            io.to(this.player.user.socketId).emit(
-              ServerEvent.ReceiveMessage,
-              "Your target visited " +
-                this.visiting.visiting.player.username +
-                ".",
-            );
+            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+              key: MessageKey.TrackerTargetVisited,
+              params: { targetName: this.visiting.visiting.player.username },
+            });
           else
-            io.to(this.player.user.socketId).emit(
-              ServerEvent.ReceiveMessage,
-              "Your target didn't visit anyone.",
-            );
+            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+              key: MessageKey.TrackerTargetDidNotVisit,
+            });
         }
       },
       (error) => error,

@@ -10,7 +10,7 @@
     "eject": "expo eject",
     "test": "vitest run",
     "build": "npm run typecheck",
-    "check:styles": "node ../scripts/check-mobile-styling.mjs",
+    "check:styles": "bash ../scripts/check-mobile-styling.sh",
     "lint": "eslint . && npm run check:styles",
     "lint:fix": "eslint . --fix && npm run check:styles",
     "typecheck": "tsc --noEmit"

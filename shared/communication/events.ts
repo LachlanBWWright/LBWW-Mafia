@@ -3,6 +3,7 @@
  * These types are backend-agnostic and used by both Socket.IO and PartyKit.
  */
 import { DayTime } from "../game/playerActionRules";
+import type { GameMessage } from "./messages";
 // Re-export DayTime so consumers can import it from one place
 export { DayTime } from "../game/playerActionRules";
 
@@ -65,7 +66,7 @@ export type ClientToServerEvents = {
 };
 
 export type ServerToClientEvents = {
-  receiveMessage: (message: string) => void;
+  receiveMessage: (message: GameMessage) => void;
   blockMessages: () => void;
   "receive-new-player": (player: { name: string }) => void;
   "remove-player": (player: { name: string }) => void;
@@ -86,4 +87,3 @@ export type ServerToClientEvents = {
 };
 
 export type InterServerEvents = Record<string, never>;
-

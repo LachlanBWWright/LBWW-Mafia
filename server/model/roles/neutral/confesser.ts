@@ -11,6 +11,7 @@ import { CombatLevel } from "../combatLevel.js";
  * @class Confesser
  * @extends {Role}
  */
+
 export class Confesser extends Role {
   victoryCondition: boolean = false;
 

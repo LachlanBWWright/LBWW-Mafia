@@ -32,9 +32,16 @@ import { Peacemaker } from "../../roles/neutral/peacemaker.js";
 //Imports all the factions used
 import { MafiaFaction } from "../../factions/mafiaFaction.js";
 import { LawmanFaction } from "../../factions/lawmanFaction.js";
+import { Faction } from "../../factions/abstractFaction.js";
 
 import { Player } from "../../player/player.js";
 import { BlankRole } from "../../roles/blankRole.js";
+import {
+  CustomRoleFactory,
+  CustomRoleDefinition,
+} from "../../roles/composition/index.js";
+import { Room } from "../room.js";
+import { Role } from "../../roles/abstractRole.js";
 
 const ROLE_BALANCE_TOLERANCE = 15;
 const RANDOM_BALANCE_OFFSET_MIN = -15;
@@ -82,12 +89,20 @@ export class RoleHandler {
   roomSize: number;
 
   /**
+   * Optional custom role definitions to include in role selection.
+   * @type {CustomRoleDefinition[]}
+   */
+  customRoles: CustomRoleDefinition[];
+
+  /**
    * Creates a new RoleHandler for a given room size.
    *
    * @param {number} roomSize - The number of players in the game
+   * @param {CustomRoleDefinition[]} customRoles - Optional custom roles to enable
    */
-  constructor(roomSize: number) {
+  constructor(roomSize: number, customRoles: CustomRoleDefinition[] = []) {
     this.roomSize = roomSize;
+    this.customRoles = customRoles;
   }
 
   /**
@@ -192,10 +207,10 @@ export class RoleHandler {
    * Creates a LawmanFaction if any Lawman exists, and a MafiaFaction if any Mafia role exists.
    *
    * @param {Player[]} playerList - List of all players in the game
-   * @returns {any[]} Array of faction objects to manage coordinated role actions
+   * @returns {Faction[]} Array of faction objects to manage coordinated role actions
    */
-  assignFactionsFromPlayerList(playerList: Player[]) {
-    let factionList = [];
+  assignFactionsFromPlayerList(playerList: Player[]): Faction[] {
+    const factionList: Faction[] = [];
 
     for (const player of playerList) {
       if (player.role.name === "Lawman") {
@@ -308,5 +323,41 @@ export class RoleHandler {
       default:
         return 0;
     }
+  }
+
+  /**
+   * Gets the power value for a custom role definition.
+   *
+   * @param {CustomRoleDefinition} customRole - The custom role definition
+   * @returns {number} Power value of the custom role
+   */
+  getCustomRolePower(customRole: CustomRoleDefinition): number {
+    return customRole.metadata.powerValue ?? 0;
+  }
+
+  /**
+   * Instantiates a role instance from a role class or custom definition.
+   * Handles both built-in roles and dynamically created custom roles.
+   *
+   * @param {typeof BlankRole | CustomRoleDefinition} roleOrDef - Role class or custom definition
+   * @param {Room} room - The game room
+   * @param {Player} player - The player to assign the role to
+   * @returns {Role} Instantiated role
+   */
+  private static isCustomRoleDefinition(
+    roleOrDef: typeof BlankRole | CustomRoleDefinition,
+  ): roleOrDef is CustomRoleDefinition {
+    return typeof roleOrDef === "object";
+  }
+
+  instantiateRole(
+    roleOrDef: typeof BlankRole | CustomRoleDefinition,
+    room: Room,
+    player: Player,
+  ): Role {
+    if (RoleHandler.isCustomRoleDefinition(roleOrDef)) {
+      return CustomRoleFactory.createRole(room, player, roleOrDef);
+    }
+    return new roleOrDef(room, player);
   }
 }

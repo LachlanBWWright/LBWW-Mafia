@@ -19,6 +19,11 @@ import type {
   GameSocket,
   SocketBackendType,
 } from "@mernmafia/shared/communication/clientTypes";
+import {
+  createTranslator,
+  type GameMessage,
+} from "@mernmafia/shared/communication/messages";
+import { en } from "@mernmafia/shared/communication/locales/en";
 
 /**
  * Resolves the socket backend type from environment configuration.
@@ -257,8 +262,10 @@ export function useGameLobby(
       setDayNumber(info.dayNumber);
       setTimeLeft(info.timeLeft);
     };
+    const t = createTranslator(en);
+    const onGameMessage = (message: GameMessage) => appendMsg(t(message));
 
-    socket.on(ServerEvent.ReceiveMessage, appendMsg);
+    socket.on(ServerEvent.ReceiveMessage, onGameMessage);
     socket.on(ServerEvent.ReceiveChatMessage, appendMsg);
     socket.on(ServerEvent.ReceiveWhisperMessage, appendMsg);
     socket.on(ServerEvent.BlockMessages, () => setCanTalk(false));
@@ -276,7 +283,7 @@ export function useGameLobby(
 
     return () => {
       clearTimeout(autoJoin);
-      socket.off(ServerEvent.ReceiveMessage, appendMsg);
+      socket.off(ServerEvent.ReceiveMessage, onGameMessage);
       socket.off(ServerEvent.ReceiveChatMessage, appendMsg);
       socket.off(ServerEvent.ReceiveWhisperMessage, appendMsg);
       socket.off(ServerEvent.BlockMessages);

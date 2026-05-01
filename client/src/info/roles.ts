@@ -1,4 +1,4 @@
-import { allRoles } from "@mernmafia/shared/game/roles.js";
+import { allRoles } from "@mernmafia/shared/game/rolesList";
 
 /**
  * Map of role names to their descriptions and abilities.

@@ -1,4 +1,4 @@
-import { roleFactionsByName } from "./roles.js";
+import { roleFactionsByName } from "./rolesList";
 
 /** Enum representing the two game phases as seen by clients (capitalized, used in wire protocol). */
 export enum DayTime {
@@ -26,7 +26,7 @@ export const defaultVisitCapability: VisitCapability = {
 
 /**
  * Determines the faction affiliation of a role from the provided role name.
- * 
+ *
  * @param {string | undefined} role - The name of the role to look up
  * @returns {string | null} The faction string ("town" or "mafia") or null if not found
  */
@@ -40,7 +40,7 @@ export const getRoleFaction = (role?: string): string | null => {
 /**
  * Determines if a player can perform a visit action based on game state, role capabilities, and time of day.
  * Considers whether the visit is self-targeting, faction-based, or cross-faction.
- * 
+ *
  * @param {Object} input - Input parameters
  * @param {DayTime} input.time - Current phase (Day or Night)
  * @param {boolean} input.isSelf - Whether the target is the actor
@@ -92,7 +92,7 @@ export const canPerformVisit = (input: {
 /**
  * Determines if the UI should display visit action options based on time of day and capabilities.
  * Returns true if the player has any visit capability for the current phase.
- * 
+ *
  * @param {DayTime} time - Current phase (Day or Night)
  * @param {VisitCapability} capability - The player's visit capabilities
  * @returns {boolean} True if any visit action should be displayed
@@ -102,25 +102,26 @@ export const shouldShowVisitAction = (
   capability: VisitCapability,
 ) =>
   time === DayTime.Day
-    ? capability.dayVisitSelf || capability.dayVisitOthers || capability.dayVisitFaction
+    ? capability.dayVisitSelf ||
+      capability.dayVisitOthers ||
+      capability.dayVisitFaction
     : capability.nightVisitSelf ||
-        capability.nightVisitOthers ||
-        capability.nightVisitFaction;
+      capability.nightVisitOthers ||
+      capability.nightVisitFaction;
 
 /**
  * Determines if the current phase is a daytime phase.
  * Used to conditionally show or hide day-only actions.
- * 
+ *
  * @param {DayTime} time - Current phase
  * @returns {boolean} True if the phase is Day
  */
-export const shouldShowDayOnlyActions = (time: DayTime) =>
-  time === DayTime.Day;
+export const shouldShowDayOnlyActions = (time: DayTime) => time === DayTime.Day;
 
 /**
  * Determines if a player can vote for the elimination of a target.
  * Voting is only allowed during the day phase when both players are alive and distinct.
- * 
+ *
  * @param {Object} input - Input parameters
  * @param {DayTime} input.time - Current phase (Day or Night)
  * @param {boolean} input.actorAlive - Whether the voter is alive
@@ -147,7 +148,7 @@ export const canVoteTarget = (input: {
 /**
  * Determines if a player can send a whisper message to a target.
  * Whispering is only allowed during the day phase when the target is alive and distinct from the actor.
- * 
+ *
  * @param {Object} input - Input parameters
  * @param {DayTime} input.time - Current phase (Day or Night)
  * @param {boolean} input.targetAlive - Whether the target is alive

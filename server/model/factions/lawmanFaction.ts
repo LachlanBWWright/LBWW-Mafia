@@ -4,6 +4,8 @@ import { Room } from "../rooms/room.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { fromThrowable } from "neverthrow";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
+import type { GameMessage } from "@mernmafia/shared/communication/messages";
 
 const MAX_RANDOM_VISIT_ATTEMPTS = 100;
 
@@ -78,10 +80,9 @@ export class LawmanFaction extends Faction {
   handleNightMessage(message: string, playerUsername: string) {
     for (const member of this.memberList) {
       if (member.username == playerUsername) {
-        io.to(member.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          "You cannot speak at night.",
-        );
+        io.to(member.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.CannotSpeakAtNight,
+        });
       }
     }
   }
@@ -92,7 +93,7 @@ export class LawmanFaction extends Faction {
    * @param {string} message - The message to send to all Lawman members
    * @returns {void}
    */
-  sendMessage(message: string) {
+  sendMessage(message: GameMessage) {
     for (const member of this.memberList) {
       io.to(member.user.socketId).emit(ServerEvent.ReceiveMessage, message);
     }

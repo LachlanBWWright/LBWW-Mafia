@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "docker compose up -d && wait-on tcp:5432 && concurrently --names \"next,server\" --prefix-colors \"cyan,yellow\" \"cd nextjs && npm run dev\" \"cd server && npm start\"",
     "dev:down": "docker compose down",
+    "metrics:ts": "bash scripts/ts-file-metrics.sh --top=100",
     "lint": "npm run lint:server && npm run lint:nextjs && npm run lint:mobile",
     "lint:server": "cd server && npm run lint",
     "lint:nextjs": "cd nextjs && npm run lint",

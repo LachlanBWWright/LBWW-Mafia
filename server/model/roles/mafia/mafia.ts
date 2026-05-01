@@ -11,6 +11,7 @@ import { CombatLevel } from "../combatLevel.js";
  * @class Mafia
  * @extends {RoleMafia}
  */
+
 export class Mafia extends RoleMafia {
   name = "Mafia";
   group = RoleGroup.Mafia;

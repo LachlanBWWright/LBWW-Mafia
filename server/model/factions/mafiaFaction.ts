@@ -5,6 +5,7 @@ import { Faction } from "./abstractFaction.js";
 import { Player } from "../player/player.js";
 import { Role } from "../roles/abstractRole.js";
 import { CombatLevel } from "../roles/combatLevel.js";
+import type { GameMessage } from "@mernmafia/shared/communication/messages";
 
 export class MafiaFaction extends Faction {
   attackList: Role[] = [];
@@ -77,7 +78,7 @@ export class MafiaFaction extends Faction {
    * @param {string} message - The message to send
    * @returns {void}
    */
-  sendMessage(message: string) {
+  sendMessage(message: GameMessage) {
     for (const member of this.memberList) {
       io.to(member.user.socketId).emit(ServerEvent.ReceiveMessage, message);
     }

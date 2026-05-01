@@ -1,11 +1,11 @@
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
-import { schema } from "./schema.js";
+import { schema } from "@mernmafia/db/schema";
 
 /**
  * Creates and returns a Drizzle ORM instance for database access.
  * Uses environment variables to configure the database connection URL and authentication token.
- * 
+ *
  * @returns {ReturnType<typeof drizzle>} A Drizzle ORM instance with the configured schema
  */
 function createDb() {

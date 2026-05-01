@@ -21,11 +21,14 @@ import {
   roleFactionsByName as roleFactionsByNameValue,
   roleSections as roleSectionsValue,
   townRoles as townRolesValue,
-} from "./roles.js";
+} from "./rolesList";
 
-export const townRoles: readonly RoleCatalogEntry[] = townRolesValue;
-export const mafiaRoles: readonly RoleCatalogEntry[] = mafiaRolesValue;
-export const neutralRoles: readonly RoleCatalogEntry[] = neutralRolesValue;
-export const allRoles: readonly RoleCatalogEntry[] = allRolesValue;
-export const roleSections: readonly RoleSection[] = roleSectionsValue;
-export const roleFactionsByName: Map<string, RoleFaction> = roleFactionsByNameValue;
+export const townRoles = townRolesValue as readonly RoleCatalogEntry[];
+export const mafiaRoles = mafiaRolesValue as readonly RoleCatalogEntry[];
+export const neutralRoles = neutralRolesValue as readonly RoleCatalogEntry[];
+export const allRoles = allRolesValue as readonly RoleCatalogEntry[];
+export const roleSections = roleSectionsValue as readonly RoleSection[];
+export const roleFactionsByName = roleFactionsByNameValue as Map<
+  string,
+  RoleFaction
+>;

@@ -55,6 +55,22 @@ export function Room({
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLInputElement>(null);
 
+  function toDisplayMessage(input: unknown) {
+    if (typeof input === "string") return input;
+    if (!input || typeof input !== "object") return "";
+    const maybeMessage = input as { key?: unknown; params?: unknown };
+    if (typeof maybeMessage.key !== "string") return "";
+    if (!maybeMessage.params || typeof maybeMessage.params !== "object") {
+      return maybeMessage.key;
+    }
+    const params = Object.entries(maybeMessage.params)
+      .map(([key, value]) => `${key}=${String(value)}`)
+      .join(", ");
+    return params.length > 0
+      ? `${maybeMessage.key} (${params})`
+      : maybeMessage.key;
+  }
+
   function changeText(event: string) {
     setTextMessage(event);
   }
@@ -65,9 +81,31 @@ export function Room({
       socket.emit("handleVisit", playerIndex, time === "Day");
     } else {
       setVisiting(null);
-      setVisiting(null);
       socket.emit("handleVisit", null, time === "Day");
     }
+  }
+
+  function isNearBottom(container: HTMLDivElement) {
+    return (
+      container.scrollHeight - container.scrollTop - container.clientHeight <=
+      container.clientHeight / 5
+    );
+  }
+
+  function appendIncomingMessage(msg: MsgType) {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    setMessages((current) => [...current, msg]);
+    if (!isNearBottom(container)) {
+      setShowScrollDown(true);
+      setScrollNewMessages((count) => count + 1);
+      return;
+    }
+
+    setShowScrollDown(false);
+    setScrollNewMessages(0);
+    container.scrollTop = container.scrollHeight;
   }
 
   function openWhisperMenu(playerIndex: number) {
@@ -131,104 +169,29 @@ export function Room({
       console.log("You connected to the socket with ID " + socket.id);
     });
 
-    socket.on("receiveMessage", (inMsg) => {
-      //Scrolls down if the user is close to the bottom, doesn't if they've scrolled up the review the chat history (By more than 1/5th of the window's height)
-      let msg = {
-        type: 0,
-        text: inMsg,
-      };
-
-      if (scrollRef.current === null) return;
-
-      if (
-        scrollRef.current.scrollHeight -
-          scrollRef.current.scrollTop -
-          scrollRef.current.clientHeight <=
-        scrollRef.current.clientHeight / 5
-      ) {
-        setMessages((messages) => [...messages, msg]);
-        setShowScrollDown(false);
-        setScrollNewMessages(0);
-
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      } else {
-        setMessages((messages) => [...messages, msg]);
-        setShowScrollDown(true);
-        setScrollNewMessages(scrollNewMessages + 1);
-      }
+    socket.on("receiveMessage", (inMsg: unknown) => {
+      appendIncomingMessage({ type: 0, text: toDisplayMessage(inMsg) });
     });
 
-    socket.on("receive-chat-message", (inMsg) => {
-      //Scrolls down if the user is close to the bottom, doesn't if they've scrolled up the review the chat history (By more than 1/5th of the window's height)
-      let msg = {
-        type: 1,
-        text: inMsg,
-      };
-
-      if (!scrollRef.current) return;
-
-      if (
-        scrollRef.current.scrollHeight -
-          scrollRef.current.scrollTop -
-          scrollRef.current.clientHeight <=
-        scrollRef.current.clientHeight / 5
-      ) {
-        console.log(messages);
-        console.log(msg);
-        setMessages((messages) => [...messages, msg]);
-        setShowScrollDown(false);
-        setScrollNewMessages(0);
-        //Adds message to message list.
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      } else {
-        console.log(messages);
-        console.log(msg);
-        setMessages((messages) => [...messages, msg]);
-        setShowScrollDown(true);
-        setScrollNewMessages(scrollNewMessages + 1);
-        //Adds message to message list.
-      }
+    socket.on("receive-chat-message", (inMsg: string) => {
+      appendIncomingMessage({ type: 1, text: inMsg });
     });
 
-    socket.on("receive-whisper-message", (inMsg) => {
-      //Scrolls down if the user is close to the bottom, doesn't if they've scrolled up the review the chat history (By more than 1/5th of the window's height)
-      let msg = {
-        type: 2,
-        text: inMsg,
-      };
-
-      if (!scrollRef.current) return;
-
-      if (
-        scrollRef.current.scrollHeight -
-          scrollRef.current.scrollTop -
-          scrollRef.current.clientHeight <=
-        scrollRef.current.clientHeight / 5
-      ) {
-        setMessages((messages) => [...messages, msg]);
-        setShowScrollDown(false);
-        setScrollNewMessages(0);
-        //Adds message to message list.
-        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-      } else {
-        setMessages((messages) => [...messages, msg]);
-        setShowScrollDown(true);
-        setScrollNewMessages(scrollNewMessages + 1);
-        //Adds message to message list.
-      }
+    socket.on("receive-whisper-message", (inMsg: string) => {
+      appendIncomingMessage({ type: 2, text: inMsg });
     });
 
-    socket.on("receive-player-list", (listJson) => {
+    socket.on("receive-player-list", (listJson: PlayerType[]) => {
       //Receive all players upon joining, and the game starting
       setPlayerList(listJson);
     });
 
-    socket.on("receive-new-player", (playerJson) => {
+    socket.on("receive-new-player", (playerJson: PlayerType) => {
       //Called when a new player joins the lobby
-      setPlayerList([...playerList, playerJson]);
+      setPlayerList((current) => [...current, playerJson]);
     });
 
-    socket.on("remove-player", (playerJson) => {
+    socket.on("remove-player", (playerJson: PlayerType) => {
       //Called when a player leaves the lobby before the game starts
       console.log("Removing player " + playerJson.name);
       setPlayerList((playerList) => {
@@ -236,33 +199,46 @@ export function Room({
       });
     });
 
-    socket.on("assign-player-role", (playerJson) => {
-      //Shows the player their own role, lets the client know that this is who they are playing as
+    socket.on(
+      "assign-player-role",
+      (
+        playerJson: PlayerType & {
+          dayVisitSelf: boolean;
+          dayVisitOthers: boolean;
+          dayVisitFaction: boolean;
+          nightVisitSelf: boolean;
+          nightVisitOthers: boolean;
+          nightVisitFaction: boolean;
+          nightVote: boolean;
+        },
+      ) => {
+        //Shows the player their own role, lets the client know that this is who they are playing as
 
-      setPlayerList((playerList) => {
-        let tempPlayerList = [...playerList];
-        let index = tempPlayerList.findIndex(
-          (player) => player.name === playerJson.name,
-        );
-        tempPlayerList[index].role = playerJson.role;
-        tempPlayerList[index].isUser = true;
-        setRole(playerJson.role);
+        setPlayerList((playerList) => {
+          let tempPlayerList = [...playerList];
+          let index = tempPlayerList.findIndex(
+            (player) => player.name === playerJson.name,
+          );
+          tempPlayerList[index].role = playerJson.role;
+          tempPlayerList[index].isUser = true;
+          setRole(playerJson.role ?? "");
 
-        return tempPlayerList;
-      });
+          return tempPlayerList;
+        });
 
-      setCanVisit([
-        playerJson.dayVisitSelf,
-        playerJson.dayVisitOthers,
-        playerJson.dayVisitFaction,
-        playerJson.nightVisitSelf,
-        playerJson.nightVisitOthers,
-        playerJson.nightVisitFaction,
-      ]);
-      setCanNightVote(playerJson.nightVote);
-    });
+        setCanVisit([
+          playerJson.dayVisitSelf,
+          playerJson.dayVisitOthers,
+          playerJson.dayVisitFaction,
+          playerJson.nightVisitSelf,
+          playerJson.nightVisitOthers,
+          playerJson.nightVisitFaction,
+        ]);
+        setCanNightVote(playerJson.nightVote);
+      },
+    );
 
-    socket.on("update-faction-role", (playerJson) => {
+    socket.on("update-faction-role", (playerJson: PlayerType) => {
       //Reveals the role of factional allies
       setPlayerList((playerList) => {
         let tempPlayerList = [...playerList];
@@ -275,7 +251,7 @@ export function Room({
       });
     });
 
-    socket.on("update-player-role", (playerJson) => {
+    socket.on("update-player-role", (playerJson: PlayerType) => {
       //Updates player role upon their death
       setPlayerList((playerList) => {
         let tempPlayerList = [...playerList];
@@ -295,24 +271,27 @@ export function Room({
       //Get player by name, update properties, update JSON
     });
 
-    socket.on("update-day-time", (infoJson) => {
-      //Gets whether it is day or night, and how long there is left in the session
-      setTime(infoJson.time);
-      setDayNumber(infoJson.dayNumber);
-      setVisiting(null); //Resets who the player is visiting
-      setVotingFor(null);
-      setWhisperingTo(null);
+    socket.on(
+      "update-day-time",
+      (infoJson: { time: string; dayNumber: number; timeLeft: number }) => {
+        //Gets whether it is day or night, and how long there is left in the session
+        setTime(infoJson.time);
+        setDayNumber(infoJson.dayNumber);
+        setVisiting(null); //Resets who the player is visiting
+        setVotingFor(null);
+        setWhisperingTo(null);
 
-      let timeLeftLocal = infoJson.timeLeft;
-      let countDown = setInterval(() => {
-        if (timeLeftLocal > 0) {
-          setTimeLeft(timeLeftLocal - 1);
-          timeLeftLocal--;
-        } else {
-          clearInterval(countDown);
-        }
-      }, 1000);
-    });
+        let timeLeftLocal = infoJson.timeLeft;
+        let countDown = setInterval(() => {
+          if (timeLeftLocal > 0) {
+            setTimeLeft(timeLeftLocal - 1);
+            timeLeftLocal--;
+          } else {
+            clearInterval(countDown);
+          }
+        }, 1000);
+      },
+    );
 
     socket.on("disable-voting", () => {
       setVotingDisabled(true);
@@ -322,7 +301,7 @@ export function Room({
       setCanTalk(false);
     });
 
-    socket.emit("playerJoinRoom", captchaToken, (callback) => {
+    socket.emit("playerJoinRoom", captchaToken, (callback: string | number) => {
       console.log("CALLBACK:" + callback);
       if (typeof callback == "number") {
         if (callback === 1)

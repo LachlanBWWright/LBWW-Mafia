@@ -4,6 +4,7 @@ import { Role } from "../abstractRole.js";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
 
 /**
@@ -13,6 +14,7 @@ import { io } from "../../../servers/emitter.js";
  * @class Judge
  * @extends {Role}
  */
+
 export class Judge extends Role {
   name = "Judge";
   group = RoleGroup.Town;
@@ -46,21 +48,19 @@ export class Judge extends Role {
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You cannot inspect your own alignment.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.JudgeCannotInspectSelf,
+      });
     } else if (recipient.username != undefined && recipient.isAlive) {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "You have chosen to inspect " + recipient.username + ".",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.ChoseToInspect,
+        params: { targetName: recipient.username },
+      });
       this.visiting = recipient.role;
     } else {
-      io.to(this.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        "Invalid choice.",
-      );
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.InvalidChoice,
+      });
     }
   }
 
@@ -82,23 +82,24 @@ export class Judge extends Role {
           }
         }
 
-        io.to(this.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          this.visiting.player.username +
-            "'s alignment is for the " +
-            livingPlayerList[
-              Math.floor(Math.random() * livingPlayerList.length)
-            ].role.group +
-            " faction.",
-        );
+        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.JudgeAlignmentResult,
+          params: {
+            targetName: this.visiting.player.username,
+            factionName:
+              livingPlayerList[
+                Math.floor(Math.random() * livingPlayerList.length)
+              ].role.group,
+          },
+        });
       } else {
-        io.to(this.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          this.visiting.player.username +
-            "'s alignment is for the " +
-            this.visiting.group +
-            " faction.",
-        );
+        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+          key: MessageKey.JudgeAlignmentResult,
+          params: {
+            targetName: this.visiting.player.username,
+            factionName: this.visiting.group,
+          },
+        });
       }
     }
   }

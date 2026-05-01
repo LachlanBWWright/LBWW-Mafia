@@ -2,7 +2,7 @@ import { Socket, io } from "socket.io-client";
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
-} from "../../../server/servers/socket";
+} from "@mernmafia/shared/communication/events";
 
 /**
  * Singleton Socket.IO client instance connected to the game server.
