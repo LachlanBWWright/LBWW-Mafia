@@ -47,21 +47,25 @@ export class Bodyguard extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotProtectSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToProtect,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -70,12 +74,12 @@ export class Bodyguard extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      if (this.visiting.defence == CombatLevel.None) {
-        this.visiting.defence = CombatLevel.Low;
-      }
-      this.visiting.receiveVisit(this);
+    if (this.visiting === null) return;
+
+    if (this.visiting.defence === CombatLevel.None) {
+      this.visiting.defence = CombatLevel.Low;
     }
+    this.visiting.receiveVisit(this);
   }
 
   /**
@@ -85,14 +89,15 @@ export class Bodyguard extends Role {
    * @returns {void}
    */
   handleVisits() {
-    if (this.visiting != null) {
-      for (const visitor of this.visiting.visitors) {
-        if (visitor != this && visitor != this.visiting) {
-          if (visitor.damage == CombatLevel.None)
-            visitor.damage = CombatLevel.Low;
-          visitor.attackers.push(this);
-        }
+    if (this.visiting === null) return;
+
+    for (const visitor of this.visiting.visitors) {
+      if (visitor === this || visitor === this.visiting) continue;
+
+      if (visitor.damage === CombatLevel.None) {
+        visitor.damage = CombatLevel.Low;
       }
+      visitor.attackers.push(this);
     }
   }
 }

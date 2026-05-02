@@ -149,17 +149,39 @@ export function Room({
     }
   }
 
+  function renderMessage(msg: MsgType, index: number) {
+    switch (msg.type) {
+      case 0:
+        return (
+          <p key={index} style={{ fontWeight: "bold" }}>
+            {msg.text}
+          </p>
+        );
+      case 1:
+        return <p key={index}>{msg.text}</p>;
+      case 2:
+        return (
+          <p key={index} style={{ fontStyle: "italic" }}>
+            {msg.text}
+          </p>
+        );
+      default:
+        return <p key={index}>{msg.text}</p>;
+    }
+  }
+
   function scrollEvent() {
-    if (
-      scrollRef.current !== null &&
-      scrollRef.current.scrollHeight -
-        scrollRef.current.scrollTop -
-        scrollRef.current.clientHeight <=
-        scrollRef.current.clientHeight / 5
-    ) {
+    if (!scrollRef.current) return;
+    const isNear = scrollRef.current.scrollHeight -
+      scrollRef.current.scrollTop -
+      scrollRef.current.clientHeight <=
+      scrollRef.current.clientHeight / 5;
+    if (isNear) {
       setShowScrollDown(false);
       setScrollNewMessages(0);
-    } else setShowScrollDown(true);
+    } else {
+      setShowScrollDown(true);
+    }
   }
 
   useEffect(() => {
@@ -414,26 +436,7 @@ export function Room({
           }}
         >
           {messages &&
-            messages.map((msg, index) => {
-              //Msg Types - 0: Bold, black,
-              if (msg.type === 0)
-                return (
-                  <p key={index} style={{ fontWeight: "bold" }}>
-                    {msg.text}
-                  </p>
-                );
-              //0 - Bold message - Announcement
-              else if (msg.type === 1) return <p key={index}>{msg.text}</p>;
-              // 1 - Normal Message (No effects)
-              else if (msg.type === 2)
-                return (
-                  <p key={index} style={{ fontStyle: "italic" }}>
-                    {msg.text}
-                  </p>
-                );
-              // 2 - Whisper Message (Italics)
-              else return <p key={index}>{msg.text}</p>; // Fallback Message (No effects)
-            })}
+            messages.map((msg, index) => renderMessage(msg, index))}
           {showScrollDown && scrollNewMessages !== 0 && (
             <Button
               variant="secondary"

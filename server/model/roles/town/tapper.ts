@@ -48,21 +48,25 @@ export class Tapper extends Role {
    * @returns {void}
    */
   handleDayAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotTapSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToTap,
         params: { targetName: recipient.username },
       });
       this.dayVisiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -73,21 +77,25 @@ export class Tapper extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotTapSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToTap,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -96,15 +104,14 @@ export class Tapper extends Role {
    * @returns {void}
    */
   dayVisit() {
-    if (this.dayVisiting != null) {
-      io.to(this.dayVisiting.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        { key: MessageKey.YouHaveBeenWiretapped },
-      );
-      if (this.dayVisiting !== null && this.dayVisiting !== undefined)
-        this.dayVisiting.receiveDayVisit(this);
-      this.dayVisiting.nightTapped = this;
-    }
+    if (this.dayVisiting === null) return;
+
+    io.to(this.dayVisiting.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      { key: MessageKey.YouHaveBeenWiretapped },
+    );
+    this.dayVisiting.receiveDayVisit(this);
+    this.dayVisiting.nightTapped = this;
   }
 
   /**
@@ -113,9 +120,9 @@ export class Tapper extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-      this.visiting.dayTapped = this;
-    }
+    if (this.visiting === null) return;
+
+    this.visiting.receiveVisit(this);
+    this.visiting.dayTapped = this;
   }
 }

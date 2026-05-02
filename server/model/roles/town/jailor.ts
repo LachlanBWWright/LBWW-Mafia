@@ -49,21 +49,25 @@ export class Jailor extends Role {
    * @returns {void}
    */
   handleMessage(message: string) {
-    const socketId = this.player.user.socketId;
     if (this.room.time === GamePhase.Day) {
       super.handleMessage(message);
-    } else if (this.dayVisiting != null) {
-      io.to(socketId).emit(
-        ServerEvent.ReceiveChatMessage,
-        `Jailor: ${message}`,
-      );
-      io.to(this.dayVisiting.player.user.socketId).emit(
-        ServerEvent.ReceiveChatMessage,
-        `Jailor: ${message}`,
-      );
-    } else {
-      super.handleMessage(message);
+      return;
     }
+
+    if (this.dayVisiting === null) {
+      super.handleMessage(message);
+      return;
+    }
+
+    const socketId = this.player.user.socketId;
+    io.to(socketId).emit(
+      ServerEvent.ReceiveChatMessage,
+      `Jailor: ${message}`,
+    );
+    io.to(this.dayVisiting.player.user.socketId).emit(
+      ServerEvent.ReceiveChatMessage,
+      `Jailor: ${message}`,
+    );
   }
 
   /**
@@ -74,21 +78,25 @@ export class Jailor extends Role {
    * @returns {void}
    */
   handleDayAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.JailorCannotJailSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.JailorChoseToJail,
         params: { targetName: recipient.username },
       });
       this.dayVisiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -99,30 +107,31 @@ export class Jailor extends Role {
    * @returns {void}
    */
   handleNightAction(_recipient: Player) {
-    if (this.dayVisiting == null) {
+    if (this.dayVisiting === null) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.JailorNoJailed,
       });
+      return;
+    }
+
+    if (this.visiting === null) {
+      this.visiting = this.dayVisiting;
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.JailorDecidedToExecute,
+      });
+      io.to(this.dayVisiting.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        { key: MessageKey.JailedWillBeExecuted },
+      );
     } else {
-      if (this.visiting == null) {
-        this.visiting = this.dayVisiting;
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.JailorDecidedToExecute,
-        });
-        io.to(this.dayVisiting.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          { key: MessageKey.JailedWillBeExecuted },
-        );
-      } else {
-        this.visiting = null;
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.JailorDecidedNotToExecute,
-        });
-        io.to(this.dayVisiting.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          { key: MessageKey.JailedWillNotBeExecuted },
-        );
-      }
+      this.visiting = null;
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.JailorDecidedNotToExecute,
+      });
+      io.to(this.dayVisiting.player.user.socketId).emit(
+        ServerEvent.ReceiveMessage,
+        { key: MessageKey.JailedWillNotBeExecuted },
+      );
     }
   }
 
@@ -133,17 +142,17 @@ export class Jailor extends Role {
    * @returns {void}
    */
   dayVisit() {
-    if (this.dayVisiting != null) {
-      io.to(this.dayVisiting.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        { key: MessageKey.YouHaveBeenJailed },
-      );
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.JailorJailedTarget,
-      });
-      this.dayVisiting.jailed = this;
-      this.dayVisiting.roleblocked = true;
-    }
+    if (this.dayVisiting === null) return;
+
+    io.to(this.dayVisiting.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      { key: MessageKey.YouHaveBeenJailed },
+    );
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.JailorJailedTarget,
+    });
+    this.dayVisiting.jailed = this;
+    this.dayVisiting.roleblocked = true;
   }
 
   /**
@@ -153,12 +162,13 @@ export class Jailor extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-      if (this.visiting.damage < CombatLevel.High)
-        this.visiting.damage = CombatLevel.High;
-      this.visiting.attackers.push(this);
+    if (this.visiting === null) return;
+
+    this.visiting.receiveVisit(this);
+    if (this.visiting.damage < CombatLevel.High) {
+      this.visiting.damage = CombatLevel.High;
     }
+    this.visiting.attackers.push(this);
   }
 
   /**
@@ -168,10 +178,12 @@ export class Jailor extends Role {
    * @returns {void}
    */
   handleVisits() {
-    if (this.dayVisiting != null) this.dayVisiting.jailed = null;
-    if (this.dayVisiting != null) {
-      if (this.dayVisiting.baseDefence == CombatLevel.None)
-        this.dayVisiting.defence = CombatLevel.Low;
+    if (this.dayVisiting === null) return;
+
+    this.dayVisiting.jailed = null;
+
+    if (this.dayVisiting.baseDefence === CombatLevel.None) {
+      this.dayVisiting.defence = CombatLevel.Low;
     }
   }
 }

@@ -4,7 +4,6 @@ import { Role } from "../abstractRole.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
-import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 
@@ -52,17 +51,21 @@ export class Tracker extends Role {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.TrackerCannotTrackSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username != undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.TrackerChoseToTrack,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -83,26 +86,22 @@ export class Tracker extends Role {
    * @returns {void}
    */
   handleVisits() {
-    const handleVisits = fromThrowable(
-      () => {
-        if (this.visiting != null) {
-          if (this.visiting.visiting)
-            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-              key: MessageKey.TrackerTargetVisited,
-              params: { targetName: this.visiting.visiting.player.username },
-            });
-          else
-            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-              key: MessageKey.TrackerTargetDidNotVisit,
-            });
-        }
-      },
-      (error) => error,
-    );
-    const result = handleVisits();
+    if (this.visiting === null) return;
+    this.reportTrackerResults();
+  }
 
-    if (result.isErr()) {
-      console.error(result.error);
+  private reportTrackerResults(): void {
+    if (!this.visiting) return;
+
+    if (this.visiting.visiting) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.TrackerTargetVisited,
+        params: { targetName: this.visiting.visiting.player.username },
+      });
+    } else {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.TrackerTargetDidNotVisit,
+      });
     }
   }
 }

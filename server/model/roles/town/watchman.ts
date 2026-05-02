@@ -4,7 +4,6 @@ import { Role } from "../abstractRole.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
-import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 
@@ -55,17 +54,21 @@ export class Watchman extends Role {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.WatchmanCannotWatchSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username != undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.WatchmanChoseToWatch,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -89,103 +92,106 @@ export class Watchman extends Role {
    * @returns {void}
    */
   handleVisits() {
-    const handleVisits = fromThrowable(
-      () => {
-        if (this.visiting != null) {
-          let allVisitors = this.visiting.visitors.length;
-          if (allVisitors == 1) {
-            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-              key: MessageKey.WatchmanNobodyVisited,
-            });
-          } else if (allVisitors == 2) {
-            let alibi =
-              this.room.playerList[
-                Math.floor(Math.random() * this.room.playerList.length)
-              ].role;
-            if (
-              !alibi.player.isAlive ||
-              alibi == this.visiting.visitors[0] ||
-              alibi == this.visiting.visitors[1] ||
-              alibi == this.visiting
-            ) {
-              if (this.visiting.visitors[0] == this) {
-                io.to(this.player.user.socketId).emit(
-                  ServerEvent.ReceiveMessage,
-                  {
-                    key: MessageKey.WatchmanTargetVisitedBy,
-                    params: {
-                      targetName: this.visiting.visitors[1].player.username,
-                    },
-                  },
-                );
-              } else {
-                io.to(this.player.user.socketId).emit(
-                  ServerEvent.ReceiveMessage,
-                  {
-                    key: MessageKey.WatchmanTargetVisitedBy,
-                    params: {
-                      targetName: this.visiting.visitors[0].player.username,
-                    },
-                  },
-                );
-              }
-            } else {
-              let realVisitor;
-              if (this.visiting.visitors[0] == this) {
-                realVisitor = this.visiting.visitors[1];
-              } else {
-                realVisitor = this.visiting.visitors[0];
-              }
+    if (this.visiting === null) return;
+    this.processVisitors();
+  }
 
-              if (Math.random() > 0.5) {
-                io.to(this.player.user.socketId).emit(
-                  ServerEvent.ReceiveMessage,
-                  {
-                    key: MessageKey.WatchmanTargetVisitedByTwo,
-                    params: {
-                      name1: realVisitor.player.username,
-                      name2: alibi.player.username,
-                    },
-                  },
-                );
-              } else {
-                io.to(this.player.user.socketId).emit(
-                  ServerEvent.ReceiveMessage,
-                  {
-                    key: MessageKey.WatchmanTargetVisitedByTwo,
-                    params: {
-                      name1: alibi.player.username,
-                      name2: realVisitor.player.username,
-                    },
-                  },
-                );
-              }
-            }
-          } else {
-            const visitorList = [];
-            for (const visitor of this.visiting.visitors) {
-              if (visitor.player.isAlive && visitor != this) {
-                visitorList.push(visitor.player.username);
-              }
-            }
-            const lastEntry = visitorList[visitorList.length - 1] ?? "";
-            const list =
-              visitorList.length > 1
-                ? visitorList.slice(0, -1).join(", ") + ", and " + lastEntry
-                : lastEntry;
-            io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-              key: MessageKey.WatchmanVisitorList,
-              params: { list },
-            });
-          }
-        }
-      },
-      (error) => error,
-    );
-    const result = handleVisits();
+  private processVisitors(): void {
+    if (!this.visiting) return;
 
-    if (result.isErr()) {
-      console.error(result.error);
+    const visitorCount = this.visiting.visitors.length;
+
+    if (visitorCount === 1) {
+      this.reportNobodyVisited();
+    } else if (visitorCount === 2) {
+      this.reportOneVisitor();
+    } else {
+      this.reportMultipleVisitors();
     }
+  }
+
+  private reportNobodyVisited(): void {
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.WatchmanNobodyVisited,
+    });
+  }
+
+  private reportOneVisitor(): void {
+    if (!this.visiting) return;
+
+    const alibi = this.room.playerList[
+      Math.floor(Math.random() * this.room.playerList.length)
+    ].role;
+    const isValidAlibi = this.isValidAlibi(alibi);
+
+    if (!isValidAlibi) {
+      this.reportRealVisitor();
+    } else {
+      this.reportAlibiOrReal(alibi);
+    }
+  }
+
+  private isValidAlibi(alibi: Role): boolean {
+    if (!this.visiting) return false;
+    return (
+      alibi.player.isAlive &&
+      alibi !== this.visiting.visitors[0] &&
+      alibi !== this.visiting.visitors[1] &&
+      alibi !== this.visiting
+    );
+  }
+
+  private reportRealVisitor(): void {
+    if (!this.visiting) return;
+
+    const realVisitor =
+      this.visiting.visitors[0] === this
+        ? this.visiting.visitors[1]
+        : this.visiting.visitors[0];
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.WatchmanTargetVisitedBy,
+      params: {
+        targetName: realVisitor.player.username,
+      },
+    });
+  }
+
+  private reportAlibiOrReal(alibi: Role): void {
+    if (!this.visiting) return;
+
+    const realVisitor =
+      this.visiting.visitors[0] === this
+        ? this.visiting.visitors[1]
+        : this.visiting.visitors[0];
+
+    const [name1, name2] =
+      Math.random() > 0.5
+        ? [realVisitor.player.username, alibi.player.username]
+        : [alibi.player.username, realVisitor.player.username];
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.WatchmanTargetVisitedByTwo,
+      params: { name1, name2 },
+    });
+  }
+
+  private reportMultipleVisitors(): void {
+    if (!this.visiting) return;
+
+    const visitorList = this.visiting.visitors
+      .filter((visitor) => visitor.player.isAlive && visitor !== this)
+      .map((visitor) => visitor.player.username);
+
+    const lastEntry = visitorList[visitorList.length - 1] ?? "";
+    const list =
+      visitorList.length > 1
+        ? visitorList.slice(0, -1).join(", ") + ", and " + lastEntry
+        : lastEntry;
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.WatchmanVisitorList,
+      params: { list },
+    });
   }
 }

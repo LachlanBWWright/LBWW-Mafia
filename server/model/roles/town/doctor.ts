@@ -47,21 +47,25 @@ export class Doctor extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.DoctorCannotHealSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.DoctorChoseToHeal,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -70,11 +74,11 @@ export class Doctor extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      if (this.visiting.defence == CombatLevel.None) {
-        this.visiting.defence = CombatLevel.Low;
-      }
-      this.visiting.receiveVisit(this);
+    if (this.visiting === null) return;
+
+    if (this.visiting.defence === CombatLevel.None) {
+      this.visiting.defence = CombatLevel.Low;
     }
+    this.visiting.receiveVisit(this);
   }
 }

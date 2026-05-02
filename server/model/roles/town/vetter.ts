@@ -4,7 +4,6 @@ import { Player } from "../../player/player.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../servers/emitter.js";
-import { fromThrowable } from "neverthrow";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
 
@@ -56,11 +55,14 @@ export class Vetter extends Role {
    * @returns {void}
    */
   handleNightAction(_recipient: Player) {
-    if (this.researchSlots == 0)
+    if (this.researchSlots === 0) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.VetterNoSessions,
       });
-    else if (this.visiting == null) {
+      return;
+    }
+
+    if (this.visiting === null) {
       this.visiting = this;
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.VetterDecidedToResearch,
@@ -81,53 +83,45 @@ export class Vetter extends Role {
    * @returns {void}
    */
   visit() {
-    const visit = fromThrowable(
-      () => {
-        if (this.visiting === null) return;
-        this.visiting.receiveVisit(this);
-        this.researchSlots--;
-        let randomPlayerOne = Math.floor(
-          Math.random() * this.room.playerList.length,
-        );
-        let randomPlayerTwo = randomPlayerOne;
-        while (
-          randomPlayerTwo == randomPlayerOne &&
-          this.room.playerList.length > 1
-        )
-          randomPlayerTwo = Math.floor(
-            Math.random() * this.room.playerList.length,
-          );
+    if (this.visiting === null) return;
 
-        if (Math.random() > 0.5) {
-          io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.VetterResearchResult,
-            params: {
-              name1: this.room.playerList[randomPlayerOne].username,
-              name2: this.room.playerList[randomPlayerTwo].username,
-              roleName: this.room.playerList[randomPlayerOne].role.name,
-            },
-          });
-        } else {
-          io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.VetterResearchResult,
-            params: {
-              name1: this.room.playerList[randomPlayerOne].username,
-              name2: this.room.playerList[randomPlayerTwo].username,
-              roleName: this.room.playerList[randomPlayerTwo].role.name,
-            },
-          });
-        }
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.VetterSessionsLeft,
-          params: { count: this.researchSlots },
-        });
+    this.visiting.receiveVisit(this);
+    this.researchSlots--;
+
+    const [playerOneIndex, playerTwoIndex] = this.selectTwoRandomPlayers();
+    const reportedPlayerIndex =
+      Math.random() > 0.5 ? playerOneIndex : playerTwoIndex;
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.VetterResearchResult,
+      params: {
+        name1: this.room.playerList[playerOneIndex].username,
+        name2: this.room.playerList[playerTwoIndex].username,
+        roleName: this.room.playerList[reportedPlayerIndex].role.name,
       },
-      (error) => error,
-    );
-    const result = visit();
+    });
 
-    if (result.isErr()) {
-      console.error(result.error);
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.VetterSessionsLeft,
+      params: { count: this.researchSlots },
+    });
+  }
+
+  private selectTwoRandomPlayers(): [number, number] {
+    let randomPlayerOne = Math.floor(
+      Math.random() * this.room.playerList.length,
+    );
+    let randomPlayerTwo = randomPlayerOne;
+
+    while (
+      randomPlayerTwo === randomPlayerOne &&
+      this.room.playerList.length > 1
+    ) {
+      randomPlayerTwo = Math.floor(
+        Math.random() * this.room.playerList.length,
+      );
     }
+
+    return [randomPlayerOne, randomPlayerTwo];
   }
 }

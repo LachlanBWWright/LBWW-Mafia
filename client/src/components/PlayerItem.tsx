@@ -42,70 +42,48 @@ export function PlayerItem({
   const [canWhisper, setCanWhisper] = useState(false);
   const [canVisitLocal, setCanVisitLocal] = useState(false);
 
-  function canVisitFn() {
-    //For now, if the player's role is known, they are interpreted as a member of the same faction
-    if (!canTalk || !canVisitLocal) return false;
-    if (time === "Day") {
-      if (canVisit[0] && isAlive && isUser) return true;
-      else if (canVisit[1] && isAlive && role === undefined && !isUser)
-        return true;
-      else if (canVisit[2] && isAlive && role !== undefined && !isUser)
-        return true;
-    } else if (time === "Night") {
-      if (canVisit[3] && isAlive && isUser) return true;
-      else if (canVisit[4] && isAlive && role === undefined && !isUser)
-        return true;
-      else if (canVisit[5] && isAlive && role !== undefined && !isUser)
-        return true;
+  useEffect(() => {
+    if (!isAlive) {
+      setVariant("danger");
+      setCanVisitLocal(false);
+      setCanWhisper(false);
+      return;
     }
+    setVariant("primary");
+    setCanVisitLocal(true);
+    setCanWhisper(!isUser);
+  }, [isAlive, isUser]);
+
+  const canVisitDay = 
+    (canVisit[0] && isAlive && isUser) ||
+    (canVisit[1] && isAlive && role === undefined && !isUser) ||
+    (canVisit[2] && isAlive && role !== undefined && !isUser);
+  
+  const canVisitNight = 
+    (canVisit[3] && isAlive && isUser) ||
+    (canVisit[4] && isAlive && role === undefined && !isUser) ||
+    (canVisit[5] && isAlive && role !== undefined && !isUser);
+
+  function canVisitFn() {
+    if (!canTalk || !canVisitLocal) return false;
+    if (time === "Day") return canVisitDay;
+    if (time === "Night") return canVisitNight;
     return false;
   }
 
   function canVoteFn() {
-    if (
-      !votingDisabled &&
-      votingFor === null &&
-      canTalk &&
-      time === "Day" &&
-      dayNumber !== 1 &&
-      isAlive &&
-      !isUser
-    )
-      return true;
-    if (
-      time === "Night" &&
-      votingFor === null &&
-      canNightVote &&
-      isAlive &&
-      role === undefined &&
-      !isUser
-    )
-      return true;
+    if (time === "Day") {
+      return !votingDisabled && votingFor === null && canTalk && dayNumber !== 1 && isAlive && !isUser;
+    }
+    if (time === "Night") {
+      return votingFor === null && canNightVote && isAlive && role === undefined && !isUser;
+    }
     return false;
   }
 
   function canWhisperFn() {
-    return (
-      canTalk &&
-      canWhisper &&
-      time === "Day" &&
-      dayNumber !== 1 &&
-      (whisperingTo === null || whisperingTo === index)
-    );
+    return canTalk && canWhisper && time === "Day" && dayNumber !== 1 && (whisperingTo === null || whisperingTo === index);
   }
-
-  useEffect(() => {
-    if (isAlive) {
-      setVariant("primary");
-      setCanVisitLocal(true);
-      if (isUser) setCanWhisper(false);
-      else setCanWhisper(true);
-    } else {
-      setVariant("danger");
-      setCanVisitLocal(false);
-      setCanWhisper(false);
-    }
-  }, [isAlive, isUser]);
 
   return (
     <ListGroup.Item variant={variant}>

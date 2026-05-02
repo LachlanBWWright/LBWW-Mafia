@@ -61,12 +61,15 @@ export class Fortifier extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.FortifierCannotFortifySelf,
       });
-    } else if (
-      recipient.username != undefined &&
+      return;
+    }
+
+    if (
+      recipient.username !== undefined &&
       recipient.isAlive &&
       this.canFortify
     ) {
@@ -75,22 +78,27 @@ export class Fortifier extends Role {
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else if (this.playerFortified != null) {
-      if (
-        recipient.username != undefined &&
-        this.playerFortified.player.isAlive &&
-        !this.canFortify
-      ) {
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.FortifierChoseToRemove,
-          params: { targetName: this.playerFortified.player.username },
-        });
-        this.visiting = recipient.role;
-      } else {
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.FortifierCannotRemoveDead,
-        });
-      }
+      return;
+    }
+
+    if (
+      this.playerFortified !== null &&
+      recipient.username !== undefined &&
+      this.playerFortified.player.isAlive &&
+      !this.canFortify
+    ) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.FortifierChoseToRemove,
+        params: { targetName: this.playerFortified.player.username },
+      });
+      this.visiting = recipient.role;
+      return;
+    }
+
+    if (this.playerFortified !== null) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.FortifierCannotRemoveDead,
+      });
     } else {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.InvalidChoice,
@@ -106,42 +114,68 @@ export class Fortifier extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-      if (this.canFortify) {
-        this.canFortify = false;
-        this.visiting.baseDefence += CombatLevel.Medium;
-        this.playerFortified = this.visiting;
-        io.to(this.playerFortified.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          { key: MessageKey.FortifierHouseFortified },
-        );
-      } else if (this.playerFortified !== null) {
-        this.visiting.baseDefence -= CombatLevel.Medium;
-        if (Math.random() > 0.5) {
-          io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.FortifierDiedStripping,
-          });
-          io.to(this.playerFortified.player.user.socketId).emit(
-            ServerEvent.ReceiveMessage,
-            {
-              key: MessageKey.FortifierOwnerDiedStripping,
-              params: { playerName: this.playerFortified.player.username },
-            },
-          );
-          this.damage = CombatLevel.Fatal;
-        } else {
-          io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.FortifierStrippedKilledOwner,
-          });
-          io.to(this.playerFortified.player.user.socketId).emit(
-            ServerEvent.ReceiveMessage,
-            { key: MessageKey.FortifierTargetDied },
-          );
-          this.playerFortified.damage = CombatLevel.Fatal;
-        }
-      }
+    if (this.visiting === null) return;
+
+    this.visiting.receiveVisit(this);
+
+    if (this.canFortify) {
+      this.fortifyHouse();
+    } else if (this.playerFortified !== null) {
+      this.defortifyHouse();
     }
+  }
+
+  private fortifyHouse(): void {
+    if (!this.visiting) return;
+
+    this.canFortify = false;
+    this.visiting.baseDefence += CombatLevel.Medium;
+    this.playerFortified = this.visiting;
+    io.to(this.playerFortified.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      { key: MessageKey.FortifierHouseFortified },
+    );
+  }
+
+  private defortifyHouse(): void {
+    if (!this.visiting || !this.playerFortified) return;
+
+    this.visiting.baseDefence -= CombatLevel.Medium;
+
+    if (Math.random() > 0.5) {
+      this.killFortifier();
+    } else {
+      this.killOwner();
+    }
+  }
+
+  private killFortifier(): void {
+    if (!this.playerFortified) return;
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.FortifierDiedStripping,
+    });
+    io.to(this.playerFortified.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      {
+        key: MessageKey.FortifierOwnerDiedStripping,
+        params: { playerName: this.playerFortified.player.username },
+      },
+    );
+    this.damage = CombatLevel.Fatal;
+  }
+
+  private killOwner(): void {
+    if (!this.playerFortified) return;
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.FortifierStrippedKilledOwner,
+    });
+    io.to(this.playerFortified.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      { key: MessageKey.FortifierTargetDied },
+    );
+    this.playerFortified.damage = CombatLevel.Fatal;
   }
 
   /**
@@ -151,13 +185,14 @@ export class Fortifier extends Role {
    * @returns {void}
    */
   handleVisits() {
-    if (this.playerFortified != null && this.visiting !== null) {
-      for (const attacker of this.visiting.attackers) {
-        if (attacker != this && attacker != this.visiting) {
-          if (attacker.damage == CombatLevel.None)
-            attacker.damage = CombatLevel.Low;
-          attacker.attackers.push(this);
+    if (this.playerFortified === null || this.visiting === null) return;
+
+    for (const attacker of this.visiting.attackers) {
+      if (attacker !== this && attacker !== this.visiting) {
+        if (attacker.damage === CombatLevel.None) {
+          attacker.damage = CombatLevel.Low;
         }
+        attacker.attackers.push(this);
       }
     }
   }

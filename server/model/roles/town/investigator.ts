@@ -47,21 +47,25 @@ export class Investigator extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotInspectSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToInspect,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -71,29 +75,41 @@ export class Investigator extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-      let possibleRoles = [];
-      for (const randomRoll of [Math.random(), Math.random(), Math.random()]) {
-        if (randomRoll < 0.3) {
-          possibleRoles.push(this.visiting.name);
-        } else {
-          possibleRoles.push(
-            this.room.playerList[
-              Math.floor(Math.random() * this.room.playerList.length)
-            ].role.name,
-          );
-        }
-      }
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvestigatorResult,
-        params: {
-          targetName: this.visiting.player.username,
-          role1: possibleRoles[0],
-          role2: possibleRoles[1],
-          role3: possibleRoles[2],
-        },
-      });
+    if (this.visiting === null) return;
+
+    this.visiting.receiveVisit(this);
+    const possibleRoles = this.generateRoleGuesses();
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvestigatorResult,
+      params: {
+        targetName: this.visiting.player.username,
+        role1: possibleRoles[0],
+        role2: possibleRoles[1],
+        role3: possibleRoles[2],
+      },
+    });
+  }
+
+  private generateRoleGuesses(): string[] {
+    const guesses: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      guesses.push(this.getRoleGuess());
     }
+    return guesses;
+  }
+
+  private getRoleGuess(): string {
+    if (!this.visiting) return "";
+
+    if (Math.random() < 0.3) {
+      return this.visiting.name;
+    }
+
+    const randomPlayer =
+      this.room.playerList[
+        Math.floor(Math.random() * this.room.playerList.length)
+      ];
+    return randomPlayer.role.name;
   }
 }

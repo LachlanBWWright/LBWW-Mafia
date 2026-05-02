@@ -47,21 +47,25 @@ export class Judge extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.JudgeCannotInspectSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToInspect,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -71,36 +75,44 @@ export class Judge extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
+    if (this.visiting === null) return;
 
-      if (Math.random() < 0.3) {
-        let livingPlayerList = [];
-        for (const roomPlayer of this.room.playerList) {
-          if (roomPlayer.isAlive) {
-            livingPlayerList.push(roomPlayer);
-          }
-        }
+    this.visiting.receiveVisit(this);
 
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.JudgeAlignmentResult,
-          params: {
-            targetName: this.visiting.player.username,
-            factionName:
-              livingPlayerList[
-                Math.floor(Math.random() * livingPlayerList.length)
-              ].role.group,
-          },
-        });
-      } else {
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.JudgeAlignmentResult,
-          params: {
-            targetName: this.visiting.player.username,
-            factionName: this.visiting.group,
-          },
-        });
-      }
+    if (Math.random() < 0.3) {
+      this.reportFalseAlignment();
+    } else {
+      this.reportTrueAlignment();
     }
+  }
+
+  private reportFalseAlignment(): void {
+    if (!this.visiting) return;
+
+    const livingPlayerList = this.room.playerList.filter(
+      (player) => player.isAlive,
+    );
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.JudgeAlignmentResult,
+      params: {
+        targetName: this.visiting.player.username,
+        factionName:
+          livingPlayerList[Math.floor(Math.random() * livingPlayerList.length)]
+            .role.group,
+      },
+    });
+  }
+
+  private reportTrueAlignment(): void {
+    if (!this.visiting) return;
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.JudgeAlignmentResult,
+      params: {
+        targetName: this.visiting.player.username,
+        factionName: this.visiting.group,
+      },
+    });
   }
 }

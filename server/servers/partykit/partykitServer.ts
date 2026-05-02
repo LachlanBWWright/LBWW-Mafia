@@ -12,7 +12,6 @@ import { PartykitPlayerSocket } from "./partykitPlayerSocket.js";
 import { setGameEmitter } from "../emitter.js";
 import { Room } from "../../model/rooms/room.js";
 import { ClientEvent } from "../../../shared/communication/events.js";
-import { fromThrowable } from "neverthrow";
 
 type ClientMessage = {
   type: "event";
@@ -21,24 +20,8 @@ type ClientMessage = {
   callbackId?: string;
 };
 
-/**
- * Safely executes an action with error logging.
- * Wraps the action in a try-catch via neverthrow and logs any errors.
- *
- * @param {string} context - Description of the action for error logging
- * @param {() => void} action - The action to execute safely
- * @returns {void}
- */
 const DEFAULT_ROOM_SIZE = 13;
 const MAX_MESSAGE_LENGTH = 150;
-
-const runSafely = (context: string, action: () => void) => {
-  const safeAction = fromThrowable(action, (error) => error);
-  const result = safeAction();
-  if (result.isErr()) {
-    console.error(`${context}: ${String(result.error)}`);
-  }
-};
 
 /**
  * PartyKit server handler for Mafia game.
@@ -147,17 +130,15 @@ export default class MafiaPartyServer implements Party.Server {
         const msg = parsed.args[0];
         const isDay = parsed.args[1];
         if (typeof msg !== "string" || typeof isDay !== "boolean") break;
-        runSafely("messageSentByUser error", () => {
-          if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
-            if (playerSocket.data.roomObject !== undefined) {
-              playerSocket.data.roomObject.handleSentMessage(
-                playerSocket,
-                msg,
-                isDay,
-              );
-            }
+        if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
+          if (playerSocket.data.roomObject !== undefined) {
+            playerSocket.data.roomObject.handleSentMessage(
+              playerSocket,
+              msg,
+              isDay,
+            );
           }
-        });
+        }
         break;
       }
 
@@ -169,17 +150,15 @@ export default class MafiaPartyServer implements Party.Server {
           typeof isDay !== "boolean"
         )
           break;
-        runSafely("handleVote error", () => {
-          if (typeof recipient === "number") {
-            if (playerSocket.data.roomObject !== undefined) {
-              playerSocket.data.roomObject.handleVote(
-                playerSocket,
-                recipient,
-                isDay,
-              );
-            }
+        if (typeof recipient === "number") {
+          if (playerSocket.data.roomObject !== undefined) {
+            playerSocket.data.roomObject.handleVote(
+              playerSocket,
+              recipient,
+              isDay,
+            );
           }
-        });
+        }
         break;
       }
 
@@ -192,15 +171,13 @@ export default class MafiaPartyServer implements Party.Server {
         )
           break;
         const safeRecipient = recipient as number | null;
-        runSafely("handleVisit error", () => {
-          if (playerSocket.data.roomObject !== undefined) {
-            playerSocket.data.roomObject.handleVisit(
-              playerSocket,
-              safeRecipient,
-              isDay,
-            );
-          }
-        });
+        if (playerSocket.data.roomObject !== undefined) {
+          playerSocket.data.roomObject.handleVisit(
+            playerSocket,
+            safeRecipient,
+            isDay,
+          );
+        }
         break;
       }
 
@@ -214,18 +191,16 @@ export default class MafiaPartyServer implements Party.Server {
           typeof isDay !== "boolean"
         )
           break;
-        runSafely("handleWhisper error", () => {
-          if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
-            if (playerSocket.data.roomObject !== undefined) {
-              playerSocket.data.roomObject.handleWhisper(
-                playerSocket,
-                recipient,
-                msg,
-                isDay,
-              );
-            }
+        if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
+          if (playerSocket.data.roomObject !== undefined) {
+            playerSocket.data.roomObject.handleWhisper(
+              playerSocket,
+              recipient,
+              msg,
+              isDay,
+            );
           }
-        });
+        }
         break;
       }
     }
@@ -243,9 +218,7 @@ export default class MafiaPartyServer implements Party.Server {
     const playerSocket = this.playerSockets.get(connection.id);
     const room = playerSocket?.data.roomObject;
     if (room) {
-      runSafely("Disconnect error", () => {
-        room.removePlayer(connection.id);
-      });
+      room.removePlayer(connection.id);
     }
     this.playerSockets.delete(connection.id);
   }

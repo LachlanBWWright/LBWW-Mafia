@@ -15,12 +15,16 @@ export abstract class Faction {
   initializeMembers() {
     for (const member of this.memberList) {
       member.role.assignFaction(this);
-      for (const targetMember of this.memberList) {
-        io.to(targetMember.user.socketId).emit(ServerEvent.UpdateFactionRole, {
-          name: member.username,
-          role: member.role.name,
-        });
-      }
+      this.broadcastMemberRole(member);
+    }
+  }
+
+  private broadcastMemberRole(member: Player): void {
+    for (const targetMember of this.memberList) {
+      io.to(targetMember.user.socketId).emit(ServerEvent.UpdateFactionRole, {
+        name: member.username,
+        role: member.role.name,
+      });
     }
   }
 

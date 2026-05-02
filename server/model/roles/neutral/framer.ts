@@ -55,21 +55,12 @@ export class Framer extends Role {
    * @returns {void}
    */
   initRole() {
-    let length = this.room.playerList.length;
-    let index = Math.floor(Math.random() * length);
-    for (const i of Array.from({ length }, (_, index) => index)) {
-      if (
-        this.room.playerList[(index + i) % length].role.group ===
-          RoleGroup.Town &&
-        this.room.playerList[(index + i) % length].isAlive
-      ) {
-        this.target = this.room.playerList[(index + i) % length];
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.FramerTarget,
-          params: { targetName: this.target.username },
-        });
-        break;
-      }
+    this.target = this.findRandomTownTarget();
+    if (this.target) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.FramerTarget,
+        params: { targetName: this.target.username },
+      });
     }
   }
 
@@ -81,21 +72,30 @@ export class Framer extends Role {
    */
   dayUpdate() {
     if (this.target?.isAlive || this.victoryCondition) return;
-    let length = this.room.playerList.length;
-    let index = Math.floor(Math.random() * length);
-    for (const i of Array.from({ length }, (_, index) => index)) {
+
+    this.target = this.findRandomTownTarget();
+    if (this.target) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.FramerNewTarget,
+        params: { targetName: this.target.username },
+      });
+    }
+  }
+
+  private findRandomTownTarget(): Player | null {
+    const length = this.room.playerList.length;
+    const index = Math.floor(Math.random() * length);
+
+    for (let i = 0; i < length; i++) {
+      const candidate = this.room.playerList[(index + i) % length];
       if (
-        this.room.playerList[(index + i) % length].role.group ===
-          RoleGroup.Town &&
-        this.room.playerList[(index + i) % length].isAlive
+        candidate.role.group === RoleGroup.Town &&
+        candidate.isAlive
       ) {
-        this.target = this.room.playerList[(index + i) % length];
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.FramerNewTarget,
-          params: { targetName: this.target.username },
-        });
-        break;
+        return candidate;
       }
     }
+
+    return null;
   }
 }

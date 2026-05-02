@@ -58,21 +58,28 @@ export class Lawman extends Role {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.LawmanInsane,
       });
-    } else if (recipient == this.player) {
+      return;
+    }
+
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.LawmanCannotShootSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToAttack,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -81,22 +88,25 @@ export class Lawman extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      if (this.isInsane)
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.LawmanInsaneShooting,
-        });
-      if (this.visiting.damage == CombatLevel.None)
-        this.visiting.damage = CombatLevel.Low;
-      this.visiting.attackers.push(this);
+    if (this.visiting === null) return;
 
-      this.visiting.receiveVisit(this);
-      if (this.visiting.group == RoleGroup.Town) {
-        this.isInsane = true;
-        io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.LawmanShotTownMember,
-        });
-      }
+    if (this.isInsane) {
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.LawmanInsaneShooting,
+      });
+    }
+
+    if (this.visiting.damage === CombatLevel.None) {
+      this.visiting.damage = CombatLevel.Low;
+    }
+    this.visiting.attackers.push(this);
+    this.visiting.receiveVisit(this);
+
+    if (this.visiting.group === RoleGroup.Town) {
+      this.isInsane = true;
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.LawmanShotTownMember,
+      });
     }
   }
 }

@@ -53,11 +53,14 @@ export class Nimby extends Role {
    * @returns {void}
    */
   handleNightAction(_recipient: Player) {
-    if (this.alertSlots == 0)
+    if (this.alertSlots === 0) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.NimbyNoAlerts,
       });
-    else if (this.visiting == null) {
+      return;
+    }
+
+    if (this.visiting === null) {
       this.visiting = this;
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.NimbyDecidedAlert,
@@ -76,13 +79,13 @@ export class Nimby extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      if (this.visiting.defence == CombatLevel.None) {
-        this.visiting.defence = CombatLevel.Low;
-        this.alertSlots--;
-      }
-      this.visiting.receiveVisit(this);
+    if (this.visiting === null) return;
+
+    if (this.visiting.defence === CombatLevel.None) {
+      this.visiting.defence = CombatLevel.Low;
+      this.alertSlots--;
     }
+    this.visiting.receiveVisit(this);
   }
 
   /**
@@ -92,12 +95,13 @@ export class Nimby extends Role {
    * @returns {void}
    */
   handleVisits() {
-    if (this.visiting != null) {
-      for (const visitor of this.visiting.visitors) {
-        if (visitor != this && visitor != this.visiting) {
-          if (visitor.damage == CombatLevel.None)
-            visitor.damage = CombatLevel.Low;
-        }
+    if (this.visiting === null) return;
+
+    for (const visitor of this.visiting.visitors) {
+      if (visitor === this || visitor === this.visiting) continue;
+
+      if (visitor.damage === CombatLevel.None) {
+        visitor.damage = CombatLevel.Low;
       }
     }
   }

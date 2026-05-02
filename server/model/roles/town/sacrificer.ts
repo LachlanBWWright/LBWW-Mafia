@@ -47,21 +47,25 @@ export class Sacrificer extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotProtectSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToProtect,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -70,9 +74,8 @@ export class Sacrificer extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-    }
+    if (this.visiting === null) return;
+    this.visiting.receiveVisit(this);
   }
 
   /**
@@ -82,28 +85,30 @@ export class Sacrificer extends Role {
    * @returns {void}
    */
   handleVisits() {
-    if (this.visiting != null && this.visiting.attackers.length > 0) {
-      this.visiting.defence = CombatLevel.High;
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.SacrificerDied,
-      });
+    if (this.visiting === null || this.visiting.attackers.length === 0)
+      return;
+
+    this.visiting.defence = CombatLevel.High;
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.SacrificerDied,
+    });
+    io.to(this.visiting.player.user.socketId).emit(
+      ServerEvent.ReceiveMessage,
+      { key: MessageKey.TargetSavedBySacricer },
+    );
+    this.damage = CombatLevel.Critical;
+
+    for (const attacker of this.visiting.attackers) {
       io.to(this.visiting.player.user.socketId).emit(
         ServerEvent.ReceiveMessage,
-        { key: MessageKey.TargetSavedBySacricer },
-      );
-      this.damage = CombatLevel.Critical;
-      for (const attacker of this.visiting.attackers) {
-        io.to(this.visiting.player.user.socketId).emit(
-          ServerEvent.ReceiveMessage,
-          {
-            key: MessageKey.AttackedByWithRole,
-            params: {
-              playerName: attacker.player.username,
-              roleName: attacker.name,
-            },
+        {
+          key: MessageKey.AttackedByWithRole,
+          params: {
+            playerName: attacker.player.username,
+            roleName: attacker.name,
           },
-        );
-      }
+        },
+      );
     }
   }
 }

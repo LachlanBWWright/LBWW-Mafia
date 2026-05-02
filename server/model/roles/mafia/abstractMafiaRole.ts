@@ -33,12 +33,15 @@ export abstract class RoleMafia extends Role {
    */
   handleNightVote(recipient: Player) {
     const recipientRole = recipient.role;
-    if (
-      recipient.username != undefined &&
-      recipientRole?.faction != this.faction &&
-      recipient.isAlive &&
-      this.faction !== undefined
-    ) {
+    if (!this.isValidAttackVote(recipient, recipientRole)) {
+      this.attackVote = null;
+      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+        key: MessageKey.MafiaInvalidVote,
+      });
+      return;
+    }
+
+    if (this.faction !== undefined) {
       this.faction.sendMessage({
         key: MessageKey.MafiaVotedToAttack,
         params: {
@@ -46,13 +49,20 @@ export abstract class RoleMafia extends Role {
           targetName: recipient.username,
         },
       });
-      this.attackVote = recipientRole;
-    } else {
-      this.attackVote = null;
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.MafiaInvalidVote,
-      });
     }
+    this.attackVote = recipientRole;
+  }
+
+  private isValidAttackVote(
+    recipient: Player,
+    recipientRole: Role | null,
+  ): boolean {
+    return (
+      recipient.username !== undefined &&
+      recipientRole?.faction !== this.faction &&
+      recipient.isAlive &&
+      this.faction !== undefined
+    );
   }
 
   /**

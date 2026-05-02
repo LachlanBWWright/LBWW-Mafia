@@ -46,21 +46,25 @@ export class MafiaSilencer extends RoleMafia {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotSilenceSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToSilence,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -70,11 +74,11 @@ export class MafiaSilencer extends RoleMafia {
    * @returns {void}
    */
   defaultVisit() {
-    if (this.visiting != null) {
-      if (this.visiting.group == RoleGroup.Town || Math.random() > 0.5) {
-        this.visiting.roleblocked = true;
-        this.visiting.receiveVisit(this);
-      }
+    if (this.visiting === null) return;
+
+    if (this.visiting.group === RoleGroup.Town || Math.random() > 0.5) {
+      this.visiting.roleblocked = true;
+      this.visiting.receiveVisit(this);
     }
   }
 }

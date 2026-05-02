@@ -3,7 +3,6 @@ import { Faction } from "./abstractFaction.js";
 import { Room } from "../rooms/room.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
-import { fromThrowable } from "neverthrow";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import type { GameMessage } from "@mernmafia/shared/communication/messages";
 
@@ -41,32 +40,28 @@ export class LawmanFaction extends Faction {
     if (this.room === undefined) return;
     for (const member of this.memberList) {
       if (member.role.isInsane) {
-        for (let attempt = 0; attempt < MAX_RANDOM_VISIT_ATTEMPTS; attempt++) {
-          const setRandomVisit = fromThrowable(
-            () => {
-              const randomIndex = Math.floor(
-                Math.random() * this.room.playerList.length,
-              );
-              const randomVictim = this.room.playerList[randomIndex];
-              if (randomVictim.isAlive) {
-                console.log(randomVictim.role.name);
-                member.role.visiting = randomVictim.role;
-                return true;
-              }
-              return false;
-            },
-            (error) => error,
-          );
-          const result = setRandomVisit();
-
-          if (result.isErr()) {
-            console.error(result.error);
-          } else if (result.value) {
-            break;
-          }
-        }
+        this.assignRandomVisitForInsaneMember(member);
       }
     }
+  }
+
+  private assignRandomVisitForInsaneMember(member: Player): void {
+    for (let attempt = 0; attempt < MAX_RANDOM_VISIT_ATTEMPTS; attempt++) {
+      const result = this.tryAssignRandomVisit(member);
+      if (result) break;
+    }
+  }
+
+  private tryAssignRandomVisit(member: Player): boolean {
+    if (!this.room) return false;
+    const randomIndex = Math.floor(Math.random() * this.room.playerList.length);
+    const randomVictim = this.room.playerList[randomIndex];
+    if (randomVictim.isAlive) {
+      console.log(randomVictim.role.name);
+      member.role.visiting = randomVictim.role;
+      return true;
+    }
+    return false;
   }
 
   /**

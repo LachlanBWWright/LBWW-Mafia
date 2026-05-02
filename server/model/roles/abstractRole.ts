@@ -7,7 +7,6 @@ import { CombatLevel } from "./combatLevel.js";
 import { GamePhase } from "../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { fromThrowable } from "neverthrow";
 import type { RoleInterface } from "./roleInterface.js";
 
 export class Role implements RoleInterface {
@@ -116,21 +115,13 @@ export class Role implements RoleInterface {
         key: MessageKey.CannotSpeakAtNight,
       });
     } else {
-      const faction = this.faction;
-      const handleNightMessage = fromThrowable(
-        () => {
-          faction.handleNightMessage(message, this.player.username);
-          if (this.nightTapped instanceof Role) {
-            io.to(this.nightTapped.player.user.socketId).emit(
-              ServerEvent.ReceiveChatMessage,
-              `${this.player.username}: ${message}`,
-            );
-          }
-        },
-        (error) => error,
-      );
-      const result = handleNightMessage();
-      if (result.isErr()) console.error(result.error);
+      this.faction.handleNightMessage(message, this.player.username);
+      if (this.nightTapped instanceof Role) {
+        io.to(this.nightTapped.player.user.socketId).emit(
+          ServerEvent.ReceiveChatMessage,
+          `${this.player.username}: ${message}`,
+        );
+      }
     }
   }
 

@@ -8,6 +8,79 @@ import { Badge, Button, Card, EmptyState, Input, Screen, SectionHeader } from ".
 
 type AdminScreenProps = NativeStackScreenProps<StackParamList, "Admin">;
 
+function AdminContent({
+  users,
+  toggleAdmin,
+}: {
+  users: UserSummary[];
+  toggleAdmin: (user: UserSummary) => void;
+}) {
+  return (
+    <View className="gap-2.5">
+      {users.map((user) => (
+        <Card key={user.id}>
+          <View className="gap-2">
+            <View className="flex-row justify-between gap-2">
+              <View className="flex-1 gap-0.5">
+                <Text className="text-[15px] font-extrabold text-foreground">
+                  {user.name ?? "Unnamed user"}
+                </Text>
+                <Text className="text-xs text-muted-foreground">
+                  {user.email}
+                </Text>
+              </View>
+              <Badge variant={user.isAdmin ? "destructive" : "secondary"}>
+                {user.isAdmin ? "Admin" : "Player"}
+              </Badge>
+            </View>
+            <Button
+              variant={user.isAdmin ? "destructive" : "secondary"}
+              onPress={() => toggleAdmin(user)}
+            >
+              {user.isAdmin ? "Revoke admin" : "Make admin"}
+            </Button>
+          </View>
+        </Card>
+      ))}
+    </View>
+  );
+}
+
+function SearchCard({
+  query,
+  setQuery,
+  runSearch,
+  searching,
+  status,
+}: {
+  query: string;
+  setQuery: (q: string) => void;
+  runSearch: () => void;
+  searching: boolean;
+  status: string;
+}) {
+  return (
+    <Card>
+      <SectionHeader title="Admin User Search" />
+      <View className="gap-2.5">
+        <Input
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by name or email"
+        />
+        <Button onPress={runSearch} disabled={searching}>
+          {searching ? "Searching..." : "Search"}
+        </Button>
+        {status ? (
+          <Text className="text-xs text-muted-foreground">
+            {status}
+          </Text>
+        ) : null}
+      </View>
+    </Card>
+  );
+}
+
 export function AdminScreen({ navigation }: AdminScreenProps) {
   const { isAdmin } = useAppState();
   const [query, setQuery] = useState("");
@@ -42,6 +115,22 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
     }
   };
 
+  if (!isAdmin) {
+    return (
+      <Screen
+        navigation={navigation}
+        activeRoute="Admin"
+        title="Admin"
+        subtitle="User search and admin toggles are available only to authorized users."
+      >
+        <EmptyState
+          title="You are not authorized."
+          description="The mobile app does not yet have the same authenticated session exchange as the web app."
+        />
+      </Screen>
+    );
+  }
+
   return (
     <Screen
       navigation={navigation}
@@ -49,61 +138,16 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
       title="Admin"
       subtitle="User search and admin toggles are available only to authorized users."
     >
-      {!isAdmin ? (
-        <EmptyState
-          title="You are not authorized."
-          description="The mobile app does not yet have the same authenticated session exchange as the web app."
+      <View className="gap-4">
+        <SearchCard
+          query={query}
+          setQuery={setQuery}
+          runSearch={runSearch}
+          searching={searching}
+          status={status}
         />
-      ) : (
-        <View className="gap-4">
-          <Card>
-            <SectionHeader title="Admin User Search" />
-            <View className="gap-2.5">
-              <Input
-                value={query}
-                onChangeText={setQuery}
-                placeholder="Search by name or email"
-              />
-              <Button onPress={runSearch} disabled={searching}>
-                {searching ? "Searching..." : "Search"}
-              </Button>
-              {status ? (
-                <Text className="text-xs text-muted-foreground">
-                  {status}
-                </Text>
-              ) : null}
-            </View>
-          </Card>
-
-          <View className="gap-2.5">
-            {users.map((user) => (
-              <Card key={user.id}>
-                <View className="gap-2">
-                  <View className="flex-row justify-between gap-2">
-                    <View className="flex-1 gap-0.5">
-                      <Text className="text-[15px] font-extrabold text-foreground">
-                        {user.name ?? "Unnamed user"}
-                      </Text>
-                      <Text className="text-xs text-muted-foreground">
-                        {user.email}
-                      </Text>
-                    </View>
-                    <Badge variant={user.isAdmin ? "destructive" : "secondary"}>
-                      {user.isAdmin ? "Admin" : "Player"}
-                    </Badge>
-                  </View>
-                  <Button
-                    variant={user.isAdmin ? "destructive" : "secondary"}
-                    onPress={() => toggleAdmin(user)}
-                  >
-                    {user.isAdmin ? "Revoke admin" : "Make admin"}
-                  </Button>
-                </View>
-              </Card>
-            ))}
-          </View>
-        </View>
-      )}
+        <AdminContent users={users} toggleAdmin={toggleAdmin} />
+      </View>
     </Screen>
   );
 }

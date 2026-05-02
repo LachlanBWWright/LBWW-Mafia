@@ -114,25 +114,65 @@ const navItems = [
   { label: "Admin", route: "Admin" },
 ];
 
+function getButtonVariantClass(variant: ButtonVariant): string {
+  switch (variant) {
+    case "primary": return "border-primary bg-primary";
+    case "secondary": return "border-border bg-secondary";
+    case "outline": return "border-border bg-transparent";
+    case "destructive": return "border-destructive bg-destructive";
+    default: return "border-transparent bg-transparent";
+  }
+}
+
+function getButtonSizeClass(size: ButtonSize): string {
+  switch (size) {
+    case "sm": return "min-h-8 px-md py-xs";
+    case "lg": return "min-h-12 px-xl py-md";
+    case "icon": return "min-h-8 w-8 px-0 py-0";
+    default: return "min-h-10 px-lg py-sm";
+  }
+}
+
+function getButtonTextVariantClass(variant: ButtonVariant): string {
+  switch (variant) {
+    case "primary": return "text-primary-foreground";
+    case "destructive": return "text-destructive-foreground";
+    default: return "text-foreground";
+  }
+}
+
+function getBadgeVariantClass(variant: BadgeVariant): string {
+  switch (variant) {
+    case "primary": return "border-primary bg-primary";
+    case "destructive": return "border-destructive bg-destructive";
+    case "outline": return "border-border bg-transparent";
+    default: return "border-border bg-secondary";
+  }
+}
+
+function getBadgeTextVariantClass(variant: BadgeVariant): string {
+  switch (variant) {
+    case "primary": return "text-primary-foreground";
+    case "destructive": return "text-destructive-foreground";
+    case "outline": return "text-muted-foreground";
+    default: return "text-secondary-foreground";
+  }
+}
+
+function getRowToneClass(tone: ListRowTone): string {
+  switch (tone) {
+    case "muted": return "bg-muted";
+    case "danger": return "bg-destructive/15";
+    case "success": return "bg-success/10";
+    default: return "bg-secondary";
+  }
+}
+
 function buttonClassName(variant: ButtonVariant, size: ButtonSize, disabled: boolean, className?: string) {
   return cn(
     "flex-row items-center justify-center rounded-lg border",
-    variant === "primary"
-      ? "border-primary bg-primary"
-      : variant === "secondary"
-        ? "border-border bg-secondary"
-        : variant === "outline"
-          ? "border-border bg-transparent"
-          : variant === "destructive"
-            ? "border-destructive bg-destructive"
-            : "border-transparent bg-transparent",
-    size === "sm"
-      ? "min-h-8 px-md py-xs"
-      : size === "lg"
-        ? "min-h-12 px-xl py-md"
-        : size === "icon"
-          ? "min-h-8 w-8 px-0 py-0"
-          : "min-h-10 px-lg py-sm",
+    getButtonVariantClass(variant),
+    getButtonSizeClass(size),
     disabled ? "opacity-45" : "pressed:opacity-90",
     className,
   );
@@ -141,11 +181,7 @@ function buttonClassName(variant: ButtonVariant, size: ButtonSize, disabled: boo
 function buttonTextClassName(variant: ButtonVariant, textClassName?: string) {
   return cn(
     "text-sm font-bold",
-    variant === "primary"
-      ? "text-primary-foreground"
-      : variant === "destructive"
-        ? "text-destructive-foreground"
-        : "text-foreground",
+    getButtonTextVariantClass(variant),
     textClassName,
   );
 }
@@ -153,13 +189,7 @@ function buttonTextClassName(variant: ButtonVariant, textClassName?: string) {
 function badgeClassName(variant: BadgeVariant, className?: string) {
   return cn(
     "flex-row items-center justify-center rounded-full border px-3 py-1",
-    variant === "primary"
-      ? "border-primary bg-primary"
-      : variant === "destructive"
-        ? "border-destructive bg-destructive"
-        : variant === "outline"
-          ? "border-border bg-transparent"
-          : "border-border bg-secondary",
+    getBadgeVariantClass(variant),
     className,
   );
 }
@@ -167,25 +197,41 @@ function badgeClassName(variant: BadgeVariant, className?: string) {
 function badgeTextClassName(variant: BadgeVariant, textClassName?: string) {
   return cn(
     "text-[11px] font-extrabold leading-none tracking-[0.02em]",
-    variant === "primary"
-      ? "text-primary-foreground"
-      : variant === "destructive"
-        ? "text-destructive-foreground"
-        : variant === "outline"
-          ? "text-muted-foreground"
-          : "text-secondary-foreground",
+    getBadgeTextVariantClass(variant),
     textClassName,
   );
 }
 
 function rowToneClassName(tone: ListRowTone) {
-  return tone === "muted"
-    ? "bg-muted"
-    : tone === "danger"
-      ? "bg-destructive/15"
-      : tone === "success"
-        ? "bg-success/10"
-        : "bg-secondary";
+  return getRowToneClass(tone);
+}
+
+function ScreenHeader({
+  title,
+  subtitle,
+  titleClassName,
+  subtitleClassName,
+}: {
+  title?: string;
+  subtitle?: string;
+  titleClassName?: string;
+  subtitleClassName?: string;
+}) {
+  if (!title && !subtitle) return null;
+  return (
+    <View className="gap-sm">
+      {title && (
+        <Text className={cn("text-[30px] font-extrabold leading-[34px] tracking-[-0.02em] text-foreground", titleClassName)}>
+          {title}
+        </Text>
+      )}
+      {subtitle && (
+        <Text className={cn("text-[15px] leading-[21px] text-muted-foreground", subtitleClassName)}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
+  );
 }
 
 export function Screen({
@@ -200,6 +246,15 @@ export function Screen({
   subtitleClassName,
   children,
 }: ScreenProps) {
+  const header = (
+    <ScreenHeader
+      title={title}
+      subtitle={subtitle}
+      titleClassName={titleClassName}
+      subtitleClassName={subtitleClassName}
+    />
+  );
+
   return (
     <View className={cn("relative flex-1 bg-background", className)}>
       <StatusBar style="light" />
@@ -211,38 +266,12 @@ export function Screen({
           contentContainerClassName={cn("gap-lg p-lg", contentClassName)}
           showsVerticalScrollIndicator={false}
         >
-          {title || subtitle ? (
-            <View className="gap-sm">
-              {title ? (
-                <Text className={cn("text-[30px] font-extrabold leading-[34px] tracking-[-0.02em] text-foreground", titleClassName)}>
-                  {title}
-                </Text>
-              ) : null}
-              {subtitle ? (
-                <Text className={cn("text-[15px] leading-[21px] text-muted-foreground", subtitleClassName)}>
-                  {subtitle}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
+          {header}
           {children}
         </ScrollView>
       ) : (
         <View className={cn("flex-1 gap-lg p-lg", contentClassName)}>
-          {title || subtitle ? (
-            <View className="gap-sm">
-              {title ? (
-                <Text className={cn("text-[30px] font-extrabold leading-[34px] tracking-[-0.02em] text-foreground", titleClassName)}>
-                  {title}
-                </Text>
-              ) : null}
-              {subtitle ? (
-                <Text className={cn("text-[15px] leading-[21px] text-muted-foreground", subtitleClassName)}>
-                  {subtitle}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
+          {header}
           {children}
         </View>
       )}

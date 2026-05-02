@@ -54,21 +54,25 @@ export class Sniper extends Role {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.SniperCannotSnipeSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.SniperChoseToSnipe,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -77,9 +81,12 @@ export class Sniper extends Role {
    * @returns {void}
    */
   visit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-    } else this.lastVisited = null;
+    if (this.visiting === null) {
+      this.lastVisited = null;
+      return;
+    }
+
+    this.visiting.receiveVisit(this);
   }
 
   /**
@@ -90,18 +97,21 @@ export class Sniper extends Role {
    * @returns {void}
    */
   handleVisits() {
-    if (this.visiting != null) {
-      if (
-        this.visiting.visiting == this.visiting ||
-        this.visiting.visiting == null
-      ) {
-        if (this.visiting.damage < CombatLevel.High)
-          this.visiting.damage = CombatLevel.High;
-      } else if (this.lastVisited == this.visiting) {
-        if (this.visiting.damage == CombatLevel.None)
-          this.visiting.damage = CombatLevel.Low;
+    if (this.visiting === null) return;
+
+    if (
+      this.visiting.visiting === this.visiting ||
+      this.visiting.visiting === null
+    ) {
+      if (this.visiting.damage < CombatLevel.High) {
+        this.visiting.damage = CombatLevel.High;
       }
-      this.lastVisited = this.visiting;
+    } else if (this.lastVisited === this.visiting) {
+      if (this.visiting.damage === CombatLevel.None) {
+        this.visiting.damage = CombatLevel.Low;
+      }
     }
+
+    this.lastVisited = this.visiting;
   }
 }

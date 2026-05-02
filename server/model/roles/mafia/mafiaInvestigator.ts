@@ -47,21 +47,25 @@ export class MafiaInvestigator extends RoleMafia {
    * @returns {void}
    */
   handleNightAction(recipient: Player) {
-    if (recipient == this.player) {
+    if (recipient === this.player) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotInspectSelf,
       });
-    } else if (recipient.username != undefined && recipient.isAlive) {
+      return;
+    }
+
+    if (recipient.username !== undefined && recipient.isAlive) {
       io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.ChoseToInspect,
         params: { targetName: recipient.username },
       });
       this.visiting = recipient.role;
-    } else {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.InvalidChoice,
-      });
+      return;
     }
+
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.InvalidChoice,
+    });
   }
 
   /**
@@ -70,15 +74,15 @@ export class MafiaInvestigator extends RoleMafia {
    * @returns {void}
    */
   defaultVisit() {
-    if (this.visiting != null) {
-      this.visiting.receiveVisit(this);
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.MafiaInvestigatorResult,
-        params: {
-          targetName: this.visiting.player.username,
-          roleName: this.visiting.name,
-        },
-      });
-    }
+    if (this.visiting === null) return;
+
+    this.visiting.receiveVisit(this);
+    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.MafiaInvestigatorResult,
+      params: {
+        targetName: this.visiting.player.username,
+        roleName: this.visiting.name,
+      },
+    });
   }
 }

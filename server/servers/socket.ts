@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import axios from "axios";
-import { fromThrowable, ResultAsync } from "neverthrow";
+import { ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
 import type {
@@ -70,23 +70,6 @@ const CHAT_MESSAGE_MIN_LENGTH = 1;
 const CHAT_MESSAGE_MAX_LENGTH = 150;
 
 /**
- * Safely executes an action with error logging.
- * Wraps the action in a try-catch via neverthrow and logs any errors.
- *
- * @param {string} context - Description of the action for error logging
- * @param {() => void} action - The action to execute safely
- * @returns {void}
- */
-const runSafely = (context: string, action: () => void) => {
-  const safeAction = fromThrowable(action, (error) => error);
-  const result = safeAction();
-
-  if (result.isErr()) {
-    console.error(`${context}: ${String(result.error)}`);
-  }
-};
-
-/**
  * Adds event listeners to the Socket.IO server for all game events.
  * Manages player connections, disconnections, and all game actions.
  *
@@ -148,11 +131,9 @@ export function addSocketListeners(
      * Removes the player from their room.
      */
     socket.on(ClientEvent.Disconnect, () => {
-      runSafely("Disconnect error", () => {
-        if (socket.data.roomObject !== undefined) {
-          socket.data.roomObject.removePlayer(socket.id);
-        }
-      });
+      if (socket.data.roomObject !== undefined) {
+        socket.data.roomObject.removePlayer(socket.id);
+      }
     });
 
     /**
@@ -160,15 +141,13 @@ export function addSocketListeners(
      * Validates message length (1-150 characters) before forwarding to room.
      */
     socket.on(ClientEvent.MessageSentByUser, (message, isDay: boolean) => {
-      runSafely("messageSentByUser error", () => {
-        if (
-          message.length >= CHAT_MESSAGE_MIN_LENGTH &&
-          message.length <= CHAT_MESSAGE_MAX_LENGTH
-        ) {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleSentMessage(socket, message, isDay);
-        }
-      });
+      if (
+        message.length >= CHAT_MESSAGE_MIN_LENGTH &&
+        message.length <= CHAT_MESSAGE_MAX_LENGTH
+      ) {
+        if (socket.data.roomObject !== undefined)
+          socket.data.roomObject.handleSentMessage(socket, message, isDay);
+      }
     });
 
     /**
@@ -176,12 +155,10 @@ export function addSocketListeners(
      * Validates that recipient is a valid player index before processing.
      */
     socket.on(ClientEvent.HandleVote, (recipient, isDay: boolean) => {
-      runSafely("handleVote error", () => {
-        if (typeof recipient === "number") {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleVote(socket, recipient, isDay);
-        }
-      });
+      if (typeof recipient === "number") {
+        if (socket.data.roomObject !== undefined)
+          socket.data.roomObject.handleVote(socket, recipient, isDay);
+      }
     });
 
     /**
@@ -189,12 +166,10 @@ export function addSocketListeners(
      * Validates that recipient is a valid player index or null before processing.
      */
     socket.on(ClientEvent.HandleVisit, (recipient, isDay: boolean) => {
-      runSafely("handleVisit error", () => {
-        if (typeof recipient === "number" || recipient === null) {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleVisit(socket, recipient, isDay);
-        }
-      });
+      if (typeof recipient === "number" || recipient === null) {
+        if (socket.data.roomObject !== undefined)
+          socket.data.roomObject.handleVisit(socket, recipient, isDay);
+      }
     });
 
     /**
@@ -202,21 +177,19 @@ export function addSocketListeners(
      * Validates recipient index and message length (1-150 characters) before processing.
      */
     socket.on(ClientEvent.HandleWhisper, (recipient, message, isDay) => {
-      runSafely("handleWhisper error", () => {
-        if (
-          typeof recipient === "number" &&
-          message.length >= CHAT_MESSAGE_MIN_LENGTH &&
-          message.length <= CHAT_MESSAGE_MAX_LENGTH
-        ) {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleWhisper(
-              socket,
-              recipient,
-              message,
-              isDay,
-            );
-        }
-      });
+      if (
+        typeof recipient === "number" &&
+        message.length >= CHAT_MESSAGE_MIN_LENGTH &&
+        message.length <= CHAT_MESSAGE_MAX_LENGTH
+      ) {
+        if (socket.data.roomObject !== undefined)
+          socket.data.roomObject.handleWhisper(
+            socket,
+            recipient,
+            message,
+            isDay,
+          );
+      }
     });
   });
 }
