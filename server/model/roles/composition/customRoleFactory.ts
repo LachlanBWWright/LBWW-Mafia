@@ -23,10 +23,10 @@ export class CustomRoleFactory {
   /**
    * Creates a DynamicRole instance from a custom role definition.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
-   * @param {CustomRoleDefinition} definition - The custom role definition
-   * @returns {DynamicRole} Instantiated dynamic role
+   * @param room - The game room
+   * @param player - The player assigned this role
+   * @param definition - The custom role definition
+   * @returns Instantiated dynamic role
    */
   static createRole(
     room: Room,
@@ -41,8 +41,8 @@ export class CustomRoleFactory {
    * Builds the action handler array from a custom role definition.
    * Maps metadata and effects to appropriate handler instances.
    *
-   * @param {CustomRoleDefinition} def - The custom role definition
-   * @returns {ActionHandler[]} Array of composed handlers
+   * @param def - The custom role definition
+   * @returns Array of composed handlers
    */
   private static buildHandlers(def: CustomRoleDefinition): ActionHandler[] {
     const handlers: ActionHandler[] = [];
@@ -107,8 +107,8 @@ export class CustomRoleFactory {
    * Creates a basic custom role definition from minimal configuration.
    * Useful for form-based custom role creation.
    *
-   * @param {Object} config - Configuration object
-   * @returns {CustomRoleDefinition} Custom role definition
+   * @param config - Configuration object
+   * @returns Custom role definition
    */
   static createBasicDefinition(config: {
     name: string;

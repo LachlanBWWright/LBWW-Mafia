@@ -28,8 +28,8 @@ import { en } from "@mernmafia/shared/communication/locales/en";
 /**
  * Resolves the socket backend type from environment configuration.
  *
- * @param {string | undefined} value - Backend type from environment ("partykit" or undefined)
- * @returns {SocketBackendType} Resolved backend type, defaults to "socketio"
+ * @param value - Backend type from environment ("partykit" or undefined)
+ * @returns Resolved backend type, defaults to "socketio"
  */
 function resolveBackend(value: string | undefined): SocketBackendType {
   return value === "partykit" ? "partykit" : "socketio";
@@ -52,8 +52,8 @@ type ChatMessage = { id: number; text: string };
  * Creates and configures a socket connection based on the configured backend.
  * Supports both Socket.IO and PartyKit adapters.
  *
- * @param {string} roomId - The game room ID to connect to
- * @returns {GameSocket | null} Configured game socket, or null if URL is not set
+ * @param roomId - The game room ID to connect to
+ * @returns Configured game socket, or null if URL is not set
  */
 function buildSocket(roomId: string): GameSocket | null {
   if (!SOCKET_URL) return null;
@@ -109,7 +109,7 @@ type JoinContext = {
  * Initiates the game room join flow, including socket connection and captcha verification.
  * Sets appropriate status messages based on success or failure.
  *
- * @param {JoinContext} ctx - Join context with socket and state setters
+ * @param ctx - Join context with socket and state setters
  */
 function performJoin(ctx: JoinContext) {
   if (ctx.joiningRef.current) return;
@@ -164,8 +164,8 @@ function performJoin(ctx: JoinContext) {
  * Handles player list, messages, voting, and role assignments.
  * Auto-connects on mount and cleans up on unmount.
  *
- * @param {string} roomId - The game room ID to connect to
- * @returns {GameLobbyState & GameLobbyActions} Current lobby state and action functions
+ * @param roomId - The game room ID to connect to
+ * @returns Current lobby state and action functions
  */
 export function useGameLobby(
   roomId: string,

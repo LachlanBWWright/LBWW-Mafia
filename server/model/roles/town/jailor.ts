@@ -34,8 +34,8 @@ export class Jailor extends Role {
   /**
    * Creates a new Jailor instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -45,8 +45,8 @@ export class Jailor extends Role {
    * Handles chat messages. If a player is jailed, messages are only visible to them and the Jailor.
    * Otherwise, uses standard message handling.
    *
-   * @param {string} message - The chat message
-   * @returns {void}
+   * @param message - The chat message
+   * @returns
    */
   handleMessage(message: string) {
     if (this.room.time === GamePhase.Day) {
@@ -74,8 +74,8 @@ export class Jailor extends Role {
    * Handles the day action to jail a player.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to jail
-   * @returns {void}
+   * @param recipient - The target player to jail
+   * @returns
    */
   handleDayAction(recipient: Player) {
     if (recipient === this.player) {
@@ -103,8 +103,8 @@ export class Jailor extends Role {
    * Handles the night action to decide whether to execute the jailed player.
    * Can toggle between execute and release decisions.
    *
-   * @param {Player} _recipient - Not used; affects the jailed player from dayVisiting
-   * @returns {void}
+   * @param _recipient - Not used; affects the jailed player from dayVisiting
+   * @returns
    */
   handleNightAction(_recipient: Player) {
     if (this.dayVisiting === null) {
@@ -139,7 +139,7 @@ export class Jailor extends Role {
    * Processes the day action of jailing a player.
    * Notifies the player they've been jailed and applies roleblock.
    *
-   * @returns {void}
+   * @returns
    */
   dayVisit() {
     if (this.dayVisiting === null) return;
@@ -159,7 +159,7 @@ export class Jailor extends Role {
    * Processes the execution of the jailed player.
    * Inflicts 3 damage to execute the prisoner.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;
@@ -175,7 +175,7 @@ export class Jailor extends Role {
    * Processes post-visit effects. Resets jail status and provides defense to the jailed player.
    * If jailed player wasn't executed, increases their defense.
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.dayVisiting === null) return;

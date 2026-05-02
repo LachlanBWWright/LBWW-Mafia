@@ -32,8 +32,8 @@ export class MafiaRoleblocker extends RoleMafia {
   /**
    * Creates a new MafiaRoleblocker instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -43,8 +43,8 @@ export class MafiaRoleblocker extends RoleMafia {
    * Handles the night action by allowing the roleblocker to choose a player to block.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to block
-   * @returns {void}
+   * @param recipient - The target player to block
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -72,7 +72,7 @@ export class MafiaRoleblocker extends RoleMafia {
    * Performs the block visit by marking the target as roleblocked.
    * Blocks succeeds on Town targets; has a 50% chance to succeed on other roles.
    *
-   * @returns {void}
+   * @returns
    */
   defaultVisit() {
     if (this.visiting === null) return;

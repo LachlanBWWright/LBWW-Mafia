@@ -32,8 +32,8 @@ export class Doctor extends Role {
   /**
    * Creates a new Doctor instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -43,8 +43,8 @@ export class Doctor extends Role {
    * Handles the night action by allowing the Doctor to choose a player to heal.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to heal
-   * @returns {void}
+   * @param recipient - The target player to heal
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -71,7 +71,7 @@ export class Doctor extends Role {
   /**
    * Processes the heal visit by increasing the target's defense to at least 1.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;

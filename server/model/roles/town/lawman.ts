@@ -38,8 +38,8 @@ export class Lawman extends Role {
   /**
    * Creates a new Lawman instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -50,8 +50,8 @@ export class Lawman extends Role {
    * If insane, the shoot target is random and uncontrollable.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to shoot (or random if insane)
-   * @returns {void}
+   * @param recipient - The target player to shoot (or random if insane)
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (this.isInsane) {
@@ -85,7 +85,7 @@ export class Lawman extends Role {
   /**
    * Processes the shoot visit. Inflicts 1 damage on target and goes insane if target is Town.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;

@@ -32,8 +32,8 @@ export class Sacrificer extends Role {
   /**
    * Creates a new Sacrificer instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -43,8 +43,8 @@ export class Sacrificer extends Role {
    * Handles the night action by allowing the Sacrificer to choose a player to protect.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to protect
-   * @returns {void}
+   * @param recipient - The target player to protect
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -71,7 +71,7 @@ export class Sacrificer extends Role {
   /**
    * Processes the protect visit by registering for the visit.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;
@@ -82,7 +82,7 @@ export class Sacrificer extends Role {
    * Processes attacks on the protected target. If attacked, sacrifices self and reveals attackers.
    * Gives the target maximum defense (3) and identifies all attackers to them.
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.visiting === null || this.visiting.attackers.length === 0)

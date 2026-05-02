@@ -7,8 +7,8 @@ import { env } from "~/env";
  * Creates the tRPC context for each request, including authentication info.
  * Authenticates the user via NextAuth session or backend bearer token.
  *
- * @param {Request} req - The incoming HTTP request
- * @returns {Promise<{sessionUser, isBackend}>} Context with authenticated user and backend flag
+ * @param req - The incoming HTTP request
+ * @returns>} Context with authenticated user and backend flag
  */
 const createContext = async ({ req }: { req: Request }) => {
   const session = await auth();
@@ -35,8 +35,8 @@ const createContext = async ({ req }: { req: Request }) => {
  * Handles incoming tRPC requests via HTTP (GET and POST).
  * Routes requests to the appropriate tRPC procedure and logs any errors.
  *
- * @param {Request} req - The incoming HTTP request
- * @returns {Promise<Response>} The tRPC response
+ * @param req - The incoming HTTP request
+ * @returns The tRPC response
  */
 const handler = (req: Request) =>
   fetchRequestHandler({

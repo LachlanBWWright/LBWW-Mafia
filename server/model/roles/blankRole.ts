@@ -28,8 +28,8 @@ export class BlankRole extends Role {
   /**
    * Creates a new BlankRole instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);

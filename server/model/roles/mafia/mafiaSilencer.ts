@@ -31,8 +31,8 @@ export class MafiaSilencer extends RoleMafia {
   /**
    * Creates a new MafiaSilencer instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -42,8 +42,8 @@ export class MafiaSilencer extends RoleMafia {
    * Handles the night action by allowing the silencer to choose a player to silence.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to silence
-   * @returns {void}
+   * @param recipient - The target player to silence
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -71,7 +71,7 @@ export class MafiaSilencer extends RoleMafia {
    * Performs the silence visit by marking the target as silenced.
    * Silence succeeds on Town targets; has a 50% chance to succeed on other roles.
    *
-   * @returns {void}
+   * @returns
    */
   defaultVisit() {
     if (this.visiting === null) return;

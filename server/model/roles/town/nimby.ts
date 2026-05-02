@@ -38,8 +38,8 @@ export class Nimby extends Role {
   /**
    * Creates a new Nimby instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -49,8 +49,8 @@ export class Nimby extends Role {
    * Handles the night action by toggling alert status.
    * Uses one alert slot if turning on alert. Must have slots remaining.
    *
-   * @param {Player} _recipient - Not used; Nimby only affects self
-   * @returns {void}
+   * @param _recipient - Not used; Nimby only affects self
+   * @returns
    */
   handleNightAction(_recipient: Player) {
     if (this.alertSlots === 0) {
@@ -76,7 +76,7 @@ export class Nimby extends Role {
   /**
    * Processes the alert visit by increasing self defense and consuming an alert slot.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;
@@ -92,7 +92,7 @@ export class Nimby extends Role {
    * Counterattacks any visitors to self while on alert.
    * Inflicts 1 damage to counterattacked visitors (except self and duplicate entries).
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.visiting === null) return;

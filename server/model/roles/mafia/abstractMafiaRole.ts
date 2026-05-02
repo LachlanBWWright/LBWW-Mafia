@@ -16,8 +16,8 @@ export abstract class RoleMafia extends Role {
   /**
    * Creates a new RoleMafia instance. All Mafia roles belong to the Mafia role group.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -28,8 +28,8 @@ export abstract class RoleMafia extends Role {
    * Validates that the target is alive, not in the same faction, and not the voter.
    * If valid, records the vote and notifies the faction; otherwise notifies the voter of an invalid vote.
    *
-   * @param {Player} recipient - The target player to vote for
-   * @returns {void}
+   * @param recipient - The target player to vote for
+   * @returns
    */
   handleNightVote(recipient: Player) {
     const recipientRole = recipient.role;
@@ -69,8 +69,8 @@ export abstract class RoleMafia extends Role {
    * Handles a nighttime action by delegating to night vote logic.
    * Mafia members vote on their target instead of having independent actions.
    *
-   * @param {Player} recipient - The target player
-   * @returns {void}
+   * @param recipient - The target player
+   * @returns
    */
   handleNightAction(recipient: Player) {
     this.handleNightVote(recipient);
@@ -79,7 +79,7 @@ export abstract class RoleMafia extends Role {
   /**
    * Cancels the current night action and notifies the player.
    *
-   * @returns {void}
+   * @returns
    */
   cancelNightAction() {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
@@ -93,7 +93,7 @@ export abstract class RoleMafia extends Role {
    * If this role is attacking, performs an attack visit; otherwise performs a default visit.
    * Resets the attacking flag after processing.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.isAttacking) {
@@ -108,7 +108,7 @@ export abstract class RoleMafia extends Role {
    * Performs a mafia attack on the target role.
    * Notifies the player that they were selected for the attack and inflicts 1 damage.
    *
-   * @returns {void}
+   * @returns
    */
   visitOverride() {
     if (this.visiting != null) {
@@ -127,7 +127,7 @@ export abstract class RoleMafia extends Role {
    * Should be overridden by subclasses that have role-specific abilities.
    * Default behavior inflicts 1 damage to the target.
    *
-   * @returns {void}
+   * @returns
    */
   defaultVisit() {
     if (this.visiting != null) {

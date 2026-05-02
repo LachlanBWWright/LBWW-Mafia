@@ -49,8 +49,8 @@ export class Role implements RoleInterface {
   /**
    * Creates a new Role instance.
    *
-   * @param {Room} room - The game room this role belongs to
-   * @param {Player} player - The player assigned to this role
+   * @param room - The game room this role belongs to
+   * @param player - The player assigned to this role
    */
   constructor(room: Room, player: Player) {
     this.room = room;
@@ -60,8 +60,8 @@ export class Role implements RoleInterface {
   /**
    * Assigns this role to a faction.
    *
-   * @param {Faction} faction - The faction to assign
-   * @returns {void}
+   * @param faction - The faction to assign
+   * @returns
    */
   assignFaction(faction: Faction) {
     this.faction = faction;
@@ -70,14 +70,14 @@ export class Role implements RoleInterface {
   /**
    * Initializes the role at game start. Override in subclasses for role-specific setup.
    *
-   * @returns {void}
+   * @returns
    */
   initRole() {}
 
   /**
    * Called at the start of each day phase. Override in subclasses for role-specific logic.
    *
-   * @returns {void}
+   * @returns
    */
   dayUpdate() {}
 
@@ -85,8 +85,8 @@ export class Role implements RoleInterface {
    * Handles incoming chat messages based on the current game phase.
    * Silenced players are notified, day phase messages are broadcast, and night messages are faction-scoped.
    *
-   * @param {string} message - The chat message content
-   * @returns {void}
+   * @param message - The chat message content
+   * @returns
    */
   handleMessage(message: string) {
     const socketId = this.player.user.socketId;
@@ -129,8 +129,8 @@ export class Role implements RoleInterface {
    * Handles a daytime action on a target player. Override in subclasses for role-specific logic.
    * Default implementation sends a message indicating the role has no day action.
    *
-   * @param {Player} _recipient - The target player (not used in base implementation)
-   * @returns {void}
+   * @param _recipient - The target player (not used in base implementation)
+   * @returns
    */
   handleDayAction(_recipient: Player) {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
@@ -141,7 +141,7 @@ export class Role implements RoleInterface {
   /**
    * Cancels the player's current day action visit and notifies them.
    *
-   * @returns {void}
+   * @returns
    */
   cancelDayAction() {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
@@ -154,8 +154,8 @@ export class Role implements RoleInterface {
    * Handles a nighttime action on a target player. Override in subclasses for role-specific logic.
    * Default implementation sends a message indicating the role has no night action.
    *
-   * @param {Player} _recipient - The target player (not used in base implementation)
-   * @returns {void}
+   * @param _recipient - The target player (not used in base implementation)
+   * @returns
    */
   handleNightAction(_recipient: Player) {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
@@ -167,8 +167,8 @@ export class Role implements RoleInterface {
    * Handles a nighttime factional vote. Override in subclasses for role-specific logic.
    * Default implementation sends a message indicating the role has no night voting.
    *
-   * @param {Player} _recipient - The target player (not used in base implementation)
-   * @returns {void}
+   * @param _recipient - The target player (not used in base implementation)
+   * @returns
    */
   handleNightVote(_recipient: Player) {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
@@ -179,7 +179,7 @@ export class Role implements RoleInterface {
   /**
    * Cancels the player's current night action visit and notifies them.
    *
-   * @returns {void}
+   * @returns
    */
   cancelNightAction() {
     io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
@@ -191,8 +191,8 @@ export class Role implements RoleInterface {
   /**
    * Registers that another role is visiting this role.
    *
-   * @param {Role} role - The role that is visiting
-   * @returns {void}
+   * @param role - The role that is visiting
+   * @returns
    */
   receiveVisit(role: Role) {
     this.visitors.push(role);
@@ -203,7 +203,7 @@ export class Role implements RoleInterface {
    * If damage exceeds defense, the player dies. Otherwise, damage is reset at end of phase.
    * Notifies the player and broadcasts their death if applicable.
    *
-   * @returns {boolean} True if the player died, false otherwise
+   * @returns True if the player died, false otherwise
    */
   handleDamage() {
     if (this.baseDefence > this.defence) this.defence = this.baseDefence;
@@ -243,36 +243,36 @@ export class Role implements RoleInterface {
   /**
    * Processes daytime visits. Override in subclasses for role-specific logic.
    *
-   * @returns {void}
+   * @returns
    */
   dayVisit() {}
 
   /**
    * Processes nighttime visits. Override in subclasses for role-specific logic.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {}
 
   /**
    * Called when another role visits this role during daytime. Override in subclasses for role-specific logic.
    *
-   * @param {Role} _role - The role that is visiting
-   * @returns {void}
+   * @param _role - The role that is visiting
+   * @returns
    */
   receiveDayVisit(_role: Role) {}
 
   /**
    * Processes all daytime visits to this role. Override in subclasses for role-specific logic.
    *
-   * @returns {void}
+   * @returns
    */
   handleDayVisits() {}
 
   /**
    * Processes all nighttime visits to this role. Override in subclasses for role-specific logic.
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {}
 }

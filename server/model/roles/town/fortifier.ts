@@ -45,8 +45,8 @@ export class Fortifier extends Role {
   /**
    * Creates a new Fortifier instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -57,8 +57,8 @@ export class Fortifier extends Role {
    * Can only fortify when canFortify is true; can only remove fortifications when fortifications exist.
    * Validates targets and provides appropriate error messages.
    *
-   * @param {Player} recipient - The target player's house to fortify or defortify
-   * @returns {void}
+   * @param recipient - The target player's house to fortify or defortify
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -111,7 +111,7 @@ export class Fortifier extends Role {
    * Building increases target's base defense by 2.
    * Removing fortifications has a 50% chance to kill either the Fortifier or the original owner.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;
@@ -182,7 +182,7 @@ export class Fortifier extends Role {
    * Counterattacks attackers on the fortified house.
    * Inflicts 1 damage to attackers (except self and the original fortress owner).
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.playerFortified === null || this.visiting === null) return;

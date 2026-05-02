@@ -34,8 +34,8 @@ export class Peacemaker extends Role {
   /**
    * Creates a new Peacemaker instance and registers itself with the room.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -47,8 +47,8 @@ export class Peacemaker extends Role {
    * Handles the night action by allowing the Peacemaker to choose a player to block.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to block
-   * @returns {void}
+   * @param recipient - The target player to block
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -75,7 +75,7 @@ export class Peacemaker extends Role {
   /**
    * Processes the block visit by marking the target as roleblocked.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;

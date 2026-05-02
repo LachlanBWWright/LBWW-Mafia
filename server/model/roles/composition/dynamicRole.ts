@@ -29,10 +29,10 @@ export class DynamicRole extends Role {
   /**
    * Creates a new DynamicRole with composed handlers.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
-   * @param {RoleMetadata} metadata - The role's metadata
-   * @param {ActionHandler[]} handlers - Composed action handlers
+   * @param room - The game room
+   * @param player - The player assigned this role
+   * @param metadata - The role's metadata
+   * @param handlers - Composed action handlers
    */
   constructor(
     room: Room,
@@ -82,7 +82,7 @@ export class DynamicRole extends Role {
    * Handles a daytime action on a target player.
    * Validates and executes all handlers in sequence.
    *
-   * @param {Player} recipient - The target player
+   * @param recipient - The target player
    */
   override handleDayAction(recipient: Player) {
     const context: ActionContext = {
@@ -115,7 +115,7 @@ export class DynamicRole extends Role {
    * Handles a nighttime action on a target player.
    * Validates and executes all handlers in sequence.
    *
-   * @param {Player} recipient - The target player
+   * @param recipient - The target player
    */
   override handleNightAction(recipient: Player) {
     const context: ActionContext = {
@@ -169,7 +169,7 @@ export class DynamicRole extends Role {
   /**
    * Cleanup called at end of phase.
    *
-   * @param {GamePhase} phase - The phase that just ended
+   * @param phase - The phase that just ended
    */
   dayUpdate() {
     this.handlers.forEach((handler) => handler.cleanup?.(this.room.time));

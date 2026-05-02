@@ -40,8 +40,8 @@ export class Framer extends Role {
   /**
    * Creates a new Framer instance and registers itself with the room.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -52,7 +52,7 @@ export class Framer extends Role {
    * Initializes the Framer by selecting a random Town member as the target.
    * Notifies the Framer of their target and win condition.
    *
-   * @returns {void}
+   * @returns
    */
   initRole() {
     this.target = this.findRandomTownTarget();
@@ -68,7 +68,7 @@ export class Framer extends Role {
    * Updates the target if the current target dies before day 5.
    * Selects a new random Town member and notifies the Framer.
    *
-   * @returns {void}
+   * @returns
    */
   dayUpdate() {
     if (this.target?.isAlive || this.victoryCondition) return;

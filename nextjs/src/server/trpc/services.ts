@@ -29,8 +29,8 @@ type MatchRow = {
  * Parses a JSON string into an array of strings.
  * Returns empty array if parsing fails.
  *
- * @param {string} value - JSON string to parse
- * @returns {string[]} Parsed array of strings, or empty array
+ * @param value - JSON string to parse
+ * @returns Parsed array of strings, or empty array
  */
 const parseArray = (value: string): string[] => {
   try {
@@ -48,8 +48,8 @@ const parseArray = (value: string): string[] => {
  * Parses a JSON string into an array and returns its length.
  * Returns 0 if parsing fails.
  *
- * @param {string} value - JSON string to parse
- * @returns {number} Length of parsed array, or 0
+ * @param value - JSON string to parse
+ * @returns Length of parsed array, or 0
  */
 const parseCount = (value: string): number => {
   try {
@@ -67,8 +67,8 @@ const parseCount = (value: string): number => {
  * Fetches participants for a list of match IDs.
  * Returns a map of match ID to its participants.
  *
- * @param {number[]} matchIds - Array of match IDs to fetch participants for
- * @returns {Promise<Map<number, MatchParticipantSummary[]>>} Map of match ID to participants
+ * @param matchIds - Array of match IDs to fetch participants for
+ * @returns Map of match ID to participants
  */
 const getParticipantsByMatchIds = async (
   matchIds: number[],
@@ -105,10 +105,10 @@ const getParticipantsByMatchIds = async (
  * Retrieves recent matches for a specific username.
  * Returns matches ordered by most recent first, deduplicated by match ID.
  *
- * @param {object} options - Options object
- * @param {string} options.username - Username to fetch matches for
- * @param {number} options.limit - Maximum number of matches to return
- * @returns {Promise<RecentMatchSummary[]>} Recent matches with participant info
+ * @param options - Options object
+ * @param options .username - Username to fetch matches for
+ * @param options .limit - Maximum number of matches to return
+ * @returns Recent matches with participant info
  */
 const getRecentMatches = async ({
   username,
@@ -172,10 +172,10 @@ const getRecentMatches = async ({
  * Searches users by name or email.
  * Returns matching users ordered by email verification status.
  *
- * @param {object} options - Options object
- * @param {string} options.query - Search query (name or email)
- * @param {number} options.limit - Maximum number of results to return
- * @returns {Promise<UserSummary[]>} Matching users
+ * @param options - Options object
+ * @param options .query - Search query (name or email)
+ * @param options .limit - Maximum number of results to return
+ * @returns Matching users
  */
 const searchUsers = async ({
   query,
@@ -210,9 +210,9 @@ const searchUsers = async ({
 /**
  * Updates a user's admin status.
  *
- * @param {object} options - Options object
- * @param {string} options.userId - User ID to update
- * @param {boolean} options.isAdmin - New admin status
+ * @param options - Options object
+ * @param options .userId - User ID to update
+ * @param options .isAdmin - New admin status
  */
 const setUserAdmin = async ({
   userId,
@@ -231,9 +231,9 @@ const setUserAdmin = async ({
  * Persists a completed match and its participants to the database.
  * Returns the ID of the newly created match.
  *
- * @param {PersistMatchInput} input - Match data to persist
- * @returns {Promise<{ id: number }>} Match ID of the persisted match
- * @throws {Error} If failed to insert match
+ * @param input - Match data to persist
+ * @returns>} Match ID of the persisted match
+ * @throws If failed to insert match
  */
 const persistMatch = async (input: PersistMatchInput): Promise<{ id: number }> => {
   const result = await (async () => {
@@ -282,7 +282,7 @@ const persistMatch = async (input: PersistMatchInput): Promise<{ id: number }> =
  * Rotates the active game room ID.
  * Generates a new random UUID and updates the singleton active room record.
  *
- * @returns {Promise<{roomId: string}>} The new active room ID
+ * @returns>} The new active room ID
  */
 const rotateActiveRoom = async (): Promise<{ roomId: string }> => {
   const roomId = crypto.randomUUID();

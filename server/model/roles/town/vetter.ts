@@ -39,8 +39,8 @@ export class Vetter extends Role {
   /**
    * Creates a new Vetter instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -51,8 +51,8 @@ export class Vetter extends Role {
    * Consumes a research slot when activating research.
    * Must have research slots remaining to activate.
    *
-   * @param {Player} _recipient - Not used; Vetter only affects self
-   * @returns {void}
+   * @param _recipient - Not used; Vetter only affects self
+   * @returns
    */
   handleNightAction(_recipient: Player) {
     if (this.researchSlots === 0) {
@@ -80,7 +80,7 @@ export class Vetter extends Role {
    * Reports one of the two players' roles with 50% chance of accuracy.
    * Decrements research slots and reports remaining sessions.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;

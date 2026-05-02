@@ -40,7 +40,7 @@ export type PlayerSocket = Socket<
  * Creates a Socket.IO server configured for game communications.
  * Sets up CORS and binds to the HTTP server.
  *
- * @returns {Server} Configured Socket.IO server instance
+ * @returns Configured Socket.IO server instance
  */
 export function createSocketIoServer() {
   return new Server<
@@ -73,9 +73,9 @@ const CHAT_MESSAGE_MAX_LENGTH = 150;
  * Adds event listeners to the Socket.IO server for all game events.
  * Manages player connections, disconnections, and all game actions.
  *
- * @param {Server} socketIoServer - The Socket.IO server to add listeners to
- * @param {number} roomSize - The maximum number of players per game room
- * @returns {void}
+ * @param socketIoServer - The Socket.IO server to add listeners to
+ * @param roomSize - The maximum number of players per game room
+ * @returns
  */
 export function addSocketListeners(
   socketIoServer: Server<

@@ -32,8 +32,8 @@ export class MafiaInvestigator extends RoleMafia {
   /**
    * Creates a new MafiaInvestigator instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -43,8 +43,8 @@ export class MafiaInvestigator extends RoleMafia {
    * Handles the night action by allowing the investigator to choose a player to inspect.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to inspect
-   * @returns {void}
+   * @param recipient - The target player to inspect
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -71,7 +71,7 @@ export class MafiaInvestigator extends RoleMafia {
   /**
    * Performs the inspection visit by revealing the target role to the investigator.
    *
-   * @returns {void}
+   * @returns
    */
   defaultVisit() {
     if (this.visiting === null) return;

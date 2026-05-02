@@ -97,8 +97,8 @@ export class RoleHandler {
   /**
    * Creates a new RoleHandler for a given room size.
    *
-   * @param {number} roomSize - The number of players in the game
-   * @param {CustomRoleDefinition[]} customRoles - Optional custom roles to enable
+   * @param roomSize - The number of players in the game
+   * @param customRoles - Optional custom roles to enable
    */
   constructor(roomSize: number, customRoles: CustomRoleDefinition[] = []) {
     this.roomSize = roomSize;
@@ -110,7 +110,7 @@ export class RoleHandler {
    * Uses comparative power scoring to ensure Town and Mafia remain balanced.
    * Removes unique roles from selection pools to prevent duplicates.
    *
-   * @returns {(typeof BlankRole)[]} Array of role classes to assign to players
+   * @returns Array of role classes to assign to players
    */
   assignGame(): (typeof BlankRole)[] {
     let roleList: (typeof BlankRole)[] = [];
@@ -206,8 +206,8 @@ export class RoleHandler {
    * Assigns faction objects to players based on their roles.
    * Creates a LawmanFaction if any Lawman exists, and a MafiaFaction if any Mafia role exists.
    *
-   * @param {Player[]} playerList - List of all players in the game
-   * @returns {Faction[]} Array of faction objects to manage coordinated role actions
+   * @param playerList - List of all players in the game
+   * @returns Array of faction objects to manage coordinated role actions
    */
   assignFactionsFromPlayerList(playerList: Player[]): Faction[] {
     const factionList: Faction[] = [];
@@ -233,8 +233,8 @@ export class RoleHandler {
    * Determines if a role is unique and should only appear once per game.
    * Checks against a hardcoded list of unique roles.
    *
-   * @param {typeof BlankRole} role - The role class to check
-   * @returns {boolean} True if the role is unique and should be removed from selection, false otherwise
+   * @param role - The role class to check
+   * @returns True if the role is unique and should be removed from selection, false otherwise
    */
   uniqueRoleCheck(role: typeof BlankRole) {
     switch (role) {
@@ -268,8 +268,8 @@ export class RoleHandler {
    * Positive values favor Town, negative values favor Mafia/Neutral.
    * Used to dynamically select roles to maintain competitive balance.
    *
-   * @param {typeof BlankRole} role - The role class to evaluate
-   * @returns {number} Power value of the role (higher = more Town-favorable)
+   * @param role - The role class to evaluate
+   * @returns Power value of the role (higher = more Town-favorable)
    */
   getPower(role: typeof BlankRole) {
     switch (role) {
@@ -328,8 +328,8 @@ export class RoleHandler {
   /**
    * Gets the power value for a custom role definition.
    *
-   * @param {CustomRoleDefinition} customRole - The custom role definition
-   * @returns {number} Power value of the custom role
+   * @param customRole - The custom role definition
+   * @returns Power value of the custom role
    */
   getCustomRolePower(customRole: CustomRoleDefinition): number {
     return customRole.metadata.powerValue ?? 0;
@@ -339,10 +339,10 @@ export class RoleHandler {
    * Instantiates a role instance from a role class or custom definition.
    * Handles both built-in roles and dynamically created custom roles.
    *
-   * @param {typeof BlankRole | CustomRoleDefinition} roleOrDef - Role class or custom definition
-   * @param {Room} room - The game room
-   * @param {Player} player - The player to assign the role to
-   * @returns {Role} Instantiated role
+   * @param roleOrDef - Role class or custom definition
+   * @param room - The game room
+   * @param player - The player to assign the role to
+   * @returns Instantiated role
    */
   private static isCustomRoleDefinition(
     roleOrDef: typeof BlankRole | CustomRoleDefinition,

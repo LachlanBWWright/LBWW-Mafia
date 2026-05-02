@@ -32,8 +32,8 @@ export class Maniac extends Role {
   /**
    * Creates a new Maniac instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -43,8 +43,8 @@ export class Maniac extends Role {
    * Handles the night action by allowing the Maniac to choose a player to attack.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to attack
-   * @returns {void}
+   * @param recipient - The target player to attack
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -71,7 +71,7 @@ export class Maniac extends Role {
   /**
    * Processes the visit by attacking the target with 1 damage.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;

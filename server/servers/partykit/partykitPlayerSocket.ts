@@ -19,7 +19,7 @@ export class PartykitPlayerSocket implements GamePlayerSocket {
   /**
    * Creates a new PartyKit-based game player socket adapter.
    * 
-   * @param {PartyConnectionAdapter} connection - The underlying PartyKit connection
+   * @param connection - The underlying PartyKit connection
    */
   constructor(connection: PartyConnectionAdapter) {
     this.connection = connection;
@@ -30,8 +30,8 @@ export class PartykitPlayerSocket implements GamePlayerSocket {
   /**
    * Joins a room (no-op in PartyKit since each party instance is already a room).
    * 
-   * @param {string} _room - The room name (unused in PartyKit)
-   * @returns {void}
+   * @param _room - The room name (unused in PartyKit)
+   * @returns
    */
   join(_room: string): void {
     // No-op: in PartyKit each party instance IS the room
@@ -41,9 +41,9 @@ export class PartykitPlayerSocket implements GamePlayerSocket {
    * Sends a callback response to the client with the given callback ID and arguments.
    * Used for RPC-style request-response patterns.
    * 
-   * @param {string} callbackId - The ID of the original callback request
-   * @param {...unknown[]} args - Arguments to send back to the client
-   * @returns {void}
+   * @param callbackId - The ID of the original callback request
+   * @param args - Arguments to send back to the client
+   * @returns
    */
   sendCallback(callbackId: string, ...args: unknown[]): void {
     const message = JSON.stringify({ type: "callback", callbackId, args });

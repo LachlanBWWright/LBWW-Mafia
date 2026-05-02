@@ -39,8 +39,8 @@ export class Sniper extends Role {
   /**
    * Creates a new Sniper instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -50,8 +50,8 @@ export class Sniper extends Role {
    * Handles the night action by allowing the Sniper to choose a target to snipe.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to snipe
-   * @returns {void}
+   * @param recipient - The target player to snipe
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -78,7 +78,7 @@ export class Sniper extends Role {
   /**
    * Processes the visit, recording the target for damage calculation.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) {
@@ -94,7 +94,7 @@ export class Sniper extends Role {
    * If the target did not visit elsewhere or self-visited: 3 damage.
    * If the target visited the same player as before: 1 damage.
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.visiting === null) return;

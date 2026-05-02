@@ -28,8 +28,8 @@ export type MatchHistoryInput = {
  * Triggers rotation of the active room by making a tRPC request to the NextJS backend.
  * This is used to advance the game state and manage room transitions.
  * 
- * @returns {Promise<void>} Resolves when the request completes
- * @throws {Error} If the tRPC request fails (logged to console error)
+ * @returns Resolves when the request completes
+ * @throws If the tRPC request fails (logged to console error)
  */
 export async function rotateActiveRoom(): Promise<void> {
   const url = process.env.NEXTJS_URL;
@@ -58,16 +58,16 @@ export async function rotateActiveRoom(): Promise<void> {
  * Persists a completed match's history to the database via the NextJS backend.
  * Converts date objects to ISO strings and sends all match metadata to the match.persist tRPC endpoint.
  * 
- * @param {MatchHistoryInput} input - The match history data to persist
- * @param {string} input.roomName - The name of the room where the match occurred
- * @param {Date} input.startedAt - When the match started
- * @param {Date} input.endedAt - When the match ended
- * @param {string} input.winningFaction - Name of the faction that won
- * @param {string[]} input.winningRoles - List of role names that won
- * @param {MatchHistoryParticipant[]} input.participants - List of all players and their results
- * @param {MatchHistoryEvent[]} input.conversationHistory - Chat messages during the match
- * @param {MatchHistoryEvent[]} input.actionHistory - Actions taken during the match
- * @returns {Promise<void>} Resolves when the request completes
+ * @param input - The match history data to persist
+ * @param input .roomName - The name of the room where the match occurred
+ * @param input .startedAt - When the match started
+ * @param input .endedAt - When the match ended
+ * @param input .winningFaction - Name of the faction that won
+ * @param input .winningRoles - List of role names that won
+ * @param input .participants - List of all players and their results
+ * @param input .conversationHistory - Chat messages during the match
+ * @param input .actionHistory - Actions taken during the match
+ * @returns Resolves when the request completes
  */
 export async function persistMatchHistory(input: MatchHistoryInput) {
   const url = process.env.NEXTJS_URL;

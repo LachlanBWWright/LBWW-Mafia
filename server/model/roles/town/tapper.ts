@@ -33,8 +33,8 @@ export class Tapper extends Role {
   /**
    * Creates a new Tapper instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -44,8 +44,8 @@ export class Tapper extends Role {
    * Handles the day action by allowing the Tapper to wiretap a player's daytime communications.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to tap
-   * @returns {void}
+   * @param recipient - The target player to tap
+   * @returns
    */
   handleDayAction(recipient: Player) {
     if (recipient === this.player) {
@@ -73,8 +73,8 @@ export class Tapper extends Role {
    * Handles the night action by allowing the Tapper to wiretap a player's nighttime communications.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to tap
-   * @returns {void}
+   * @param recipient - The target player to tap
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient === this.player) {
@@ -101,7 +101,7 @@ export class Tapper extends Role {
   /**
    * Processes the day tap by notifying the target and registering the tap for message capture.
    *
-   * @returns {void}
+   * @returns
    */
   dayVisit() {
     if (this.dayVisiting === null) return;
@@ -117,7 +117,7 @@ export class Tapper extends Role {
   /**
    * Processes the night tap by registering the tap to capture day messages.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting === null) return;

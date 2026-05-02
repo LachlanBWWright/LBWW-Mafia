@@ -130,8 +130,8 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
  * Creates the tRPC application router with all RPC procedures.
  * Provides endpoints for match history, user search, and admin operations.
  *
- * @param {RouterServices} services - Service layer implementations
- * @returns {object} tRPC router with match, room, and admin procedure groups
+ * @param services - Service layer implementations
+ * @returns tRPC router with match, room, and admin procedure groups
  */
 export function createAppRouter(services: RouterServices) {
   return t.router({

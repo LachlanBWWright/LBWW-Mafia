@@ -31,8 +31,8 @@ export class Confesser extends Role {
   /**
    * Creates a new Confesser instance and registers itself with the room.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);

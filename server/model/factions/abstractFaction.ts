@@ -10,7 +10,7 @@ export abstract class Faction {
    * Initializes all members of this faction by assigning the faction to each member's role
    * and broadcasting their role information to all faction members.
    *
-   * @returns {void}
+   * @returns
    */
   initializeMembers() {
     for (const member of this.memberList) {
@@ -32,8 +32,8 @@ export abstract class Faction {
    * Finds all members of this faction from the given player list and adds them to memberList.
    * Must be implemented by subclasses to identify which players belong to this faction.
    *
-   * @param {Player[]} playerList - List of all players in the game
-   * @returns {void}
+   * @param playerList - List of all players in the game
+   * @returns
    * @abstract
    */
   abstract findMembers(playerList: Player[]): void;
@@ -42,8 +42,8 @@ export abstract class Faction {
    * Sends a message to all members of this faction.
    * Must be implemented by subclasses to determine how messages are delivered.
    *
-   * @param {string} message - The message to send to faction members
-   * @returns {void}
+   * @param message - The message to send to faction members
+   * @returns
    * @abstract
    */
   abstract sendMessage(message: GameMessage): void;
@@ -52,7 +52,7 @@ export abstract class Faction {
    * Handles factional decisions during the night phase, such as coordinating votes.
    * Must be implemented by subclasses to define faction-specific behavior.
    *
-   * @returns {void}
+   * @returns
    * @abstract
    */
   abstract handleNightVote(): void;
@@ -61,9 +61,9 @@ export abstract class Faction {
    * Handles night chat messages from a faction member.
    * Must be implemented by subclasses to handle faction-specific message routing.
    *
-   * @param {string} message - The chat message
-   * @param {string} playerUsername - The username of the player sending the message
-   * @returns {void}
+   * @param message - The chat message
+   * @param playerUsername - The username of the player sending the message
+   * @returns
    * @abstract
    */
   abstract handleNightMessage(message: string, playerUsername: string): void;
@@ -72,7 +72,7 @@ export abstract class Faction {
    * Removes members from this faction if they have died or been converted to another faction.
    * Must be implemented by subclasses to define faction-specific removal logic.
    *
-   * @returns {void}
+   * @returns
    * @abstract
    */
   abstract removeMembers(): void;

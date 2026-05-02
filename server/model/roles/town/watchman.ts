@@ -35,8 +35,8 @@ export class Watchman extends Role {
   /**
    * Creates a new Watchman instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -46,8 +46,8 @@ export class Watchman extends Role {
    * Handles the night action by allowing the Watchman to choose a player to watch.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to watch
-   * @returns {void}
+   * @param recipient - The target player to watch
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
@@ -74,7 +74,7 @@ export class Watchman extends Role {
   /**
    * Processes the watch visit by registering as a visitor.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting != null) {
@@ -89,7 +89,7 @@ export class Watchman extends Role {
    * - 2 visitors (Watchman + 1): Reveals the visitor (or false lead)
    * - 3+ visitors: Lists all or provides alibi option
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.visiting === null) return;

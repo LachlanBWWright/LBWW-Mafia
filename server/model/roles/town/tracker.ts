@@ -32,8 +32,8 @@ export class Tracker extends Role {
   /**
    * Creates a new Tracker instance.
    *
-   * @param {Room} room - The game room
-   * @param {Player} player - The player assigned this role
+   * @param room - The game room
+   * @param player - The player assigned this role
    */
   constructor(room: Room, player: Player) {
     super(room, player);
@@ -43,8 +43,8 @@ export class Tracker extends Role {
    * Handles the night action by allowing the Tracker to choose a player to track.
    * Validates that the target is not self and is alive.
    *
-   * @param {Player} recipient - The target player to track
-   * @returns {void}
+   * @param recipient - The target player to track
+   * @returns
    */
   handleNightAction(recipient: Player) {
     if (recipient == this.player) {
@@ -71,7 +71,7 @@ export class Tracker extends Role {
   /**
    * Processes the track visit by registering the tracker for visit observation.
    *
-   * @returns {void}
+   * @returns
    */
   visit() {
     if (this.visiting != null) {
@@ -83,7 +83,7 @@ export class Tracker extends Role {
    * Handles the visit results by reporting where the tracked player visited.
    * If the target didn't visit anyone, reports that instead.
    *
-   * @returns {void}
+   * @returns
    */
   handleVisits() {
     if (this.visiting === null) return;

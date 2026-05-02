@@ -38,7 +38,7 @@ export default class MafiaPartyServer implements Party.Server {
    * Initializes a new Mafia game room for this PartyKit party instance.
    * Sets up the GameEmitter singleton for this instance.
    *
-   * @param {Party.Room} room - The PartyKit room instance
+   * @param room - The PartyKit room instance
    */
   constructor(readonly room: Party.Room) {
     this.roomSize = DEFAULT_ROOM_SIZE;
@@ -54,8 +54,8 @@ export default class MafiaPartyServer implements Party.Server {
    * Handles HTTP requests to the PartyKit server.
    * Supports CORS and returns 404 for non-CORS requests.
    *
-   * @param {Party.Request} request - The HTTP request
-   * @returns {Response} HTTP response with CORS headers
+   * @param request - The HTTP request
+   * @returns HTTP response with CORS headers
    */
   onRequest(request: Party.Request): Response {
     const origin = request.headers.get("Origin") ?? "*";
@@ -75,9 +75,9 @@ export default class MafiaPartyServer implements Party.Server {
    * Handles new player connections to this party instance.
    * Creates a socket adapter for the player and stores it.
    *
-   * @param {Party.Connection} connection - The new player connection
-   * @param {Party.ConnectionContext} _ctx - Connection context (unused)
-   * @returns {void}
+   * @param connection - The new player connection
+   * @param _ctx - Connection context (unused)
+   * @returns
    */
   onConnect(connection: Party.Connection, _ctx: Party.ConnectionContext) {
     console.log(`PartyKit: New connection ${connection.id}`);
@@ -90,9 +90,9 @@ export default class MafiaPartyServer implements Party.Server {
    * Routes game events (join, message, vote, visit, whisper) to the game room.
    * Parses JSON messages and validates event types before processing.
    *
-   * @param {string | ArrayBuffer | ArrayBufferView} message - Raw message data
-   * @param {Party.Connection} sender - The connection that sent the message
-   * @returns {void}
+   * @param message - Raw message data
+   * @param sender - The connection that sent the message
+   * @returns
    */
   onMessage(
     message: string | ArrayBuffer | ArrayBufferView,
@@ -210,8 +210,8 @@ export default class MafiaPartyServer implements Party.Server {
    * Handles player disconnections.
    * Removes the player from the game room and cleans up the socket adapter.
    *
-   * @param {Party.Connection} connection - The closed connection
-   * @returns {void}
+   * @param connection - The closed connection
+   * @returns
    */
   onClose(connection: Party.Connection) {
     console.log(`PartyKit: Connection closed ${connection.id}`);
@@ -226,9 +226,9 @@ export default class MafiaPartyServer implements Party.Server {
   /**
    * Handles connection errors by closing the connection and cleaning up.
    *
-   * @param {Party.Connection} connection - The connection that encountered an error
-   * @param {Error} error - The error that occurred
-   * @returns {void}
+   * @param connection - The connection that encountered an error
+   * @param error - The error that occurred
+   * @returns
    */
   onError(connection: Party.Connection, error: Error) {
     console.error(`PartyKit: Connection error ${connection.id}:`, error);
