@@ -1,14 +1,37 @@
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { io } from "../../../servers/emitter.js";
 import { CombatLevel } from "../combatLevel.js";
 import { RoleGroup } from "../roleGroup.js";
 import { GamePhase } from "../../rooms/gamePhase.js";
 import type { RoleDefinition } from "../composition/roleDefinition.js";
 import { RoleTrait } from "../composition/roleTraits.js";
-import { chooseDayOther, chooseNightOther, roleblockVisit } from "./helpers.js";
+import { chooseDayOther, chooseNightOther } from "../composition/handlers/targeting.js";
+import {
+  addAttacker,
+  applyDamageMinimum,
+  applyDefenceMinimum,
+  chooseNightTarget,
+  registerDayVisit,
+  registerNightVisit,
+  roleblockTarget,
+  roleblockVisit,
+} from "../composition/handlers/effects.js";
+import {
+  actorNotice,
+  dispatchNotice,
+} from "../composition/handlers/notices.js";
+import {
+  accepted,
+  handled,
+  notHandled,
+  rejected,
+} from "../composition/handlers/results.js";
 
 const townTraits = [RoleTrait.TownAligned];
+const NIMBY_ALERT_SLOTS = "nimby-alert-slots";
+const FORTIFIER_CAN_FORTIFY = "fortifier-can-fortify";
+const FORTIFIER_TARGET = "fortifier-target";
+const VETTER_RESEARCH_SLOTS = "vetter-research-slots";
 
 export const doctorDefinition: RoleDefinition = {
   kind: "built-in",
@@ -18,24 +41,37 @@ export const doctorDefinition: RoleDefinition = {
     group: RoleGroup.Town,
     category: "town-support",
     summary: "Heals another player at night.",
-    description: "Choose one living non-self player at night and raise their defence.",
+    description:
+      "Choose one living non-self player at night and raise their defence.",
     isUnique: false,
   },
   balance: { power: 5 },
   combat: { baseDefence: CombatLevel.None },
   capabilities: {
-    dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false,
-    nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false,
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
     nightVote: false,
   },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.DoctorCannotHealSelf, MessageKey.DoctorChoseToHeal) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.DoctorCannotHealSelf,
+          MessageKey.DoctorChoseToHeal,
+        ),
+    },
     {
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        if (role.visiting.defence === CombatLevel.None) role.visiting.defence = CombatLevel.Low;
-        role.visiting.receiveVisit(role);
+        const target = registerNightVisit(role);
+        if (!target) return;
+        applyDefenceMinimum(target, CombatLevel.Low);
       },
     },
   ],
@@ -45,37 +81,61 @@ export const investigatorDefinition: RoleDefinition = {
   kind: "built-in",
   id: "investigator",
   metadata: {
-    name: "Investigator", group: RoleGroup.Town, category: "town-investigative",
-    summary: "Inspects another player.", description: "Gets 3 possible roles with imperfect accuracy.", isUnique: false,
+    name: "Investigator",
+    group: RoleGroup.Town,
+    category: "town-investigative",
+    summary: "Inspects another player.",
+    description: "Gets 3 possible roles with imperfect accuracy.",
+    isUnique: false,
   },
   balance: { power: 4 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.CannotInspectSelf, MessageKey.ChoseToInspect) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.CannotInspectSelf,
+          MessageKey.ChoseToInspect,
+        ),
+    },
     {
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        role.visiting.receiveVisit(role);
+        const target = registerNightVisit(role);
+        if (!target) return;
         const guesses: string[] = [];
         for (let i = 0; i < 3; i++) {
-          if (Math.random() < 0.3) {
-            guesses.push(role.visiting.name);
+          if (role.room.random() < 0.3) {
+            guesses.push(target.name);
           } else {
-            const randomPlayer = role.room.playerList[Math.floor(Math.random() * role.room.playerList.length)];
-            guesses.push(randomPlayer.role.name);
+            const randomPlayer =
+              role.room.playerList[role.room.randomIndex(role.room.playerList.length)];
+            guesses.push(randomPlayer?.role.name ?? target.name);
           }
         }
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.InvestigatorResult,
-          params: {
-            targetName: role.visiting.player.username,
-            role1: guesses[0] ?? "",
-            role2: guesses[1] ?? "",
-            role3: guesses[2] ?? "",
-          },
-        });
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: MessageKey.InvestigatorResult,
+            params: {
+              targetName: target.player.username,
+              role1: guesses[0] ?? "",
+              role2: guesses[1] ?? "",
+              role3: guesses[2] ?? "",
+            },
+          }),
+        );
       },
     },
   ],
@@ -84,26 +144,54 @@ export const investigatorDefinition: RoleDefinition = {
 export const judgeDefinition: RoleDefinition = {
   kind: "built-in",
   id: "judge",
-  metadata: { name: "Judge", group: RoleGroup.Town, category: "town-investigative", summary: "Checks alignment.", description: "Reports role group, sometimes false.", isUnique: false },
+  metadata: {
+    name: "Judge",
+    group: RoleGroup.Town,
+    category: "town-investigative",
+    summary: "Checks alignment.",
+    description: "Reports role group, sometimes false.",
+    isUnique: false,
+  },
   balance: { power: 6 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.JudgeCannotInspectSelf, MessageKey.ChoseToInspect) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.JudgeCannotInspectSelf,
+          MessageKey.ChoseToInspect,
+        ),
+    },
     {
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        role.visiting.receiveVisit(role);
-        let factionName = role.visiting.group;
-        if (Math.random() < 0.3) {
+        const target = registerNightVisit(role);
+        if (!target) return;
+        let factionName = target.group;
+        if (role.room.random() < 0.3) {
           const living = role.room.playerList.filter((player) => player.isAlive);
-          factionName = living[Math.floor(Math.random() * living.length)]?.role.group ?? factionName;
+          factionName =
+            living[role.room.randomIndex(living.length)]?.role.group ??
+            factionName;
         }
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.JudgeAlignmentResult,
-          params: { targetName: role.visiting.player.username, factionName },
-        });
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: MessageKey.JudgeAlignmentResult,
+            params: { targetName: target.player.username, factionName },
+          }),
+        );
       },
     },
   ],
@@ -112,35 +200,70 @@ export const judgeDefinition: RoleDefinition = {
 export const watchmanDefinition: RoleDefinition = {
   kind: "built-in",
   id: "watchman",
-  metadata: { name: "Watchman", group: RoleGroup.Town, category: "town-investigative", summary: "Observes visitors.", description: "Sees who visited target at night.", isUnique: false },
+  metadata: {
+    name: "Watchman",
+    group: RoleGroup.Town,
+    category: "town-investigative",
+    summary: "Observes visitors.",
+    description: "Sees who visited target at night.",
+    isUnique: false,
+  },
   balance: { power: 4 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.WatchmanCannotWatchSelf, MessageKey.WatchmanChoseToWatch) },
-    { onNightVisit: ({ role }) => role.visiting?.receiveVisit(role) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.WatchmanCannotWatchSelf,
+          MessageKey.WatchmanChoseToWatch,
+        ),
+    },
+    { onNightVisit: ({ role }) => void registerNightVisit(role) },
     {
       onVisitOutcomes: ({ role }) => {
-        if (role.visiting === null) return;
         const target = role.visiting;
+        if (target === null) return;
         const visitorCount = target.visitors.length;
         if (visitorCount === 1) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.WatchmanNobodyVisited });
+          dispatchNotice(role, actorNotice({ key: MessageKey.WatchmanNobodyVisited }));
           return;
         }
         if (visitorCount === 2) {
-          const realVisitor = target.visitors[0] === role ? target.visitors[1] : target.visitors[0];
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.WatchmanTargetVisitedBy,
-            params: { targetName: realVisitor?.player.username ?? "" },
-          });
+          const realVisitor =
+            target.visitors[0] === role ? target.visitors[1] : target.visitors[0];
+          dispatchNotice(
+            role,
+            actorNotice({
+              key: MessageKey.WatchmanTargetVisitedBy,
+              params: { targetName: realVisitor?.player.username ?? "" },
+            }),
+          );
           return;
         }
-        const visitorList = target.visitors.filter((visitor) => visitor.player.isAlive && visitor !== role).map((visitor) => visitor.player.username);
+        const visitorList = target.visitors
+          .filter((visitor) => visitor.player.isAlive && visitor !== role)
+          .map((visitor) => visitor.player.username);
         const lastEntry = visitorList[visitorList.length - 1] ?? "";
-        const list = visitorList.length > 1 ? `${visitorList.slice(0, -1).join(", ")}, and ${lastEntry}` : lastEntry;
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.WatchmanVisitorList, params: { list } });
+        const list =
+          visitorList.length > 1
+            ? `${visitorList.slice(0, -1).join(", ")}, and ${lastEntry}`
+            : lastEntry;
+        dispatchNotice(
+          role,
+          actorNotice({ key: MessageKey.WatchmanVisitorList, params: { list } }),
+        );
       },
     },
   ],
@@ -149,23 +272,52 @@ export const watchmanDefinition: RoleDefinition = {
 export const trackerDefinition: RoleDefinition = {
   kind: "built-in",
   id: "tracker",
-  metadata: { name: "Tracker", group: RoleGroup.Town, category: "town-investigative", summary: "Tracks movement.", description: "Sees who target visited.", isUnique: false },
+  metadata: {
+    name: "Tracker",
+    group: RoleGroup.Town,
+    category: "town-investigative",
+    summary: "Tracks movement.",
+    description: "Sees who target visited.",
+    isUnique: false,
+  },
   balance: { power: 5 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.TrackerCannotTrackSelf, MessageKey.TrackerChoseToTrack) },
-    { onNightVisit: ({ role }) => role.visiting?.receiveVisit(role) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.TrackerCannotTrackSelf,
+          MessageKey.TrackerChoseToTrack,
+        ),
+    },
+    { onNightVisit: ({ role }) => void registerNightVisit(role) },
     {
       onVisitOutcomes: ({ role }) => {
         if (role.visiting?.visiting) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.TrackerTargetVisited,
-            params: { targetName: role.visiting.visiting.player.username },
-          });
+          dispatchNotice(
+            role,
+            actorNotice({
+              key: MessageKey.TrackerTargetVisited,
+              params: { targetName: role.visiting.visiting.player.username },
+            }),
+          );
         } else {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.TrackerTargetDidNotVisit });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.TrackerTargetDidNotVisit }),
+          );
         }
       },
     },
@@ -175,24 +327,56 @@ export const trackerDefinition: RoleDefinition = {
 export const tapperDefinition: RoleDefinition = {
   kind: "built-in",
   id: "tapper",
-  metadata: { name: "Tapper", group: RoleGroup.Town, category: "town-support", summary: "Wiretaps day or night.", description: "Can tap whispers and night chat.", isUnique: false },
+  metadata: {
+    name: "Tapper",
+    group: RoleGroup.Town,
+    category: "town-support",
+    summary: "Wiretaps day or night.",
+    description: "Can tap whispers and night chat.",
+    isUnique: false,
+  },
   balance: { power: 3 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: true, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: true,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onDayCommand: ({ role, recipient }) => chooseDayOther(role, recipient, MessageKey.CannotTapSelf, MessageKey.ChoseToTap) },
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.CannotTapSelf, MessageKey.ChoseToTap) },
+    {
+      onDayCommand: ({ role, recipient }) =>
+        chooseDayOther(
+          role,
+          recipient,
+          MessageKey.CannotTapSelf,
+          MessageKey.ChoseToTap,
+        ),
+    },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.CannotTapSelf,
+          MessageKey.ChoseToTap,
+        ),
+    },
     {
       onDayVisit: ({ role }) => {
-        if (role.dayVisiting === null) return;
-        io.to(role.dayVisiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.YouHaveBeenWiretapped });
-        role.dayVisiting.nightTapped = role;
+        const target = registerDayVisit(role);
+        if (!target) return;
+        dispatchNotice(target, actorNotice({ key: MessageKey.YouHaveBeenWiretapped }));
+        target.nightTappedBy = role;
       },
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        role.visiting.receiveVisit(role);
-        role.visiting.dayTapped = role;
+        const target = registerNightVisit(role);
+        if (!target) return;
+        target.dayTappedBy = role;
       },
     },
   ],
@@ -201,35 +385,84 @@ export const tapperDefinition: RoleDefinition = {
 export const roleblockerDefinition: RoleDefinition = {
   kind: "built-in",
   id: "roleblocker",
-  metadata: { name: "Roleblocker", group: RoleGroup.Town, category: "town-support", summary: "Blocks night action.", description: "Roleblocks target with conversion chance against non-town.", isUnique: false },
+  metadata: {
+    name: "Roleblocker",
+    group: RoleGroup.Town,
+    category: "town-support",
+    summary: "Blocks night action.",
+    description: "Roleblocks target with conversion chance against non-town.",
+    isUnique: false,
+  },
   balance: { power: 5 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: [...townTraits, RoleTrait.Roleblocker],
-  handlers: [{ onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.CannotBlockSelf, MessageKey.ChoseToBlock) }, roleblockVisit(false)],
+  handlers: [
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.CannotBlockSelf,
+          MessageKey.ChoseToBlock,
+        ),
+    },
+    roleblockVisit(false),
+  ],
 };
 
 export const bodyguardDefinition: RoleDefinition = {
   kind: "built-in",
   id: "bodyguard",
-  metadata: { name: "Bodyguard", group: RoleGroup.Town, category: "town-protective", summary: "Protects and retaliates.", description: "Protects target and hurts attackers.", isUnique: false },
+  metadata: {
+    name: "Bodyguard",
+    group: RoleGroup.Town,
+    category: "town-protective",
+    summary: "Protects and retaliates.",
+    description: "Protects target and hurts attackers.",
+    isUnique: false,
+  },
   balance: { power: 6 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.CannotProtectSelf, MessageKey.ChoseToProtect) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.CannotProtectSelf,
+          MessageKey.ChoseToProtect,
+        ),
+    },
     {
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        if (role.visiting.defence === CombatLevel.None) role.visiting.defence = CombatLevel.Low;
-        role.visiting.receiveVisit(role);
+        const target = registerNightVisit(role);
+        if (!target) return;
+        applyDefenceMinimum(target, CombatLevel.Low);
       },
       onVisitOutcomes: ({ role }) => {
         if (role.visiting === null) return;
         for (const visitor of role.visiting.visitors) {
           if (visitor === role || visitor === role.visiting) continue;
-          if (visitor.damage === CombatLevel.None) visitor.damage = CombatLevel.Low;
+          applyDamageMinimum(visitor, CombatLevel.Low);
           visitor.attackers.push(role);
         }
       },
@@ -240,47 +473,64 @@ export const bodyguardDefinition: RoleDefinition = {
 export const nimbyDefinition: RoleDefinition = {
   kind: "built-in",
   id: "nimby",
-  metadata: { name: "Nimby", group: RoleGroup.Town, category: "town-protective", summary: "Self alert mode.", description: "Alerts consume charges and retaliate visitors.", isUnique: false },
+  metadata: {
+    name: "Nimby",
+    group: RoleGroup.Town,
+    category: "town-protective",
+    summary: "Self alert mode.",
+    description: "Alerts consume charges and retaliate visitors.",
+    isUnique: false,
+  },
   balance: { power: 5 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: true, nightVisitOthers: false, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: true,
+    nightVisitOthers: false,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
     {
-      onAttach: ({ role }) => {
-        role.state.custom.nimby = { alertSlots: 3 };
-      },
-    },
-    {
+      onAttach: ({ role }) => role.setPersistentCharge(NIMBY_ALERT_SLOTS, 3),
       onNightCommand: ({ role }) => {
-        const alertSlots = role.state.custom.nimby?.alertSlots ?? 0;
-        if (alertSlots === 0) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.NimbyNoAlerts });
-          return true;
+        const alerts = role.getPersistentCharge(NIMBY_ALERT_SLOTS, 3);
+        if (alerts === 0) {
+          dispatchNotice(role, actorNotice({ key: MessageKey.NimbyNoAlerts }));
+          return rejected;
         }
-        if (role.visiting === null) {
-          role.visiting = role;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.NimbyDecidedAlert });
-        } else {
+        if (role.visiting === role) {
           role.visiting = null;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.NimbyDecidedNotAlert });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.NimbyDecidedNotAlert }),
+          );
+        } else {
+          chooseNightTarget(role, role);
+          dispatchNotice(role, actorNotice({ key: MessageKey.NimbyDecidedAlert }));
         }
-        return true;
+        return accepted;
       },
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
+        if (role.visiting !== role) return;
         if (role.defence === CombatLevel.None) {
           role.defence = CombatLevel.Low;
-          const currentSlots = role.state.custom.nimby?.alertSlots ?? 0;
-          role.state.custom.nimby = { alertSlots: Math.max(0, currentSlots - 1) };
+          const alerts = role.getPersistentCharge(NIMBY_ALERT_SLOTS, 3);
+          role.setPersistentCharge(
+            NIMBY_ALERT_SLOTS,
+            Math.max(0, alerts - 1),
+          );
         }
         role.receiveVisit(role);
       },
       onVisitOutcomes: ({ role }) => {
-        if (role.visiting === null) return;
+        if (role.visiting !== role) return;
         for (const visitor of role.visitors) {
           if (visitor === role) continue;
-          if (visitor.damage === CombatLevel.None) visitor.damage = CombatLevel.Low;
+          applyDamageMinimum(visitor, CombatLevel.Low);
         }
       },
     },
@@ -290,26 +540,56 @@ export const nimbyDefinition: RoleDefinition = {
 export const sacrificerDefinition: RoleDefinition = {
   kind: "built-in",
   id: "sacrificer",
-  metadata: { name: "Sacrificer", group: RoleGroup.Town, category: "town-protective", summary: "Sacrifices self to save target.", description: "If target is attacked, dies and reveals attackers.", isUnique: false },
+  metadata: {
+    name: "Sacrificer",
+    group: RoleGroup.Town,
+    category: "town-protective",
+    summary: "Sacrifices self to save target.",
+    description: "If target is attacked, dies and reveals attackers.",
+    isUnique: false,
+  },
   balance: { power: 8 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.CannotProtectSelf, MessageKey.ChoseToProtect) },
-    { onNightVisit: ({ role }) => role.visiting?.receiveVisit(role) },
+    {
+      onNightCommand: ({ role, recipient }) =>
+        chooseNightOther(
+          role,
+          recipient,
+          MessageKey.CannotProtectSelf,
+          MessageKey.ChoseToProtect,
+        ),
+    },
+    { onNightVisit: ({ role }) => void registerNightVisit(role) },
     {
       onVisitOutcomes: ({ role }) => {
-        if (role.visiting === null || role.visiting.attackers.length === 0) return;
-        role.visiting.defence = CombatLevel.High;
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.SacrificerDied });
-        io.to(role.visiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.TargetSavedBySacricer });
+        const target = role.visiting;
+        if (target === null || target.attackers.length === 0) return;
+        target.defence = CombatLevel.High;
+        dispatchNotice(role, actorNotice({ key: MessageKey.SacrificerDied }));
+        dispatchNotice(target, actorNotice({ key: MessageKey.TargetSavedBySacricer }));
         role.damage = CombatLevel.Critical;
-        for (const attacker of role.visiting.attackers) {
-          io.to(role.visiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.AttackedByWithRole,
-            params: { playerName: attacker.player.username, roleName: attacker.name },
-          });
+        for (const attacker of target.attackers) {
+          dispatchNotice(
+            target,
+            actorNotice({
+              key: MessageKey.AttackedByWithRole,
+              params: {
+                playerName: attacker.player.username,
+                roleName: attacker.name,
+              },
+            }),
+          );
         }
       },
     },
@@ -319,86 +599,129 @@ export const sacrificerDefinition: RoleDefinition = {
 export const fortifierDefinition: RoleDefinition = {
   kind: "built-in",
   id: "fortifier",
-  metadata: { name: "Fortifier", group: RoleGroup.Town, category: "town-protective", summary: "Applies persistent fortification.", description: "Fortifies a house, then may strip with fatal risk.", isUnique: false },
+  metadata: {
+    name: "Fortifier",
+    group: RoleGroup.Town,
+    category: "town-protective",
+    summary: "Applies persistent fortification.",
+    description: "Fortifies a house, then may strip with fatal risk.",
+    isUnique: false,
+  },
   balance: { power: 8 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
     {
       onAttach: ({ role }) => {
-        role.state.custom.fortifier = {
-          canFortify: true,
-          playerFortified: null,
-        };
+        role.setPersistentFlag(FORTIFIER_CAN_FORTIFY, true);
+        role.setPersistentTarget(FORTIFIER_TARGET, null);
       },
-    },
-    {
       onNightCommand: ({ role, recipient }) => {
+        const canFortify = role.getPersistentFlag(FORTIFIER_CAN_FORTIFY);
+        const fortifiedTarget = role.getPersistentTarget(FORTIFIER_TARGET);
+
         if (recipient === role.player) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.FortifierCannotFortifySelf });
-          return true;
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.FortifierCannotFortifySelf }),
+          );
+          return rejected;
         }
-        const fortifierState = role.state.custom.fortifier;
-        const canFortify = fortifierState?.canFortify ?? true;
-        const playerFortified = fortifierState?.playerFortified ?? null;
-        if (recipient.isAlive && canFortify) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.FortifierChoseToFortify,
-            params: { targetName: recipient.username },
-          });
+
+        if (canFortify && recipient.isAlive) {
+          dispatchNotice(
+            role,
+            actorNotice({
+              key: MessageKey.FortifierChoseToFortify,
+              params: { targetName: recipient.username },
+            }),
+          );
           role.visiting = recipient.role;
-          return true;
+          return accepted;
         }
-        if (playerFortified && playerFortified.player.isAlive && !canFortify) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.FortifierChoseToRemove,
-            params: { targetName: playerFortified.player.username },
-          });
-          role.visiting = recipient.role;
-          return true;
+
+        if (fortifiedTarget && fortifiedTarget.player.isAlive && !canFortify) {
+          dispatchNotice(
+            role,
+            actorNotice({
+              key: MessageKey.FortifierChoseToRemove,
+              params: { targetName: fortifiedTarget.player.username },
+            }),
+          );
+          role.visiting = fortifiedTarget;
+          return accepted;
         }
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: playerFortified ? MessageKey.FortifierCannotRemoveDead : MessageKey.InvalidChoice,
-        });
-        return true;
+
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: fortifiedTarget
+              ? MessageKey.FortifierCannotRemoveDead
+              : MessageKey.InvalidChoice,
+          }),
+        );
+        return rejected;
       },
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        role.visiting.receiveVisit(role);
-        const fortifierState = role.state.custom.fortifier;
-        const canFortify = fortifierState?.canFortify ?? true;
-        const fortified = fortifierState?.playerFortified ?? null;
+        const target = registerNightVisit(role);
+        if (!target) return;
+        const canFortify = role.getPersistentFlag(FORTIFIER_CAN_FORTIFY);
+        const fortifiedTarget = role.getPersistentTarget(FORTIFIER_TARGET);
+
         if (canFortify) {
-          role.state.custom.fortifier = {
-            canFortify: false,
-            playerFortified: role.visiting,
-          };
-          role.visiting.baseDefence += CombatLevel.Medium;
-          io.to(role.visiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.FortifierHouseFortified });
+          role.setPersistentFlag(FORTIFIER_CAN_FORTIFY, false);
+          role.setPersistentTarget(FORTIFIER_TARGET, target);
+          target.baseDefence += CombatLevel.Medium;
+          dispatchNotice(
+            target,
+            actorNotice({ key: MessageKey.FortifierHouseFortified }),
+          );
           return;
         }
-        if (!fortified) return;
-        role.visiting.baseDefence -= CombatLevel.Medium;
-        if (Math.random() > 0.5) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.FortifierDiedStripping });
-          io.to(fortified.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.FortifierOwnerDiedStripping,
-            params: { playerName: fortified.player.username },
-          });
+
+        if (!fortifiedTarget) return;
+        fortifiedTarget.baseDefence -= CombatLevel.Medium;
+        role.setPersistentTarget(FORTIFIER_TARGET, null);
+        if (role.room.random() > 0.5) {
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.FortifierDiedStripping }),
+          );
+          dispatchNotice(
+            fortifiedTarget,
+            actorNotice({
+              key: MessageKey.FortifierOwnerDiedStripping,
+              params: { playerName: fortifiedTarget.player.username },
+            }),
+          );
           role.damage = CombatLevel.Fatal;
         } else {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.FortifierStrippedKilledOwner });
-          io.to(fortified.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.FortifierTargetDied });
-          fortified.damage = CombatLevel.Fatal;
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.FortifierStrippedKilledOwner }),
+          );
+          dispatchNotice(
+            fortifiedTarget,
+            actorNotice({ key: MessageKey.FortifierTargetDied }),
+          );
+          fortifiedTarget.damage = CombatLevel.Fatal;
         }
       },
       onVisitOutcomes: ({ role }) => {
-        const fortified = role.state.custom.fortifier?.playerFortified ?? null;
-        if (!fortified || role.visiting === null) return;
-        for (const attacker of role.visiting.attackers) {
-          if (attacker !== role && attacker !== role.visiting) {
-            if (attacker.damage === CombatLevel.None) attacker.damage = CombatLevel.Low;
+        const fortifiedTarget = role.getPersistentTarget(FORTIFIER_TARGET);
+        if (!fortifiedTarget) return;
+        for (const attacker of fortifiedTarget.attackers) {
+          if (attacker !== role && attacker !== fortifiedTarget) {
+            applyDamageMinimum(attacker, CombatLevel.Low);
             attacker.attackers.push(role);
           }
         }
@@ -410,55 +733,100 @@ export const fortifierDefinition: RoleDefinition = {
 export const jailorDefinition: RoleDefinition = {
   kind: "built-in",
   id: "jailor",
-  metadata: { name: "Jailor", group: RoleGroup.Town, category: "town-killing", summary: "Jails by day, can execute by night.", description: "Private night chat with jailed target.", isUnique: true },
+  metadata: {
+    name: "Jailor",
+    group: RoleGroup.Town,
+    category: "town-killing",
+    summary: "Jails by day, can execute by night.",
+    description: "Private night chat with jailed target.",
+    isUnique: true,
+  },
   balance: { power: 12 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: true, dayVisitFaction: false, nightVisitSelf: true, nightVisitOthers: false, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: true,
+    dayVisitFaction: false,
+    nightVisitSelf: true,
+    nightVisitOthers: false,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: [...townTraits, RoleTrait.Unique],
   handlers: [
     {
       onHandleMessage: ({ role, message }) => {
-        if (role.room.time === GamePhase.Day) return false;
-        if (role.dayVisiting === null) return false;
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveChatMessage, `Jailor: ${message}`);
-        io.to(role.dayVisiting.player.user.socketId).emit(ServerEvent.ReceiveChatMessage, `Jailor: ${message}`);
-        return true;
+        if (role.room.time === GamePhase.Day || role.dayVisiting === null) {
+          return notHandled;
+        }
+        dispatchNotice(
+          role,
+          actorNotice(`Jailor: ${message}`, ServerEvent.ReceiveChatMessage),
+        );
+        dispatchNotice(role, {
+          target: role.dayVisiting.player,
+          event: ServerEvent.ReceiveChatMessage,
+          message: `Jailor: ${message}`,
+        });
+        return handled;
       },
-      onDayCommand: ({ role, recipient }) => chooseDayOther(role, recipient, MessageKey.JailorCannotJailSelf, MessageKey.JailorChoseToJail),
+      onDayCommand: ({ role, recipient }) =>
+        chooseDayOther(
+          role,
+          recipient,
+          MessageKey.JailorCannotJailSelf,
+          MessageKey.JailorChoseToJail,
+        ),
       onNightCommand: ({ role }) => {
         if (role.dayVisiting === null) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.JailorNoJailed });
-          return true;
+          dispatchNotice(role, actorNotice({ key: MessageKey.JailorNoJailed }));
+          return rejected;
         }
         if (role.visiting === null) {
           role.visiting = role.dayVisiting;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.JailorDecidedToExecute });
-          io.to(role.dayVisiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.JailedWillBeExecuted });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.JailorDecidedToExecute }),
+          );
+          dispatchNotice(role, {
+            target: role.dayVisiting.player,
+            event: ServerEvent.ReceiveMessage,
+            message: { key: MessageKey.JailedWillBeExecuted },
+          });
         } else {
           role.visiting = null;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.JailorDecidedNotToExecute });
-          io.to(role.dayVisiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.JailedWillNotBeExecuted });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.JailorDecidedNotToExecute }),
+          );
+          dispatchNotice(role, {
+            target: role.dayVisiting.player,
+            event: ServerEvent.ReceiveMessage,
+            message: { key: MessageKey.JailedWillNotBeExecuted },
+          });
         }
-        return true;
+        return accepted;
       },
       onDayVisit: ({ role }) => {
-        if (role.dayVisiting === null) return;
-        io.to(role.dayVisiting.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.YouHaveBeenJailed });
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.JailorJailedTarget });
-        role.dayVisiting.jailed = role;
-        role.dayVisiting.roleblocked = true;
+        const target = role.dayVisiting;
+        if (target === null) return;
+        dispatchNotice(target, actorNotice({ key: MessageKey.YouHaveBeenJailed }));
+        dispatchNotice(role, actorNotice({ key: MessageKey.JailorJailedTarget }));
+        target.jailed = role;
+        roleblockTarget(target, role);
       },
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        role.visiting.receiveVisit(role);
-        if (role.visiting.damage < CombatLevel.High) role.visiting.damage = CombatLevel.High;
-        role.visiting.attackers.push(role);
+        const target = registerNightVisit(role);
+        if (!target) return;
+        applyDamageMinimum(target, CombatLevel.High);
+        addAttacker(target, role);
       },
       onVisitOutcomes: ({ role }) => {
-        if (role.dayVisiting === null) return;
-        role.dayVisiting.jailed = null;
-        if (role.dayVisiting.baseDefence === CombatLevel.None) {
-          role.dayVisiting.defence = CombatLevel.Low;
+        const target = role.dayVisiting;
+        if (target === null) return;
+        target.jailed = null;
+        if (target.baseDefence === CombatLevel.None) {
+          target.defence = CombatLevel.Low;
         }
       },
     },
@@ -468,34 +836,60 @@ export const jailorDefinition: RoleDefinition = {
 export const lawmanDefinition: RoleDefinition = {
   kind: "built-in",
   id: "lawman",
-  metadata: { name: "Lawman", group: RoleGroup.Town, category: "town-killing", summary: "Shoots at night, can become insane.", description: "If shoots town, becomes insane and forced random visits.", isUnique: true },
+  metadata: {
+    name: "Lawman",
+    group: RoleGroup.Town,
+    category: "town-killing",
+    summary: "Shoots at night, can become insane.",
+    description: "If shoots town, becomes insane and forced random visits.",
+    isUnique: true,
+  },
   balance: { power: 8 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: false, nightVisitOthers: true, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: false,
+    nightVisitOthers: true,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: [...townTraits, RoleTrait.LawmanFactionMember, RoleTrait.Unique],
   handlers: [
-    { onAttach: ({ role }) => role.isInsane = false },
+    { onAttach: ({ role }) => (role.isInsane = false) },
     {
       onNightCommand: ({ role, recipient }) => {
         if (role.isInsane) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.LawmanInsane });
-          return true;
+          dispatchNotice(role, actorNotice({ key: MessageKey.LawmanInsane }));
+          return rejected;
         }
-        return chooseNightOther(role, recipient, MessageKey.LawmanCannotShootSelf, MessageKey.ChoseToAttack);
+        return chooseNightOther(
+          role,
+          recipient,
+          MessageKey.LawmanCannotShootSelf,
+          MessageKey.ChoseToAttack,
+        );
       },
     },
     {
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
+        const target = registerNightVisit(role);
+        if (!target) return;
         if (role.isInsane) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.LawmanInsaneShooting });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.LawmanInsaneShooting }),
+          );
         }
-        if (role.visiting.damage === CombatLevel.None) role.visiting.damage = CombatLevel.Low;
-        role.visiting.attackers.push(role);
-        role.visiting.receiveVisit(role);
-        if (role.visiting.group === RoleGroup.Town) {
+        applyDamageMinimum(target, CombatLevel.Low);
+        addAttacker(target, role);
+        if (target.group === RoleGroup.Town) {
           role.isInsane = true;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.LawmanShotTownMember });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.LawmanShotTownMember }),
+          );
         }
       },
     },
@@ -505,59 +899,83 @@ export const lawmanDefinition: RoleDefinition = {
 export const vetterDefinition: RoleDefinition = {
   kind: "built-in",
   id: "vetter",
-  metadata: { name: "Vetter", group: RoleGroup.Town, category: "town-investigative", summary: "Researches two random players.", description: "Limited self-use research sessions.", isUnique: false },
+  metadata: {
+    name: "Vetter",
+    group: RoleGroup.Town,
+    category: "town-investigative",
+    summary: "Researches two random players.",
+    description: "Limited self-use research sessions.",
+    isUnique: false,
+  },
   balance: { power: 4 },
   combat: { baseDefence: CombatLevel.None },
-  capabilities: { dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false, nightVisitSelf: true, nightVisitOthers: false, nightVisitFaction: false, nightVote: false },
+  capabilities: {
+    dayVisitSelf: false,
+    dayVisitOthers: false,
+    dayVisitFaction: false,
+    nightVisitSelf: true,
+    nightVisitOthers: false,
+    nightVisitFaction: false,
+    nightVote: false,
+  },
   traits: townTraits,
   handlers: [
     {
-      onAttach: ({ role }) => {
-        role.state.custom.vetter = { researchSlots: 3 };
-      },
-    },
-    {
+      onAttach: ({ role }) => role.setPersistentCharge(VETTER_RESEARCH_SLOTS, 3),
       onNightCommand: ({ role }) => {
-        const slots = role.state.custom.vetter?.researchSlots ?? 0;
-        if (slots === 0) {
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.VetterNoSessions });
-          return true;
+        const researchSlots = role.getPersistentCharge(VETTER_RESEARCH_SLOTS, 3);
+        if (researchSlots === 0) {
+          dispatchNotice(role, actorNotice({ key: MessageKey.VetterNoSessions }));
+          return rejected;
         }
-        if (role.visiting === null) {
-          role.visiting = role;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.VetterDecidedToResearch });
-        } else {
+        if (role.visiting === role) {
           role.visiting = null;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, { key: MessageKey.VetterDecidedNotToResearch });
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.VetterDecidedNotToResearch }),
+          );
+        } else {
+          chooseNightTarget(role, role);
+          dispatchNotice(
+            role,
+            actorNotice({ key: MessageKey.VetterDecidedToResearch }),
+          );
         }
-        return true;
+        return accepted;
       },
       onNightVisit: ({ role }) => {
-        if (role.visiting === null) return;
-        role.visiting.receiveVisit(role);
-        const slots = role.state.custom.vetter?.researchSlots ?? 0;
-        role.state.custom.vetter = {
-          researchSlots: Math.max(0, slots - 1),
-        };
+        if (role.visiting !== role) return;
+        registerNightVisit(role);
+        const nextCount = Math.max(
+          0,
+          role.getPersistentCharge(VETTER_RESEARCH_SLOTS, 3) - 1,
+        );
+        role.setPersistentCharge(VETTER_RESEARCH_SLOTS, nextCount);
 
-        const p1 = Math.floor(Math.random() * role.room.playerList.length);
+        const p1 = role.room.randomIndex(role.room.playerList.length);
         let p2 = p1;
         while (p2 === p1 && role.room.playerList.length > 1) {
-          p2 = Math.floor(Math.random() * role.room.playerList.length);
+          p2 = role.room.randomIndex(role.room.playerList.length);
         }
-        const reported = Math.random() > 0.5 ? p1 : p2;
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.VetterResearchResult,
-          params: {
-            name1: role.room.playerList[p1]?.username ?? "",
-            name2: role.room.playerList[p2]?.username ?? "",
-            roleName: role.room.playerList[reported]?.role.name ?? "",
-          },
-        });
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.VetterSessionsLeft,
-          params: { count: role.state.custom.vetter?.researchSlots ?? 0 },
-        });
+        const reported = role.room.random() > 0.5 ? p1 : p2;
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: MessageKey.VetterResearchResult,
+            params: {
+              name1: role.room.playerList[p1]?.username ?? "",
+              name2: role.room.playerList[p2]?.username ?? "",
+              roleName: role.room.playerList[reported]?.role.name ?? "",
+            },
+          }),
+        );
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: MessageKey.VetterSessionsLeft,
+            params: { count: nextCount },
+          }),
+        );
       },
     },
   ],

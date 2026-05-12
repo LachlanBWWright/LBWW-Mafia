@@ -7,9 +7,29 @@ export class VisitResolutionSystem {
   constructor(private readonly room: Room) {}
 
   resolveNight(): void {
+    this.applyFactionIntents();
     this.processRoleBlockers();
     this.processVisitors();
     this.handleVisitOutcomes();
+  }
+
+  private applyFactionIntents(): void {
+    for (const faction of this.room.factionList) {
+      for (const intent of faction.drainNightIntents()) {
+        if (!intent.actor.player.isAlive || !intent.target.player.isAlive) {
+          continue;
+        }
+        intent.actor.visiting = intent.target;
+        if (intent.kind === "attack") {
+          intent.actor.setFactionAction({
+            kind: "attack",
+            damage: intent.damage,
+          });
+        } else {
+          intent.actor.setFactionAction({ kind: "forced-visit" });
+        }
+      }
+    }
   }
 
   private processRoleBlockers(): void {

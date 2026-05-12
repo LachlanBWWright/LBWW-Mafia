@@ -43,8 +43,8 @@ export interface RoleInterface {
   readonly roleblocker: boolean;
   roleblocked: boolean;
   silenced: boolean;
-  dayTapped: Role | boolean;
-  nightTapped: Role | boolean;
+  dayTappedBy: Role | null;
+  nightTappedBy: Role | null;
   jailed: Role | null;
 
   assignFaction(faction: Faction): void;
@@ -56,4 +56,7 @@ export interface RoleInterface {
   handleNightAction(recipient: Player): void;
   visit(): void;
   receiveVisit(visitor: Role): void;
+  onNightCleanup(): void;
+  onPlayerVotedOut(votedOut: Role): void;
+  onNoDeathDraw(): void;
 }

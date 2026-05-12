@@ -25,17 +25,13 @@ export class VictorySystem {
     }
 
     for (const candidate of this.room.playerList) {
-      if ("onPlayerVotedOut" in candidate.role && typeof candidate.role.onPlayerVotedOut === "function") {
-        candidate.role.onPlayerVotedOut(player.role);
-      }
+      candidate.role.onPlayerVotedOut(player.role);
     }
   }
 
   onNoDeathDraw(): void {
     for (const player of this.room.playerList) {
-      if ("onNoDeathDraw" in player.role && typeof player.role.onNoDeathDraw === "function") {
-        player.role.onNoDeathDraw();
-      }
+      player.role.onNoDeathDraw();
     }
   }
 }

@@ -1,10 +1,10 @@
-import type { RoleHandlerDefinition } from "./types.js";
+import type { RoleHandler } from "./types.js";
 
 export function lifecycleHandler(
   handler: Pick<
-    RoleHandlerDefinition,
+    RoleHandler,
     "onAttach" | "onInit" | "onDayUpdate" | "onNightCleanup"
   >,
-): RoleHandlerDefinition {
+): RoleHandler {
   return handler;
 }

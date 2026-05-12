@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ListGroup, Row, Col, Button, ButtonGroup } from "../ui/bootstrap-shim";
+import { DayTime } from "@mernmafia/shared/communication/events";
 
 export function PlayerItem({
   index,
@@ -34,7 +35,7 @@ export function PlayerItem({
   username: string | undefined;
   role: string | undefined;
   isAlive: boolean;
-  time: string;
+  time: DayTime;
   canTalk: boolean;
   canVisit: boolean[];
 }) {
@@ -66,23 +67,23 @@ export function PlayerItem({
 
   function canVisitFn() {
     if (!canTalk || !canVisitLocal) return false;
-    if (time === "Day") return canVisitDay;
-    if (time === "Night") return canVisitNight;
+    if (time === DayTime.Day) return canVisitDay;
+    if (time === DayTime.Night) return canVisitNight;
     return false;
   }
 
   function canVoteFn() {
-    if (time === "Day") {
+    if (time === DayTime.Day) {
       return !votingDisabled && votingFor === null && canTalk && dayNumber !== 1 && isAlive && !isUser;
     }
-    if (time === "Night") {
+    if (time === DayTime.Night) {
       return votingFor === null && canNightVote && isAlive && role === undefined && !isUser;
     }
     return false;
   }
 
   function canWhisperFn() {
-    return canTalk && canWhisper && time === "Day" && dayNumber !== 1 && (whisperingTo === null || whisperingTo === index);
+    return canTalk && canWhisper && time === DayTime.Day && dayNumber !== 1 && (whisperingTo === null || whisperingTo === index);
   }
 
   return (

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, afterEach, beforeAll } from "vitest";
+import { describe, expect, it, beforeAll } from "vitest";
 import { User } from "../../user/user.js";
 import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
-import { RoleFactory } from "./roleFactory.js";
+import { createRoleInstance } from "./roleFactory.js";
 import {
   confesserDefinition,
   framerDefinition,
@@ -10,8 +10,10 @@ import {
 } from "../definitions/neutral.js";
 import {
   doctorDefinition,
+  fortifierDefinition,
   jailorDefinition,
   lawmanDefinition,
+  nimbyDefinition,
   roleblockerDefinition,
 } from "../definitions/town.js";
 import { mafiaDefinition } from "../definitions/mafia.js";
@@ -20,6 +22,10 @@ import { GameSystems } from "../../rooms/systems/gameSystems.js";
 import { CombatLevel } from "../combatLevel.js";
 import { GamePhase } from "../../rooms/gamePhase.js";
 import { setGameEmitter } from "../../../servers/emitter.js";
+import type { RoleDefinition } from "./roleDefinition.js";
+import { accepted, rejected } from "./handlers/results.js";
+import { validateBuiltInCatalogs } from "./validation.js";
+import { ComposedFaction } from "../../factions/composition/composedFaction.js";
 
 function createSocket(id: string) {
   return {
@@ -33,8 +39,8 @@ function createPlayer(name: string): Player {
   return new Player(new User(createSocket(`${name}-socket`), name));
 }
 
-function assignRole(room: Room, player: Player, definition: Parameters<typeof RoleFactory.createRole>[0]) {
-  const role = RoleFactory.createRole(definition, room, player);
+function assignRole(room: Room, player: Player, definition: Parameters<typeof createRoleInstance>[0]) {
+  const role = createRoleInstance(definition, room, player);
   player.assignRole(role);
   return role;
 }
@@ -48,10 +54,6 @@ function wireRoom(room: Room): void {
   room.systems = new GameSystems(room);
 }
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 beforeAll(() => {
   setGameEmitter({
     to: () => ({ emit: () => {} }),
@@ -60,6 +62,10 @@ beforeAll(() => {
 });
 
 describe("composed role characterization", () => {
+  it("built-in role and faction catalogs validate together", () => {
+    expect(validateBuiltInCatalogs()).toEqual([]);
+  });
+
   it("doctor cannot heal self", () => {
     const room = new Room(2, "room-self-heal");
     const doctorPlayer = createPlayer("doctor");
@@ -96,13 +102,30 @@ describe("composed role characterization", () => {
     wireRoom(room);
     roleA.handleNightVote(victimPlayer);
     roleB.handleNightVote(victimPlayer);
-
-    vi.spyOn(Math, "random").mockReturnValue(0);
+    room.setRandomSource(() => 0);
     room.systems?.factions.resolveNight();
     room.systems?.visits.resolveNight();
 
     expect(victim.damage).toBe(CombatLevel.Low);
     expect(victim.attackers.length).toBeGreaterThan(0);
+  });
+
+  it("mafia votes are stored in faction runtime state instead of role fields", () => {
+    const room = new Room(3, "room-mafia-runtime");
+    const mafiaA = createPlayer("mafia-a");
+    const mafiaB = createPlayer("mafia-b");
+    const victimPlayer = createPlayer("victim");
+    room.playerList = [mafiaA, mafiaB, victimPlayer];
+    const roleA = assignRole(room, mafiaA, mafiaDefinition);
+    assignRole(room, mafiaB, mafiaDefinition);
+    const victim = assignRole(room, victimPlayer, maniacDefinition);
+
+    wireRoom(room);
+    const mafiaFaction = room.factionList[0] as ComposedFaction;
+    roleA.handleNightVote(victimPlayer);
+
+    expect(roleA.attackVote).toBeNull();
+    expect(mafiaFaction.readNightVotes()).toEqual([victim]);
   });
 
   it("roleblocker resolves before other visits and cancels roleblocked visit", () => {
@@ -118,7 +141,7 @@ describe("composed role characterization", () => {
     wireRoom(room);
     blocker.handleNightAction(attackerPlayer);
     attacker.handleNightAction(targetPlayer);
-    vi.spyOn(Math, "random").mockReturnValue(0.9);
+    room.setRandomSource(() => 0.9);
     room.systems?.visits.resolveNight();
 
     expect(attacker.roleblocked).toBe(false);
@@ -150,7 +173,7 @@ describe("composed role characterization", () => {
     const framer = assignRole(room, framerPlayer, framerDefinition);
     const victim = assignRole(room, victimPlayer, doctorDefinition);
 
-    framer.state.custom.framer = { target: victim };
+    framer.initRole();
     framer.onPlayerVotedOut(victim);
 
     expect(framer.victoryCondition).toBe(true);
@@ -183,10 +206,96 @@ describe("composed role characterization", () => {
     lawman.isInsane = true;
 
     wireRoom(room);
-    vi.spyOn(Math, "random").mockReturnValue(0.8);
+    room.setRandomSource(() => 0.8);
     room.systems?.factions.resolveNight();
+    room.systems?.visits.resolveNight();
 
     expect(lawman.visiting).not.toBeNull();
+  });
+
+  it("rejected commands do not fall through to later handlers", () => {
+    const room = new Room(2, "room-fallthrough");
+    const actorPlayer = createPlayer("actor");
+    const targetPlayer = createPlayer("target");
+    room.playerList = [actorPlayer, targetPlayer];
+
+    const rejectingRole: RoleDefinition = {
+      kind: "built-in",
+      id: "rejecting-role",
+      metadata: {
+        name: "Rejecting Role",
+        group: doctorDefinition.metadata.group,
+        category: "test-role",
+        summary: "Rejects the first command.",
+        description: "Used to verify command dispatch fallthrough behavior.",
+        isUnique: false,
+      },
+      balance: { power: 0 },
+      combat: { baseDefence: CombatLevel.None },
+      capabilities: {
+        dayVisitSelf: false,
+        dayVisitOthers: false,
+        dayVisitFaction: false,
+        nightVisitSelf: false,
+        nightVisitOthers: true,
+        nightVisitFaction: false,
+        nightVote: false,
+      },
+      traits: [],
+      handlers: [
+        { onNightCommand: () => rejected },
+        {
+          onNightCommand: ({ role, recipient }) => {
+            role.visiting = recipient.role;
+            return accepted;
+          },
+        },
+      ],
+    };
+
+    const role = assignRole(room, actorPlayer, rejectingRole);
+    assignRole(room, targetPlayer, doctorDefinition);
+
+    role.handleNightAction(targetPlayer);
+
+    expect(role.visiting).toBeNull();
+  });
+
+  it("nimby alert charges persist in runtime state across night cleanup", () => {
+    const room = new Room(2, "room-nimby-runtime");
+    const nimbyPlayer = createPlayer("nimby");
+    const otherPlayer = createPlayer("other");
+    room.playerList = [nimbyPlayer, otherPlayer];
+    const nimby = assignRole(room, nimbyPlayer, nimbyDefinition);
+    assignRole(room, otherPlayer, doctorDefinition);
+    room.systems = new GameSystems(room);
+
+    for (let night = 1; night <= 3; night++) {
+      nimby.handleNightAction(nimbyPlayer);
+      nimby.visit();
+      room.systems.combat.resolveNightCleanup(night, 3);
+    }
+
+    expect(nimby.getPersistentCharge("nimby-alert-slots")).toBe(0);
+
+    nimby.handleNightAction(nimbyPlayer);
+    expect(nimby.visiting).toBeNull();
+  });
+
+  it("fortifier keeps its persistent target in runtime state", () => {
+    const room = new Room(3, "room-fortifier-runtime");
+    const fortifierPlayer = createPlayer("fortifier");
+    const targetPlayer = createPlayer("target");
+    const otherPlayer = createPlayer("other");
+    room.playerList = [fortifierPlayer, targetPlayer, otherPlayer];
+    const fortifier = assignRole(room, fortifierPlayer, fortifierDefinition);
+    const target = assignRole(room, targetPlayer, doctorDefinition);
+    assignRole(room, otherPlayer, maniacDefinition);
+
+    fortifier.handleNightAction(targetPlayer);
+    fortifier.visit();
+
+    expect(fortifier.getPersistentTarget("fortifier-target")).toBe(target);
   });
 
   it("night cleanup clears temporary state", () => {
@@ -203,7 +312,7 @@ describe("composed role characterization", () => {
     role1.dayVisiting = role1;
     role1.visitors = [role1];
     role1.attackers = [role1];
-    role1.nightTapped = role1;
+    role1.nightTappedBy = role1;
     role1.damage = CombatLevel.Low;
 
     room.systems.combat.resolveNightCleanup(2, 3);
@@ -211,7 +320,7 @@ describe("composed role characterization", () => {
     expect(role1.visiting).toBeNull();
     expect(role1.dayVisiting).toBeNull();
     expect(role1.visitors).toHaveLength(0);
-    expect(role1.nightTapped).toBe(false);
+    expect(role1.nightTappedBy).toBeNull();
     expect(role1.damage).toBe(CombatLevel.None);
   });
 });

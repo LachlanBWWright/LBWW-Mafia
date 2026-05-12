@@ -2,6 +2,8 @@ import type { GameMessage } from "@mernmafia/shared/communication/messages";
 import type { Player } from "../../player/player.js";
 import type { Room } from "../../rooms/room.js";
 import type { ComposedFaction } from "./composedFaction.js";
+import type { FactionNightActionIntent } from "../nightIntent.js";
+import type { RoleTrait } from "../../roles/composition/roleTraits.js";
 
 export type FactionContext = {
   room: Room;
@@ -17,7 +19,7 @@ export interface FactionChatPolicy {
 }
 
 export interface FactionVotePolicy {
-  resolveVotes(context: FactionContext): void;
+  resolveVotes(context: FactionContext): FactionNightActionIntent[];
 }
 
 export interface FactionCleanupPolicy {
@@ -27,6 +29,7 @@ export interface FactionCleanupPolicy {
 export type FactionDefinition = {
   id: string;
   name: string;
+  memberTraits: RoleTrait[];
   membership: FactionMembershipRule;
   chatPolicy: FactionChatPolicy;
   votePolicy?: FactionVotePolicy;

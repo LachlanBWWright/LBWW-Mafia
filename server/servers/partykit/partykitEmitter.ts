@@ -13,6 +13,7 @@ import type {
   EmitTarget,
   DisconnectTarget,
 } from "@mernmafia/shared/communication/serverTypes";
+import { PartyKitMessageType } from "@mernmafia/shared/communication/events";
 
 /** Minimal subset of Party.Room that PartykitEmitter requires. */
 export type PartyRoomAdapter = {
@@ -32,10 +33,14 @@ export class PartykitEmitter implements GameEmitter {
 
   to(target: string): EmitTarget {
     if (target === this.roomName) {
-      // Broadcast to all connections in this party room
-      return {
-        emit: (event: string, ...args: unknown[]) => {
-          const message = JSON.stringify({ type: "event", event, args });
+        // Broadcast to all connections in this party room
+        return {
+          emit: (event: string, ...args: unknown[]) => {
+          const message = JSON.stringify({
+            type: PartyKitMessageType.Event,
+            event,
+            args,
+          });
           this.partyRoom.broadcast(message);
         },
       };
@@ -46,7 +51,11 @@ export class PartykitEmitter implements GameEmitter {
       emit: (event: string, ...args: unknown[]) => {
         const conn = this.partyRoom.getConnection(target);
         if (conn) {
-          const message = JSON.stringify({ type: "event", event, args });
+          const message = JSON.stringify({
+            type: PartyKitMessageType.Event,
+            event,
+            args,
+          });
           conn.send(message);
         }
       },

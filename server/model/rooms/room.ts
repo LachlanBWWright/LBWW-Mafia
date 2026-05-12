@@ -2,15 +2,21 @@ import { RoleHandler } from "./initRoles/roleHandler.js";
 import { User } from "../user/user.js";
 import { Player } from "../player/player.js";
 import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
-import { ServerEvent } from "@mernmafia/shared/communication/events";
-import { DayTime } from "@mernmafia/shared/communication/events";
+import {
+  ActionKind,
+  DayTime,
+  GameOutcome,
+  JoinRoomResultCode,
+  ServerEvent,
+  type GameEndResult,
+  type JoinRoomResult,
+} from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../servers/emitter.js";
 import { Faction } from "../factions/abstractFaction.js";
-import { Role } from "../roles/abstractRole.js";
 import { RoleGroup } from "../roles/roleGroup.js";
 import { CombatLevel } from "../roles/combatLevel.js";
-import { GamePhase } from "./gamePhase.js";
+import { clientPhaseMatchesRoomPhase, GamePhase } from "./gamePhase.js";
 import { names } from "../player/names/namesList.js";
 import { GameSystems } from "./systems/gameSystems.js";
 import {
@@ -30,8 +36,6 @@ const MAX_GAME_DAYS = 25;
 const DRAW_TRIGGER_DAYS = 3;
 const WHISPER_OVERHEARD_PROBABILITY = 0.1;
 const VOTE_QUORUM_OFFSET = 1;
-const GENERIC_JOIN_ERROR_CODE = 1;
-const ROOM_FULL_ERROR_CODE = 3;
 
 function createRoomName(): string {
   const bytes = new Uint8Array(8);
@@ -44,6 +48,7 @@ function createRoomName(): string {
 export class Room {
   readonly name: string;
   readonly size: number;
+  private randomSource: () => number = Math.random;
 
   /** Users connected in the lobby (before the game starts). */
   userList: User[] = [];
@@ -70,6 +75,34 @@ export class Room {
     this.sessionLength = this.size * SESSION_LENGTH_PER_PLAYER_MS;
   }
 
+  /**
+   * Overrides the random source used by room-scoped systems and composed handlers.
+   *
+   * @param source - Deterministic or custom random function.
+   */
+  setRandomSource(source: () => number): void {
+    this.randomSource = source;
+  }
+
+  /**
+   * Returns a room-scoped random float in the range [0, 1).
+   *
+   * @returns Random float.
+   */
+  random(): number {
+    return this.randomSource();
+  }
+
+  /**
+   * Returns a room-scoped random array index.
+   *
+   * @param length - Length of the target collection.
+   * @returns Random integer index.
+   */
+  randomIndex(length: number): number {
+    return Math.floor(this.random() * length);
+  }
+
   private recordConversation(
     content: string,
     actor?: string,
@@ -85,7 +118,7 @@ export class Room {
     });
   }
 
-  private recordAction(content: string, actor?: string, target?: string) {
+  private recordAction(content: ActionKind, actor?: string, target?: string) {
     this.actionHistory.push({
       time: Date.now(),
       type: "action",
@@ -97,38 +130,51 @@ export class Room {
 
   /** Returns the active Player for a given socket, or null if not found. */
   private getPlayerFromSocket(socket: GamePlayerSocket): Player | null {
-    if (socket.data.position === undefined) return null;
-    const user = this.userList[socket.data.position];
+    const position = socket.data.position;
+    if (typeof position !== "number") return null;
+    const user = this.getUserAt(position);
     if (!user) return null;
     return this.playerList.find((p) => p.user === user) ?? null;
   }
 
-  private isActionInWrongPhase(isDay: boolean) {
-    return (
-      (!isDay && this.time === GamePhase.Day) ||
-      (isDay && this.time === GamePhase.Night) ||
-      this.time === GamePhase.Idle
-    );
+  private getUserAt(index: number): User | null {
+    return this.userList[index] ?? null;
+  }
+
+  private getUserFromSocket(socket: GamePlayerSocket): User | null {
+    const position = socket.data.position;
+    if (typeof position !== "number") return null;
+    return this.getUserAt(position);
+  }
+
+  private getPlayerAt(index: number): Player | null {
+    return this.playerList[index] ?? null;
+  }
+
+  private isActionInWrongPhase(phase: DayTime): boolean {
+    return !clientPhaseMatchesRoomPhase(phase, this.time);
   }
 
   /**
    * Adds a connected client to the lobby.
    * Returns an error code on failure or the assigned username on success.
    */
-  addUser(playerSocket: GamePlayerSocket): string | number {
+  addUser(playerSocket: GamePlayerSocket): JoinRoomResult {
     const socketId = playerSocket.id;
     if (this.userList.some((u) => u.socketId === socketId))
-      return GENERIC_JOIN_ERROR_CODE;
+      return { status: "rejected", code: JoinRoomResultCode.GenericError };
     if (this.userList.length >= this.size) {
       void rotateActiveRoom().catch((error) => {
         console.error("Failed to rotate active room", error);
       });
-      return ROOM_FULL_ERROR_CODE;
+      return { status: "rejected", code: JoinRoomResultCode.RoomFull };
     }
 
     const takenNames = this.userList.map((u) => u.username);
     const username = names.find((n) => !takenNames.includes(n));
-    if (!username) return GENERIC_JOIN_ERROR_CODE;
+    if (!username) {
+      return { status: "rejected", code: JoinRoomResultCode.GenericError };
+    }
 
     const user = new User(playerSocket, username);
     const position = this.userList.push(user) - 1;
@@ -154,7 +200,7 @@ export class Room {
       this.startGame();
     }
 
-    return username;
+    return { status: "joined", username };
   }
 
   /** Handles a connected user leaving (pre-game removal or in-game death by abandonment). */
@@ -207,16 +253,15 @@ export class Room {
   handleSentMessage(
     playerSocket: GamePlayerSocket,
     message: string,
-    isDay: boolean,
+    phase: DayTime,
   ) {
-    if (this.isActionInWrongPhase(isDay)) return;
-    if (playerSocket.data.position === undefined) return;
-
-    if (this.started) {
-      this.handleGameMessage(playerSocket, message);
-    } else {
+    if (!this.started) {
       this.handleLobbyMessage(playerSocket, message);
+      return;
     }
+
+    if (this.isActionInWrongPhase(phase)) return;
+    this.handleGameMessage(playerSocket, message);
   }
 
   private handleGameMessage(
@@ -240,7 +285,7 @@ export class Room {
     playerSocket: GamePlayerSocket,
     message: string,
   ): void {
-    const user = this.userList[playerSocket.data.position!];
+    const user = this.getUserFromSocket(playerSocket);
     if (!user) return;
 
     io.to(this.name).emit(
@@ -253,13 +298,12 @@ export class Room {
   handleVote(
     playerSocket: GamePlayerSocket,
     recipient: number,
-    isDay: boolean,
+    phase: DayTime,
   ) {
-    if (this.isActionInWrongPhase(isDay)) return;
-    if (playerSocket.data.position === undefined) return;
+    if (!this.started || this.isActionInWrongPhase(phase)) return;
 
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
-    const foundRecipient = this.playerList[recipient];
+    const foundRecipient = this.getPlayerAt(recipient);
     if (!foundPlayer || !foundRecipient) return;
 
     if (foundPlayer.hasVoted) {
@@ -302,7 +346,7 @@ export class Room {
       return;
     }
 
-    this.recordAction("vote", foundPlayer.username, foundRecipient.username);
+    this.recordAction(ActionKind.Vote, foundPlayer.username, foundRecipient.username);
     foundPlayer.hasVoted = true;
     foundRecipient.votesReceived++;
     const voteMsg =
@@ -329,13 +373,12 @@ export class Room {
     playerSocket: GamePlayerSocket,
     recipient: number,
     message: string,
-    isDay: boolean,
+    phase: DayTime,
   ) {
-    if (this.isActionInWrongPhase(isDay)) return;
-    if (playerSocket.data.position === undefined) return;
+    if (!this.started || this.isActionInWrongPhase(phase)) return;
 
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
-    const foundRecipient = this.playerList[recipient];
+    const foundRecipient = this.getPlayerAt(recipient);
     if (!foundPlayer || !foundRecipient) return;
 
     if (this.time === GamePhase.Night) {
@@ -352,9 +395,13 @@ export class Room {
       return;
     }
 
-    this.recordAction("whisper", foundPlayer.username, foundRecipient.username);
+    this.recordAction(
+      ActionKind.Whisper,
+      foundPlayer.username,
+      foundRecipient.username,
+    );
 
-    if (WHISPER_OVERHEARD_PROBABILITY > Math.random()) {
+    if (WHISPER_OVERHEARD_PROBABILITY > this.random()) {
       this.broadcastWhisperOverheard(foundPlayer, foundRecipient, message);
       return;
     }
@@ -409,16 +456,16 @@ export class Room {
   ): void {
     const tappedMessage = `${sender.username} whispered "${message}" to ${recipient.username}.`;
 
-    const senderTap = sender.role.dayTapped;
-    if (senderTap instanceof Role) {
+    const senderTap = sender.role.dayTappedBy;
+    if (senderTap !== null) {
       io.to(senderTap.player.user.socketId).emit(
         ServerEvent.ReceiveWhisperMessage,
         tappedMessage,
       );
     }
 
-    const recipientTap = recipient.role.dayTapped;
-    if (recipientTap instanceof Role) {
+    const recipientTap = recipient.role.dayTappedBy;
+    if (recipientTap !== null) {
       io.to(recipientTap.player.user.socketId).emit(
         ServerEvent.ReceiveWhisperMessage,
         tappedMessage,
@@ -429,14 +476,12 @@ export class Room {
   handleVisit(
     playerSocket: GamePlayerSocket,
     recipient: number | null,
-    isDay: boolean,
+    phase: DayTime,
   ) {
-    if (this.isActionInWrongPhase(isDay)) return;
-    if (playerSocket.data.position === undefined) return;
+    if (!this.started || this.isActionInWrongPhase(phase)) return;
 
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
-    const foundRecipient =
-      recipient !== null ? this.playerList[recipient] : null;
+    const foundRecipient = recipient !== null ? this.getPlayerAt(recipient) : null;
     if (!foundPlayer) return;
 
     if (this.time === GamePhase.Day) {
@@ -453,7 +498,7 @@ export class Room {
     }
 
     this.recordAction(
-      "day-visit",
+      ActionKind.DayVisit,
       foundPlayer.username,
       foundRecipient.username,
     );
@@ -478,7 +523,7 @@ export class Room {
     }
 
     this.recordAction(
-      "night-visit",
+      ActionKind.NightVisit,
       foundPlayer.username,
       foundRecipient.username,
     );
@@ -607,7 +652,7 @@ export class Room {
       key: MessageKey.GameEndedNobodyDied,
     });
     this.systems?.victory.onNoDeathDraw();
-    this.endGame("nobody");
+    this.endGame({ outcome: GameOutcome.Draw });
   }
 
   private getLivingPlayers(): Player[] {
@@ -633,13 +678,16 @@ export class Room {
     this.prepareForNight(dayNumber);
 
     if (dayNumber >= MAX_GAME_DAYS) {
-      this.endGame("nobody");
+      this.endGame({ outcome: GameOutcome.Draw });
       return;
     }
 
     const winningFaction = this.findWinningFaction();
     if (winningFaction !== null) {
-      this.endGame(winningFaction);
+      this.endGame({
+        outcome: GameOutcome.Faction,
+        factionName: winningFaction,
+      });
     } else {
       this.startNightSession(dayNumber, sessionLength * 0.85);
     }
@@ -683,7 +731,7 @@ export class Room {
     for (const player of this.playerList) {
       if (player.isAlive) {
         player.role.dayVisit();
-        player.role.dayTapped = false;
+        player.role.dayTappedBy = null;
         player.hasVoted = false;
       }
     }
@@ -716,7 +764,10 @@ export class Room {
   ): void {
     const winningFaction = this.findWinningFaction();
     if (winningFaction !== null) {
-      this.endGame(winningFaction);
+      this.endGame({
+        outcome: GameOutcome.Faction,
+        factionName: winningFaction,
+      });
     } else {
       this.startDaySession(nightNumber + 1, sessionLength);
     }
@@ -736,12 +787,14 @@ export class Room {
     return lastFaction;
   }
 
-  endGame(winningFactionName: string) {
+  endGame(result: GameEndResult) {
     this.gameHasEnded = true;
+    const winningFactionName =
+      result.outcome === GameOutcome.Faction ? result.factionName : GameOutcome.Draw;
 
     const winningRoles = this.playerList
       .filter((player) => {
-        if (winningFactionName === "nobody") return false;
+        if (result.outcome === GameOutcome.Draw) return false;
         if (winningFactionName === RoleGroup.Neutral)
           return player.role.group === RoleGroup.Neutral;
         return player.role.group === winningFactionName;
@@ -758,7 +811,7 @@ export class Room {
         username: player.username,
         role: player.role.name,
         won:
-          winningFactionName === "nobody"
+          result.outcome === GameOutcome.Draw
             ? false
             : winningFactionName === RoleGroup.Neutral
               ? player.role.group === RoleGroup.Neutral
@@ -770,7 +823,7 @@ export class Room {
       console.error("Failed to persist match history", error);
     });
 
-    if (winningFactionName === "nobody") {
+    if (result.outcome === GameOutcome.Draw) {
       io.to(this.name).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.GameEndedDraw,
       });

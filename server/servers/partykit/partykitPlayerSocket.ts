@@ -3,6 +3,7 @@
  * expected by Room and Player classes.
  */
 import type { GamePlayerSocket } from "@mernmafia/shared/communication/serverTypes";
+import { PartyKitMessageType } from "@mernmafia/shared/communication/events";
 import type { Room } from "../../model/rooms/room.js";
 
 /** Minimal subset of Party.Connection that PartykitPlayerSocket requires. */
@@ -46,7 +47,11 @@ export class PartykitPlayerSocket implements GamePlayerSocket {
    * @returns
    */
   sendCallback(callbackId: string, ...args: unknown[]): void {
-    const message = JSON.stringify({ type: "callback", callbackId, args });
+    const message = JSON.stringify({
+      type: PartyKitMessageType.Callback,
+      callbackId,
+      args,
+    });
     this.connection.send(message);
   }
 }

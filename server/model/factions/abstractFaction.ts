@@ -2,6 +2,8 @@ import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { io } from "../../servers/emitter.js";
 import { Player } from "../player/player.js";
 import type { GameMessage } from "@mernmafia/shared/communication/messages";
+import type { Role } from "../roles/abstractRole.js";
+import type { FactionNightActionIntent } from "./nightIntent.js";
 
 export abstract class Faction {
   memberList: Player[] = [];
@@ -76,4 +78,16 @@ export abstract class Faction {
    * @abstract
    */
   abstract removeMembers(): void;
+
+  drainNightIntents(): FactionNightActionIntent[] {
+    return [];
+  }
+
+  recordNightVote(_actor: Role, _target: Role | null): void {}
+
+  readNightVotes(): Role[] {
+    return [];
+  }
+
+  clearNightVotes(): void {}
 }

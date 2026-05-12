@@ -1,3 +1,5 @@
+import { DayTime } from "@mernmafia/shared/communication/events";
+
 /**
  * Server-side game phase enum.
  * Represents the internal lifecycle state of a Room on the server.
@@ -12,4 +14,18 @@ export enum GamePhase {
   Night = "night",
   /** Transition phase — night actions are being processed before the next day starts. */
   Processing = "processing",
+}
+
+export function clientPhaseMatchesRoomPhase(
+  clientPhase: DayTime,
+  roomPhase: GamePhase,
+): boolean {
+  switch (roomPhase) {
+    case GamePhase.Day:
+      return clientPhase === DayTime.Day;
+    case GamePhase.Night:
+      return clientPhase === DayTime.Night;
+    default:
+      return false;
+  }
 }

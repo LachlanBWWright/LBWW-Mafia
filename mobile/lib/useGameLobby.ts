@@ -8,7 +8,12 @@ import {
   defaultVisitCapability,
   DayTime as DayTimeEnum,
 } from "../../shared/game/playerActionRules";
-import { ClientEvent, ServerEvent } from "../../shared/communication/events";
+import {
+  ClientEvent,
+  JoinRoomResultCode,
+  ServerEvent,
+  type JoinRoomResult,
+} from "../../shared/communication/events";
 import type {
   GameSocket,
   SocketBackendType,
@@ -30,8 +35,6 @@ type ChatMessage = {
   id: number;
   text: string;
 };
-
-const JOIN_ERROR = { CAPTCHA_FAILED: 2, ROOM_FULL: 3 } as const;
 
 function resolveBackend(value: string | undefined): SocketBackendType {
   return value === "partykit" ? "partykit" : "socketio";
@@ -237,10 +240,10 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
       socketRef.current?.emit(
         ClientEvent.PlayerJoinRoom,
         captchaToken,
-        (result: string | number) => {
+        (result: JoinRoomResult) => {
           clearTimeout(timeout);
-          if (typeof result === "string") {
-            setPlayerName(result);
+          if (result.status === "joined") {
+            setPlayerName(result.username);
             setCurrentUserRole(undefined);
             setVisitCapability(defaultVisitCapability);
             setJoinStatus("");
@@ -248,12 +251,14 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
             msgIdRef.current = 0;
             setCanTalk(true);
             setCanVote(true);
-          } else if (result === JOIN_ERROR.ROOM_FULL) {
-            setJoinStatus("Room is full. Please try again.");
-          } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
-            setJoinStatus("Failed captcha verification.");
           } else {
-            setJoinStatus("Unable to join room.");
+            if (result.code === JoinRoomResultCode.RoomFull) {
+              setJoinStatus("Room is full. Please try again.");
+            } else if (result.code === JoinRoomResultCode.CaptchaFailed) {
+              setJoinStatus("Failed captcha verification.");
+            } else {
+              setJoinStatus("Unable to join room.");
+            }
           }
 
           joiningRef.current = false;
@@ -270,7 +275,7 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
     socketRef.current.emit(
       ClientEvent.MessageSentByUser,
       messageDraft.trim(),
-      time === DayTimeEnum.Day,
+      time,
     );
     setMessageDraft("");
   };
@@ -279,7 +284,7 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
     if (!socketRef.current || time !== DayTimeEnum.Day) {
       return;
     }
-    socketRef.current.emit(ClientEvent.HandleVote, index, true);
+    socketRef.current.emit(ClientEvent.HandleVote, index, DayTimeEnum.Day);
   };
 
   const visitPlayer = (index: number) => {
@@ -289,7 +294,7 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
     socketRef.current.emit(
       ClientEvent.HandleVisit,
       index,
-      time === DayTimeEnum.Day,
+      time,
     );
   };
 
@@ -301,7 +306,7 @@ export function useGameLobby(roomId: string): LobbyState & LobbyActions {
       ClientEvent.HandleWhisper,
       index,
       messageDraft.trim(),
-      time === DayTimeEnum.Day,
+      time,
     );
     setMessageDraft("");
   };

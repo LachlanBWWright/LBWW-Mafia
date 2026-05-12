@@ -5,12 +5,14 @@ import { io } from "socket.io-client";
 import { SocketIoClientAdapter } from "@mernmafia/shared/communication/socketIoClientAdapter";
 import { PartykitClientAdapter } from "@mernmafia/shared/communication/partykitClientAdapter";
 import type {
+  JoinRoomResult,
   PlayerList,
   PlayerReturned,
 } from "@mernmafia/shared/communication/events";
 import {
   ServerEvent,
   ClientEvent,
+  JoinRoomResultCode,
 } from "@mernmafia/shared/communication/events";
 import { DayTime } from "@mernmafia/shared/game/playerActionRules";
 import type { VisitCapability } from "@mernmafia/shared/game/playerActionRules";
@@ -43,7 +45,6 @@ const CAPTCHA_TOKEN =
 const JOIN_TIMEOUT_MS = 7000;
 const AUTO_JOIN_DELAY_MS = 0;
 const TIMER_INTERVAL_MS = 1000;
-const JOIN_ERROR = { CAPTCHA_FAILED: 2, ROOM_FULL: 3 } as const;
 
 export type Player = { name: string; isAlive?: boolean; role?: string };
 type ChatMessage = { id: number; text: string };
@@ -134,11 +135,11 @@ function performJoin(ctx: JoinContext) {
     ctx.socket.emit(
       ClientEvent.PlayerJoinRoom,
       CAPTCHA_TOKEN,
-      (result: string | number) => {
+      (result: JoinRoomResult) => {
         clearTimeout(timeout);
-        if (typeof result === "string") {
-          ctx.playerNameRef.current = result;
-          ctx.setPlayerName(result);
+        if (result.status === "joined") {
+          ctx.playerNameRef.current = result.username;
+          ctx.setPlayerName(result.username);
           ctx.setCurrentUserRole(undefined);
           ctx.setVisitCapability(defaultVisitCapability);
           ctx.setJoinStatus("");
@@ -146,13 +147,15 @@ function performJoin(ctx: JoinContext) {
           ctx.msgIdRef.current = 0;
           ctx.setCanTalk(true);
           ctx.setCanVote(true);
-        } else if (result === JOIN_ERROR.ROOM_FULL) {
-          ctx.setJoinStatus("Room is full. Finding another room...");
-          ctx.onRoomFull?.();
-        } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
-          ctx.setJoinStatus("Failed captcha verification.");
         } else {
-          ctx.setJoinStatus("Unable to join room.");
+          if (result.code === JoinRoomResultCode.RoomFull) {
+            ctx.setJoinStatus("Room is full. Finding another room...");
+            ctx.onRoomFull?.();
+          } else if (result.code === JoinRoomResultCode.CaptchaFailed) {
+            ctx.setJoinStatus("Failed captcha verification.");
+          } else {
+            ctx.setJoinStatus("Unable to join room.");
+          }
         }
         ctx.joiningRef.current = false;
         ctx.setJoining(false);
@@ -331,22 +334,18 @@ export function useGameLobby(
 
   const sendMessage = () => {
     if (!socket || !messageDraft.trim()) return;
-    socket.emit(
-      ClientEvent.MessageSentByUser,
-      messageDraft.trim(),
-      time === DayTime.Day,
-    );
+    socket.emit(ClientEvent.MessageSentByUser, messageDraft.trim(), time);
     setMessageDraft("");
   };
 
   const voteForPlayer = (index: number) => {
     if (!socket || time !== DayTime.Day) return;
-    socket.emit(ClientEvent.HandleVote, index, true);
+    socket.emit(ClientEvent.HandleVote, index, DayTime.Day);
   };
 
   const visitPlayer = (index: number) => {
     if (!socket) return;
-    socket.emit(ClientEvent.HandleVisit, index, time === DayTime.Day);
+    socket.emit(ClientEvent.HandleVisit, index, time);
   };
 
   const whisperToPlayer = (index: number) => {
@@ -355,7 +354,7 @@ export function useGameLobby(
       ClientEvent.HandleWhisper,
       index,
       messageDraft.trim(),
-      time === DayTime.Day,
+      time,
     );
     setMessageDraft("");
   };

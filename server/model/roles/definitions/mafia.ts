@@ -1,11 +1,22 @@
-import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { io } from "../../../servers/emitter.js";
 import { CombatLevel } from "../combatLevel.js";
 import { RoleGroup } from "../roleGroup.js";
 import type { RoleDefinition } from "../composition/roleDefinition.js";
 import { RoleTrait } from "../composition/roleTraits.js";
-import { chooseNightOther, roleblockVisit } from "./helpers.js";
+import type { RoleHandler } from "../composition/handlers/types.js";
+import { chooseNightOther } from "../composition/handlers/targeting.js";
+import {
+  addAttacker,
+  applyDamageMinimum,
+  registerNightVisit,
+  roleblockVisit,
+} from "../composition/handlers/effects.js";
+import {
+  actorNotice,
+  dispatchNotice,
+  factionNotice,
+} from "../composition/handlers/notices.js";
+import { accepted, rejected } from "../composition/handlers/results.js";
 
 const mafiaTraits = [
   RoleTrait.MafiaAligned,
@@ -13,39 +24,39 @@ const mafiaTraits = [
   RoleTrait.CanBeMafiaAttacker,
 ];
 
-function mafiaVoteHandler(): RoleDefinition["handlers"][number] {
+function mafiaVoteHandler(): RoleHandler {
   return {
     onNightVote: ({ role, recipient }) => {
-      if (role.faction === undefined || !recipient.isAlive || recipient.role.faction === role.faction) {
+      if (
+        !role.faction ||
+        !recipient.isAlive ||
+        recipient.role.faction === role.faction
+      ) {
         role.attackVote = null;
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.MafiaInvalidVote,
-        });
-        return true;
+        dispatchNotice(role, actorNotice({ key: MessageKey.MafiaInvalidVote }));
+        return rejected;
       }
-      role.attackVote = recipient.role;
-      role.faction.sendMessage({
-        key: MessageKey.MafiaVotedToAttack,
-        params: {
-          playerName: role.player.username,
-          targetName: recipient.username,
-        },
-      });
-      return true;
+      role.faction.recordNightVote(role, recipient.role);
+      dispatchNotice(
+        role,
+        factionNotice({
+          key: MessageKey.MafiaVotedToAttack,
+          params: {
+            playerName: role.player.username,
+            targetName: recipient.username,
+          },
+        }),
+      );
+      return accepted;
     },
     onNightVisit: ({ role }) => {
-      if (role.visiting === null) return;
-      if (role.isAttacking) {
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.MafiaChosenAttacker,
-        });
-      }
-      role.visiting.receiveVisit(role);
-      if (role.visiting.damage === CombatLevel.None) {
-        role.visiting.damage = CombatLevel.Low;
-      }
-      role.visiting.attackers.push(role);
-      role.isAttacking = false;
+      const factionAction = role.consumeFactionAction("attack");
+      if (!factionAction || factionAction.kind !== "attack") return;
+      const target = registerNightVisit(role);
+      if (!target) return;
+      dispatchNotice(role, actorNotice({ key: MessageKey.MafiaChosenAttacker }));
+      applyDamageMinimum(target, factionAction.damage);
+      addAttacker(target, role);
     },
   };
 }
@@ -97,14 +108,18 @@ export const mafiaInvestigatorDefinition: RoleDefinition = {
     {
       onNightVisit: ({ role }) => {
         if (!role.isAttacking && role.visiting) {
-          role.visiting.receiveVisit(role);
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.MafiaInvestigatorResult,
-            params: {
-              targetName: role.visiting.player.username,
-              roleName: role.visiting.name,
-            },
-          });
+          const target = registerNightVisit(role);
+          if (!target) return;
+          dispatchNotice(
+            role,
+            actorNotice({
+              key: MessageKey.MafiaInvestigatorResult,
+              params: {
+                targetName: target.player.username,
+                roleName: target.name,
+              },
+            }),
+          );
         }
       },
     },

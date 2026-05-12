@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { Form, Button, ListGroup } from "../ui/bootstrap-shim";
 import { PlayerItem } from "./PlayerItem";
 import { socket } from "../socket/socket";
+import {
+  ClientEvent,
+  DayTime,
+  JoinRoomResultCode,
+} from "@mernmafia/shared/communication/events";
 
 type MsgType = {
   type: number;
@@ -30,7 +35,7 @@ export function Room({
 }) {
   const [textMessage, setTextMessage] = useState("");
   const [canTalk, setCanTalk] = useState(true);
-  const [time, setTime] = useState("Day");
+  const [time, setTime] = useState(DayTime.Day);
   const [dayNumber, setDayNumber] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [messages, setMessages] = useState<MsgType[]>([]);
@@ -78,10 +83,10 @@ export function Room({
   function handleVisit(playerIndex: number) {
     if (visiting !== playerIndex) {
       setVisiting(playerIndex);
-      socket.emit("handleVisit", playerIndex, time === "Day");
+      socket.emit(ClientEvent.HandleVisit, playerIndex, time);
     } else {
       setVisiting(null);
-      socket.emit("handleVisit", null, time === "Day");
+      socket.emit(ClientEvent.HandleVisit, null, time);
     }
   }
 
@@ -124,7 +129,7 @@ export function Room({
       textMessage.length <= 150 &&
       whisperingTo !== null
     ) {
-      socket.emit("handleWhisper", whisperingTo, textMessage, time === "Day");
+      socket.emit(ClientEvent.HandleWhisper, whisperingTo, textMessage, time);
     }
     setTextMessage("");
     setWhisperingTo(null);
@@ -133,18 +138,14 @@ export function Room({
   }
 
   function handleVote(playerIndex: number) {
-    if (votingFor !== playerIndex) {
-      setVotingFor(playerIndex); //this.setState({ votingFor: playerIndex });
-      socket.emit("handleVote", playerIndex, time === "Day");
-    } else {
-      setVotingFor(null);
-      socket.emit("handleVote", null, time === "Day");
-    }
+    if (votingFor === playerIndex) return;
+    setVotingFor(playerIndex);
+    socket.emit(ClientEvent.HandleVote, playerIndex, time);
   }
 
   function sendMessage() {
     if (textMessage.length > 0 && textMessage.length <= 150) {
-      socket.emit("messageSentByUser", textMessage, time === "Day"); //Sends to server
+      socket.emit(ClientEvent.MessageSentByUser, textMessage, time);
       setTextMessage("");
     }
   }
@@ -295,7 +296,7 @@ export function Room({
 
     socket.on(
       "update-day-time",
-      (infoJson: { time: string; dayNumber: number; timeLeft: number }) => {
+        (infoJson: { time: DayTime; dayNumber: number; timeLeft: number }) => {
         //Gets whether it is day or night, and how long there is left in the session
         setTime(infoJson.time);
         setDayNumber(infoJson.dayNumber);
@@ -323,23 +324,23 @@ export function Room({
       setCanTalk(false);
     });
 
-    socket.emit("playerJoinRoom", captchaToken, (callback: string | number) => {
-      console.log("CALLBACK:" + callback);
-      if (typeof callback == "number") {
-        if (callback === 1)
-          setFailReason("Your socket ID was equal to existing player in room.");
-        else if (callback === 2)
-          setFailReason(
-            "Your selected username was the same as another player in the room.",
-          );
-        else if (callback === 3) setFailReason("The room was full.");
+    socket.emit(ClientEvent.PlayerJoinRoom, captchaToken, (result) => {
+      console.log("CALLBACK:", result);
+      if (result.status === "rejected") {
+        if (result.code === JoinRoomResultCode.GenericError) {
+          setFailReason("Unable to join the room.");
+        } else if (result.code === JoinRoomResultCode.CaptchaFailed) {
+          setFailReason("Captcha verification failed.");
+        } else if (result.code === JoinRoomResultCode.RoomFull) {
+          setFailReason("The room was full.");
+        }
         setRoom(false);
         setName("");
         setRole("");
-      } else {
-        setFailReason("");
-        setName(callback);
+        return;
       }
+      setFailReason("");
+      setName(result.username);
     });
 
     return () => {

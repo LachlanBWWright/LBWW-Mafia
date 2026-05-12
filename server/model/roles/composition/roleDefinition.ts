@@ -1,7 +1,7 @@
 import type { CombatLevel } from "../combatLevel.js";
 import type { RoleGroup } from "../roleGroup.js";
 import type { RoleTrait } from "./roleTraits.js";
-import type { RoleHandlerDefinition } from "./handlers/types.js";
+import type { RoleHandler } from "./handlers/types.js";
 
 export type RoleCapabilities = {
   dayVisitSelf: boolean;
@@ -32,5 +32,5 @@ export type RoleDefinition = {
   };
   capabilities: RoleCapabilities;
   traits: RoleTrait[];
-  handlers: RoleHandlerDefinition[];
+  handlers: RoleHandler[] | (() => RoleHandler[]);
 };

@@ -12,16 +12,16 @@ import { PartykitPlayerSocket } from "./partykitPlayerSocket.js";
 import { setGameEmitter } from "../emitter.js";
 import { Room } from "../../model/rooms/room.js";
 import { ClientEvent } from "../../../shared/communication/events.js";
-
-type ClientMessage = {
-  type: "event";
-  event: string;
-  args: unknown[];
-  callbackId?: string;
-};
+import { partykitClientEventEnvelopeSchema } from "../../../shared/communication/protocol.js";
+import {
+  parseJoinRoomToken,
+  parseMessageSentPayload,
+  parseVisitPayload,
+  parseVotePayload,
+  parseWhisperPayload,
+} from "../socketValidation.js";
 
 const DEFAULT_ROOM_SIZE = 13;
-const MAX_MESSAGE_LENGTH = 150;
 
 /**
  * PartyKit server handler for Mafia game.
@@ -101,106 +101,95 @@ export default class MafiaPartyServer implements Party.Server {
     const raw =
       typeof message === "string" ? message : new TextDecoder().decode(message);
 
-    let parsed: ClientMessage;
+    let parsedUnknown: unknown;
     try {
-      parsed = JSON.parse(raw) as ClientMessage;
+      parsedUnknown = JSON.parse(raw);
     } catch {
       console.error("PartyKit: Failed to parse message:", raw);
       return;
     }
 
-    if (parsed.type !== "event") return;
+    const parsed = partykitClientEventEnvelopeSchema.safeParse(parsedUnknown);
+    if (!parsed.success) return;
 
     const playerSocket = this.playerSockets.get(sender.id);
     if (!playerSocket) return;
 
-    switch (parsed.event) {
+    switch (parsed.data.event) {
       case ClientEvent.PlayerJoinRoom: {
-        // In PartyKit mode, skip CAPTCHA and directly add player
+        const captchaToken = parseJoinRoomToken(parsed.data.args[0]);
+        if (!captchaToken) {
+          break;
+        }
         playerSocket.data.roomObject = this.gameRoom;
         const result = this.gameRoom.addUser(playerSocket);
 
-        if (parsed.callbackId) {
-          playerSocket.sendCallback(parsed.callbackId, result);
+        if (parsed.data.callbackId) {
+          playerSocket.sendCallback(parsed.data.callbackId, result);
         }
         break;
       }
 
       case ClientEvent.MessageSentByUser: {
-        const msg = parsed.args[0];
-        const isDay = parsed.args[1];
-        if (typeof msg !== "string" || typeof isDay !== "boolean") break;
-        if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
-          if (playerSocket.data.roomObject !== undefined) {
-            playerSocket.data.roomObject.handleSentMessage(
-              playerSocket,
-              msg,
-              isDay,
-            );
-          }
+        const payload = parseMessageSentPayload(
+          parsed.data.args[0],
+          parsed.data.args[1],
+        );
+        if (!payload || playerSocket.data.roomObject === undefined) {
+          break;
         }
+        playerSocket.data.roomObject.handleSentMessage(
+          playerSocket,
+          payload.message,
+          payload.phase,
+        );
         break;
       }
 
       case ClientEvent.HandleVote: {
-        const recipient = parsed.args[0];
-        const isDay = parsed.args[1];
-        if (
-          (typeof recipient !== "number" && recipient !== null) ||
-          typeof isDay !== "boolean"
-        )
+        const payload = parseVotePayload(parsed.data.args[0], parsed.data.args[1]);
+        if (!payload || playerSocket.data.roomObject === undefined) {
           break;
-        if (typeof recipient === "number") {
-          if (playerSocket.data.roomObject !== undefined) {
-            playerSocket.data.roomObject.handleVote(
-              playerSocket,
-              recipient,
-              isDay,
-            );
-          }
         }
+        playerSocket.data.roomObject.handleVote(
+          playerSocket,
+          payload.recipient,
+          payload.phase,
+        );
         break;
       }
 
       case ClientEvent.HandleVisit: {
-        const recipient = parsed.args[0];
-        const isDay = parsed.args[1];
-        if (
-          (typeof recipient !== "number" && recipient !== null) ||
-          typeof isDay !== "boolean"
-        )
+        const payload = parseVisitPayload(
+          parsed.data.args[0],
+          parsed.data.args[1],
+        );
+        if (!payload || playerSocket.data.roomObject === undefined) {
           break;
-        const safeRecipient = recipient as number | null;
-        if (playerSocket.data.roomObject !== undefined) {
-          playerSocket.data.roomObject.handleVisit(
-            playerSocket,
-            safeRecipient,
-            isDay,
-          );
         }
+        playerSocket.data.roomObject.handleVisit(
+          playerSocket,
+          payload.recipient,
+          payload.phase,
+        );
         break;
       }
 
       case ClientEvent.HandleWhisper: {
-        const recipient = parsed.args[0];
-        const msg = parsed.args[1];
-        const isDay = parsed.args[2];
-        if (
-          typeof recipient !== "number" ||
-          typeof msg !== "string" ||
-          typeof isDay !== "boolean"
-        )
+        const payload = parseWhisperPayload(
+          parsed.data.args[0],
+          parsed.data.args[1],
+          parsed.data.args[2],
+        );
+        if (!payload || playerSocket.data.roomObject === undefined) {
           break;
-        if (msg.length > 0 && msg.length <= MAX_MESSAGE_LENGTH) {
-          if (playerSocket.data.roomObject !== undefined) {
-            playerSocket.data.roomObject.handleWhisper(
-              playerSocket,
-              recipient,
-              msg,
-              isDay,
-            );
-          }
         }
+        playerSocket.data.roomObject.handleWhisper(
+          playerSocket,
+          payload.recipient,
+          payload.message,
+          payload.phase,
+        );
         break;
       }
     }

@@ -1,26 +1,31 @@
-import { Room } from "../rooms/room.js";
 import { io } from "../../servers/emitter.js";
 import { Faction } from "../factions/abstractFaction.js";
 import { Player } from "../player/player.js";
-import { RoleGroup } from "./roleGroup.js";
-import { CombatLevel } from "./combatLevel.js";
 import { GamePhase } from "../rooms/gamePhase.js";
+import type { Room } from "../rooms/room.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import type { RoleInterface } from "./roleInterface.js";
+import { CombatLevel } from "./combatLevel.js";
 import type { RoleTrait } from "./composition/roleTraits.js";
+import {
+  createRoleRuntimeState,
+  resetNightActionState,
+  type RoleFactionAction,
+  type RoleRuntimeState,
+} from "./composition/roleRuntimeState.js";
+import { RoleGroup } from "./roleGroup.js";
 
 export class Role implements RoleInterface {
   readonly room: Room;
   readonly player: Player;
+  readonly runtimeState: RoleRuntimeState;
 
   name = "Role";
   group = RoleGroup.Unaligned;
   faction?: Faction;
 
   baseDefence = CombatLevel.None;
-  defence = CombatLevel.None;
-  damage = CombatLevel.None;
 
   dayVisitSelf = false;
   dayVisitOthers = false;
@@ -29,23 +34,8 @@ export class Role implements RoleInterface {
   nightVisitOthers = false;
   nightVisitFaction = false;
   nightVote = false;
-  attackVote?: Role | null;
-  isAttacking?: boolean;
-  isInsane?: boolean;
-  victoryCondition?: boolean;
-
-  dayVisiting: Role | null = null;
-  roleblocking: Role | null = null;
-  visiting: Role | null = null;
-  visitors: Role[] = [];
-  attackers: Role[] = [];
 
   roleblocker = false;
-  roleblocked = false;
-  silenced = false;
-  dayTapped: Role | boolean = false;
-  nightTapped: Role | boolean = false;
-  jailed: Role | null = null;
 
   /**
    * Creates a new Role instance.
@@ -56,6 +46,188 @@ export class Role implements RoleInterface {
   constructor(room: Room, player: Player) {
     this.room = room;
     this.player = player;
+    this.runtimeState = createRoleRuntimeState(this.baseDefence);
+  }
+
+  get defence(): CombatLevel {
+    return this.runtimeState.combat.defence;
+  }
+
+  set defence(value: CombatLevel) {
+    this.runtimeState.combat.defence = value;
+  }
+
+  get damage(): CombatLevel {
+    return this.runtimeState.combat.damage;
+  }
+
+  set damage(value: CombatLevel) {
+    this.runtimeState.combat.damage = value;
+  }
+
+  get attackVote(): Role | null {
+    return this.runtimeState.nightAction.factionVoteTarget;
+  }
+
+  set attackVote(value: Role | null) {
+    this.runtimeState.nightAction.factionVoteTarget = value;
+  }
+
+  get isAttacking(): boolean {
+    return this.runtimeState.compatibility.isAttacking;
+  }
+
+  set isAttacking(value: boolean) {
+    this.runtimeState.compatibility.isAttacking = value;
+  }
+
+  get isInsane(): boolean {
+    return this.runtimeState.compatibility.isInsane;
+  }
+
+  set isInsane(value: boolean) {
+    this.runtimeState.compatibility.isInsane = value;
+  }
+
+  get victoryCondition(): boolean {
+    return this.runtimeState.compatibility.victoryCondition;
+  }
+
+  set victoryCondition(value: boolean) {
+    this.runtimeState.compatibility.victoryCondition = value;
+  }
+
+  get dayVisiting(): Role | null {
+    return this.runtimeState.dayAction.target;
+  }
+
+  set dayVisiting(value: Role | null) {
+    this.runtimeState.dayAction.target = value;
+  }
+
+  get roleblocking(): Role | null {
+    return this.runtimeState.statuses.roleblocking;
+  }
+
+  set roleblocking(value: Role | null) {
+    this.runtimeState.statuses.roleblocking = value;
+  }
+
+  get visiting(): Role | null {
+    return this.runtimeState.nightAction.target;
+  }
+
+  set visiting(value: Role | null) {
+    this.runtimeState.nightAction.target = value;
+  }
+
+  get visitors(): Role[] {
+    return this.runtimeState.combat.visitors;
+  }
+
+  set visitors(value: Role[]) {
+    this.runtimeState.combat.visitors = value;
+  }
+
+  get attackers(): Role[] {
+    return this.runtimeState.combat.attackers;
+  }
+
+  set attackers(value: Role[]) {
+    this.runtimeState.combat.attackers = value;
+  }
+
+  get roleblocked(): boolean {
+    return this.runtimeState.statuses.roleblocked;
+  }
+
+  set roleblocked(value: boolean) {
+    this.runtimeState.statuses.roleblocked = value;
+  }
+
+  get silenced(): boolean {
+    return this.runtimeState.statuses.silenced;
+  }
+
+  set silenced(value: boolean) {
+    this.runtimeState.statuses.silenced = value;
+  }
+
+  get dayTappedBy(): Role | null {
+    return this.runtimeState.statuses.dayTappedBy;
+  }
+
+  set dayTappedBy(value: Role | null) {
+    this.runtimeState.statuses.dayTappedBy = value;
+  }
+
+  get nightTappedBy(): Role | null {
+    return this.runtimeState.statuses.nightTappedBy;
+  }
+
+  set nightTappedBy(value: Role | null) {
+    this.runtimeState.statuses.nightTappedBy = value;
+  }
+
+  get jailed(): Role | null {
+    return this.runtimeState.statuses.jailedBy;
+  }
+
+  set jailed(value: Role | null) {
+    this.runtimeState.statuses.jailedBy = value;
+  }
+
+  getPersistentCharge(slot: string, initialValue = 0): number {
+    if (!(slot in this.runtimeState.persistent.charges)) {
+      this.runtimeState.persistent.charges[slot] = initialValue;
+    }
+    return this.runtimeState.persistent.charges[slot] ?? initialValue;
+  }
+
+  setPersistentCharge(slot: string, value: number): void {
+    this.runtimeState.persistent.charges[slot] = value;
+  }
+
+  getPersistentTarget(slot: string): Role | null {
+    return this.runtimeState.persistent.targets[slot] ?? null;
+  }
+
+  setPersistentTarget(slot: string, target: Role | null): void {
+    this.runtimeState.persistent.targets[slot] = target;
+  }
+
+  getPersistentFlag(slot: string): boolean {
+    return this.runtimeState.persistent.flags[slot] ?? false;
+  }
+
+  setPersistentFlag(slot: string, value: boolean): void {
+    this.runtimeState.persistent.flags[slot] = value;
+  }
+
+  setFactionAction(action: RoleFactionAction | null): void {
+    this.runtimeState.nightAction.factionAction = action;
+    this.isAttacking = action?.kind === "attack";
+  }
+
+  peekFactionAction(): RoleFactionAction | null {
+    return this.runtimeState.nightAction.factionAction;
+  }
+
+  consumeFactionAction(expectedKind?: RoleFactionAction["kind"]): RoleFactionAction | null {
+    const action = this.runtimeState.nightAction.factionAction;
+    if (!action) {
+      return null;
+    }
+    if (expectedKind && action.kind !== expectedKind) {
+      return null;
+    }
+    this.runtimeState.nightAction.factionAction = null;
+    this.isAttacking = false;
+    return action;
+  }
+
+  resetNightState(): void {
+    resetNightActionState(this.runtimeState, this.baseDefence);
   }
 
   /**
@@ -121,8 +293,8 @@ export class Role implements RoleInterface {
       });
     } else {
       this.faction.handleNightMessage(message, this.player.username);
-      if (this.nightTapped instanceof Role) {
-        io.to(this.nightTapped.player.user.socketId).emit(
+      if (this.nightTappedBy !== null) {
+        io.to(this.nightTappedBy.player.user.socketId).emit(
           ServerEvent.ReceiveChatMessage,
           `${this.player.username}: ${message}`,
         );
@@ -280,4 +452,12 @@ export class Role implements RoleInterface {
    * @returns
    */
   handleVisits() {}
+
+  onNightCleanup(): void {
+    this.resetNightState();
+  }
+
+  onPlayerVotedOut(_votedOut: Role): void {}
+
+  onNoDeathDraw(): void {}
 }

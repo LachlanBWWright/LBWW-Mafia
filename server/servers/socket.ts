@@ -8,7 +8,16 @@ import type {
   ServerToClientEvents,
   InterServerEvents,
 } from "../../shared/communication/events.js";
-import { ClientEvent } from "../../shared/communication/events.js";
+import { ClientEvent, JoinRoomResultCode } from "../../shared/communication/events.js";
+import {
+  isJoinRoomCallback,
+  parseJoinRoomToken,
+  parseMessageSentPayload,
+  parseVisitPayload,
+  parseVotePayload,
+  parseWhisperPayload,
+  rejectJoin,
+} from "./socketValidation.js";
 
 /**
  * Data attached to each Socket connection.
@@ -65,10 +74,6 @@ const DEBUG_MODE =
   process.env.DEBUG?.toLowerCase() === "true" ||
   process.env.debug?.toLowerCase() === "true";
 
-const CAPTCHA_FAILURE_CODE = 2;
-const CHAT_MESSAGE_MIN_LENGTH = 1;
-const CHAT_MESSAGE_MAX_LENGTH = 150;
-
 /**
  * Adds event listeners to the Socket.IO server for all game events.
  * Manages player connections, disconnections, and all game actions.
@@ -97,10 +102,14 @@ export function addSocketListeners(
      */
     socket.on(
       ClientEvent.PlayerJoinRoom,
-      async (captchaToken: string, cb: (code: string | number) => void) => {
+      async (captchaToken, cb) => {
+        const parsedCaptchaToken = parseJoinRoomToken(captchaToken);
+        if (!parsedCaptchaToken || !isJoinRoomCallback(cb)) {
+          return;
+        }
         await ResultAsync.fromPromise(
           axios.post(
-            `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${process.env.CAPTCHA_KEY}`,
+            `https://www.google.com/recaptcha/api/siteverify?response=${parsedCaptchaToken}&secret=${process.env.CAPTCHA_KEY}`,
           ),
           (error) => error,
         ).match(
@@ -113,14 +122,14 @@ export function addSocketListeners(
                 socket.data.roomObject = playRoom.current;
                 socket.join(playRoom.current.name);
                 const result = socket.data.roomObject.addUser(socket);
-                console.log("Result: " + result);
+                console.log("Join result:", result);
                 cb(result);
               }
-            } else cb(CAPTCHA_FAILURE_CODE);
+            } else cb(rejectJoin(JoinRoomResultCode.CaptchaFailed));
           },
           (error) => {
             console.error(`Captcha verification failed: ${String(error)}`);
-            cb(CAPTCHA_FAILURE_CODE);
+            cb(rejectJoin(JoinRoomResultCode.CaptchaFailed));
           },
         );
       },
@@ -140,56 +149,57 @@ export function addSocketListeners(
      * Handles chat messages sent by players.
      * Validates message length (1-150 characters) before forwarding to room.
      */
-    socket.on(ClientEvent.MessageSentByUser, (message, isDay: boolean) => {
-      if (
-        message.length >= CHAT_MESSAGE_MIN_LENGTH &&
-        message.length <= CHAT_MESSAGE_MAX_LENGTH
-      ) {
-        if (socket.data.roomObject !== undefined)
-          socket.data.roomObject.handleSentMessage(socket, message, isDay);
+    socket.on(ClientEvent.MessageSentByUser, (message, phase) => {
+      const parsed = parseMessageSentPayload(message, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
       }
+      socket.data.roomObject.handleSentMessage(
+        socket,
+        parsed.message,
+        parsed.phase,
+      );
     });
 
     /**
      * Handles voting actions during day/night phases.
      * Validates that recipient is a valid player index before processing.
      */
-    socket.on(ClientEvent.HandleVote, (recipient, isDay: boolean) => {
-      if (typeof recipient === "number") {
-        if (socket.data.roomObject !== undefined)
-          socket.data.roomObject.handleVote(socket, recipient, isDay);
+    socket.on(ClientEvent.HandleVote, (recipient, phase) => {
+      const parsed = parseVotePayload(recipient, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
       }
+      socket.data.roomObject.handleVote(socket, parsed.recipient, parsed.phase);
     });
 
     /**
      * Handles visit/action actions during day/night phases.
      * Validates that recipient is a valid player index or null before processing.
      */
-    socket.on(ClientEvent.HandleVisit, (recipient, isDay: boolean) => {
-      if (typeof recipient === "number" || recipient === null) {
-        if (socket.data.roomObject !== undefined)
-          socket.data.roomObject.handleVisit(socket, recipient, isDay);
+    socket.on(ClientEvent.HandleVisit, (recipient, phase) => {
+      const parsed = parseVisitPayload(recipient, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
       }
+      socket.data.roomObject.handleVisit(socket, parsed.recipient, parsed.phase);
     });
 
     /**
      * Handles private whisper messages during day phases.
      * Validates recipient index and message length (1-150 characters) before processing.
      */
-    socket.on(ClientEvent.HandleWhisper, (recipient, message, isDay) => {
-      if (
-        typeof recipient === "number" &&
-        message.length >= CHAT_MESSAGE_MIN_LENGTH &&
-        message.length <= CHAT_MESSAGE_MAX_LENGTH
-      ) {
-        if (socket.data.roomObject !== undefined)
-          socket.data.roomObject.handleWhisper(
-            socket,
-            recipient,
-            message,
-            isDay,
-          );
+    socket.on(ClientEvent.HandleWhisper, (recipient, message, phase) => {
+      const parsed = parseWhisperPayload(recipient, message, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
       }
+      socket.data.roomObject.handleWhisper(
+        socket,
+        parsed.recipient,
+        parsed.message,
+        parsed.phase,
+      );
     });
   });
 }

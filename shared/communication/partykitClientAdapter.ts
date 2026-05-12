@@ -11,89 +11,31 @@ import type { GameSocket } from "./clientTypes";
 import type {
   ServerToClientEvents,
   ClientToServerEvents,
-  PlayerList,
-  PlayerReturned,
+  JoinRoomResult,
 } from "./events";
-import { ServerEvent, DayTime } from "./events";
+import { PartyKitMessageType, ServerEvent } from "./events";
+import {
+  gameMessagePayloadSchema,
+  joinRoomCallbackArgsSchema,
+  partykitServerEnvelopeSchema,
+  playerListPayloadSchema,
+  playerNamePayloadSchema,
+  playerReturnedPayloadSchema,
+  updateDayTimePayloadSchema,
+  updateFactionRolePayloadSchema,
+  updatePlayerRolePayloadSchema,
+} from "./protocol";
 
-type AckCallback = (result: string | number) => void;
+type AckCallback = (result: JoinRoomResult) => void;
 
-/**
- * Type guard to check if a value is an object (excluding arrays and null).
- *
- * @param v - Value to check
- * @returns True if v is a non-null, non-array object
- */
-function isObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
+function isAckCallback(value: unknown): value is AckCallback {
+  return typeof value === "function";
 }
 
-/**
- * Type guard to check if a value is an acknowledgement callback function.
- *
- * @param v - Value to check
- * @returns True if v is a callback function
- */
-function isAckCallback(v: unknown): v is AckCallback {
-  return typeof v === "function";
-}
-
-/**
- * Converts raw message data to a typed PlayerList array.
- * Returns undefined if the data is not a valid PlayerList.
- *
- * @param raw - Raw data to convert
- * @returns Typed player list or undefined
- */
-function toPlayerList(raw: unknown): PlayerList[] | undefined {
-  if (!Array.isArray(raw)) return undefined;
-  const result: PlayerList[] = [];
-  for (const item of raw) {
-    if (isObject(item) && typeof item.name === "string") {
-      result.push({
-        name: item.name,
-        isAlive:
-          typeof item.isAlive === "boolean" ? item.isAlive : undefined,
-        role: typeof item.role === "string" ? item.role : "",
-      });
-    }
-  }
-  return result;
-}
-
-/**
- * Converts raw message data to a typed PlayerReturned object.
- * Returns undefined if the data is not a valid PlayerReturned.
- *
- * @param raw - Raw data to convert
- * @returns Typed player data or undefined
- */
-function toPlayerReturned(raw: unknown): PlayerReturned | undefined {
-  if (!isObject(raw)) return undefined;
-  if (
-    typeof raw.name !== "string" ||
-    typeof raw.role !== "string" ||
-    typeof raw.dayVisitSelf !== "boolean" ||
-    typeof raw.dayVisitOthers !== "boolean" ||
-    typeof raw.dayVisitFaction !== "boolean" ||
-    typeof raw.nightVisitSelf !== "boolean" ||
-    typeof raw.nightVisitOthers !== "boolean" ||
-    typeof raw.nightVisitFaction !== "boolean" ||
-    typeof raw.nightVote !== "boolean"
-  ) {
-    return undefined;
-  }
-  return {
-    name: raw.name,
-    role: raw.role,
-    dayVisitSelf: raw.dayVisitSelf,
-    dayVisitOthers: raw.dayVisitOthers,
-    dayVisitFaction: raw.dayVisitFaction,
-    nightVisitSelf: raw.nightVisitSelf,
-    nightVisitOthers: raw.nightVisitOthers,
-    nightVisitFaction: raw.nightVisitFaction,
-    nightVote: raw.nightVote,
-  };
+function isTypedHandler<T extends Function>(
+  value: unknown,
+): value is T {
+  return typeof value === "function";
 }
 
 /**
@@ -102,12 +44,28 @@ function toPlayerReturned(raw: unknown): PlayerReturned | undefined {
  */
 export class PartykitClientAdapter implements GameSocket {
   private ws: WebSocket | null = null;
-  // Internal storage uses unknown element type; the public on/off methods
-  // enforce type constraints at insertion and removal time.
-  private listeners = new Map<
-    keyof ServerToClientEvents,
-    Set<ServerToClientEvents[keyof ServerToClientEvents]>
-  >();
+  private listeners = {
+    receiveMessage: new Set<ServerToClientEvents["receiveMessage"]>(),
+    blockMessages: new Set<ServerToClientEvents["blockMessages"]>(),
+    "receive-new-player": new Set<ServerToClientEvents["receive-new-player"]>(),
+    "remove-player": new Set<ServerToClientEvents["remove-player"]>(),
+    "receive-player-list": new Set<ServerToClientEvents["receive-player-list"]>(),
+    "receive-chat-message": new Set<
+      ServerToClientEvents["receive-chat-message"]
+    >(),
+    "receive-whisper-message": new Set<
+      ServerToClientEvents["receive-whisper-message"]
+    >(),
+    "update-day-time": new Set<ServerToClientEvents["update-day-time"]>(),
+    "disable-voting": new Set<ServerToClientEvents["disable-voting"]>(),
+    "update-player-role": new Set<ServerToClientEvents["update-player-role"]>(),
+    "assign-player-role": new Set<ServerToClientEvents["assign-player-role"]>(),
+    "update-faction-role": new Set<
+      ServerToClientEvents["update-faction-role"]
+    >(),
+    "receive-role": new Set<ServerToClientEvents["receive-role"]>(),
+    "update-player-visit": new Set<ServerToClientEvents["update-player-visit"]>(),
+  };
   private pendingCallbacks = new Map<string, AckCallback>();
   private callbackCounter = 0;
   private readonly url: string;
@@ -124,24 +82,214 @@ export class PartykitClientAdapter implements GameSocket {
   on<K extends keyof ServerToClientEvents>(
     event: K,
     handler: ServerToClientEvents[K],
-  ): void {
-    let listeners = this.listeners.get(event);
-    if (!listeners) {
-      listeners = new Set();
-      this.listeners.set(event, listeners);
+  ): void;
+  on(event: keyof ServerToClientEvents, handler: unknown): void {
+    switch (event) {
+      case ServerEvent.ReceiveMessage:
+        if (isTypedHandler<ServerToClientEvents["receiveMessage"]>(handler)) {
+          this.listeners.receiveMessage.add(handler);
+        }
+        break;
+      case ServerEvent.BlockMessages:
+        if (isTypedHandler<ServerToClientEvents["blockMessages"]>(handler)) {
+          this.listeners.blockMessages.add(handler);
+        }
+        break;
+      case ServerEvent.ReceiveNewPlayer:
+        if (isTypedHandler<ServerToClientEvents["receive-new-player"]>(handler)) {
+          this.listeners["receive-new-player"].add(handler);
+        }
+        break;
+      case ServerEvent.RemovePlayer:
+        if (isTypedHandler<ServerToClientEvents["remove-player"]>(handler)) {
+          this.listeners["remove-player"].add(handler);
+        }
+        break;
+      case ServerEvent.ReceivePlayerList:
+        if (isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)) {
+          this.listeners["receive-player-list"].add(handler);
+        }
+        break;
+      case ServerEvent.ReceiveChatMessage:
+        if (isTypedHandler<ServerToClientEvents["receive-chat-message"]>(handler)) {
+          this.listeners["receive-chat-message"].add(handler);
+        }
+        break;
+      case ServerEvent.ReceiveWhisperMessage:
+        if (
+          isTypedHandler<ServerToClientEvents["receive-whisper-message"]>(handler)
+        ) {
+          this.listeners["receive-whisper-message"].add(handler);
+        }
+        break;
+      case ServerEvent.UpdateDayTime:
+        if (isTypedHandler<ServerToClientEvents["update-day-time"]>(handler)) {
+          this.listeners["update-day-time"].add(handler);
+        }
+        break;
+      case ServerEvent.DisableVoting:
+        if (isTypedHandler<ServerToClientEvents["disable-voting"]>(handler)) {
+          this.listeners["disable-voting"].add(handler);
+        }
+        break;
+      case ServerEvent.UpdatePlayerRole:
+        if (isTypedHandler<ServerToClientEvents["update-player-role"]>(handler)) {
+          this.listeners["update-player-role"].add(handler);
+        }
+        break;
+      case ServerEvent.AssignPlayerRole:
+        if (isTypedHandler<ServerToClientEvents["assign-player-role"]>(handler)) {
+          this.listeners["assign-player-role"].add(handler);
+        }
+        break;
+      case ServerEvent.UpdateFactionRole:
+        if (
+          isTypedHandler<ServerToClientEvents["update-faction-role"]>(handler)
+        ) {
+          this.listeners["update-faction-role"].add(handler);
+        }
+        break;
+      case ServerEvent.ReceiveRole:
+        if (isTypedHandler<ServerToClientEvents["receive-role"]>(handler)) {
+          this.listeners["receive-role"].add(handler);
+        }
+        break;
+      case ServerEvent.UpdatePlayerVisit:
+        if (isTypedHandler<ServerToClientEvents["update-player-visit"]>(handler)) {
+          this.listeners["update-player-visit"].add(handler);
+        }
+        break;
     }
-    listeners.add(handler);
   }
 
   off<K extends keyof ServerToClientEvents>(
     event: K,
     handler?: ServerToClientEvents[K],
-  ): void {
+  ): void;
+  off(event: keyof ServerToClientEvents, handler?: unknown): void {
     if (!handler) {
-      this.listeners.delete(event);
+      switch (event) {
+        case ServerEvent.ReceiveMessage:
+          this.listeners.receiveMessage.clear();
+          break;
+        case ServerEvent.BlockMessages:
+          this.listeners.blockMessages.clear();
+          break;
+        case ServerEvent.ReceiveNewPlayer:
+          this.listeners["receive-new-player"].clear();
+          break;
+        case ServerEvent.RemovePlayer:
+          this.listeners["remove-player"].clear();
+          break;
+        case ServerEvent.ReceivePlayerList:
+          this.listeners["receive-player-list"].clear();
+          break;
+        case ServerEvent.ReceiveChatMessage:
+          this.listeners["receive-chat-message"].clear();
+          break;
+        case ServerEvent.ReceiveWhisperMessage:
+          this.listeners["receive-whisper-message"].clear();
+          break;
+        case ServerEvent.UpdateDayTime:
+          this.listeners["update-day-time"].clear();
+          break;
+        case ServerEvent.DisableVoting:
+          this.listeners["disable-voting"].clear();
+          break;
+        case ServerEvent.UpdatePlayerRole:
+          this.listeners["update-player-role"].clear();
+          break;
+        case ServerEvent.AssignPlayerRole:
+          this.listeners["assign-player-role"].clear();
+          break;
+        case ServerEvent.UpdateFactionRole:
+          this.listeners["update-faction-role"].clear();
+          break;
+        case ServerEvent.ReceiveRole:
+          this.listeners["receive-role"].clear();
+          break;
+        case ServerEvent.UpdatePlayerVisit:
+          this.listeners["update-player-visit"].clear();
+          break;
+      }
       return;
     }
-    this.listeners.get(event)?.delete(handler);
+    switch (event) {
+      case ServerEvent.ReceiveMessage:
+        if (isTypedHandler<ServerToClientEvents["receiveMessage"]>(handler)) {
+          this.listeners.receiveMessage.delete(handler);
+        }
+        break;
+      case ServerEvent.BlockMessages:
+        if (isTypedHandler<ServerToClientEvents["blockMessages"]>(handler)) {
+          this.listeners.blockMessages.delete(handler);
+        }
+        break;
+      case ServerEvent.ReceiveNewPlayer:
+        if (isTypedHandler<ServerToClientEvents["receive-new-player"]>(handler)) {
+          this.listeners["receive-new-player"].delete(handler);
+        }
+        break;
+      case ServerEvent.RemovePlayer:
+        if (isTypedHandler<ServerToClientEvents["remove-player"]>(handler)) {
+          this.listeners["remove-player"].delete(handler);
+        }
+        break;
+      case ServerEvent.ReceivePlayerList:
+        if (isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)) {
+          this.listeners["receive-player-list"].delete(handler);
+        }
+        break;
+      case ServerEvent.ReceiveChatMessage:
+        if (isTypedHandler<ServerToClientEvents["receive-chat-message"]>(handler)) {
+          this.listeners["receive-chat-message"].delete(handler);
+        }
+        break;
+      case ServerEvent.ReceiveWhisperMessage:
+        if (
+          isTypedHandler<ServerToClientEvents["receive-whisper-message"]>(handler)
+        ) {
+          this.listeners["receive-whisper-message"].delete(handler);
+        }
+        break;
+      case ServerEvent.UpdateDayTime:
+        if (isTypedHandler<ServerToClientEvents["update-day-time"]>(handler)) {
+          this.listeners["update-day-time"].delete(handler);
+        }
+        break;
+      case ServerEvent.DisableVoting:
+        if (isTypedHandler<ServerToClientEvents["disable-voting"]>(handler)) {
+          this.listeners["disable-voting"].delete(handler);
+        }
+        break;
+      case ServerEvent.UpdatePlayerRole:
+        if (isTypedHandler<ServerToClientEvents["update-player-role"]>(handler)) {
+          this.listeners["update-player-role"].delete(handler);
+        }
+        break;
+      case ServerEvent.AssignPlayerRole:
+        if (isTypedHandler<ServerToClientEvents["assign-player-role"]>(handler)) {
+          this.listeners["assign-player-role"].delete(handler);
+        }
+        break;
+      case ServerEvent.UpdateFactionRole:
+        if (
+          isTypedHandler<ServerToClientEvents["update-faction-role"]>(handler)
+        ) {
+          this.listeners["update-faction-role"].delete(handler);
+        }
+        break;
+      case ServerEvent.ReceiveRole:
+        if (isTypedHandler<ServerToClientEvents["receive-role"]>(handler)) {
+          this.listeners["receive-role"].delete(handler);
+        }
+        break;
+      case ServerEvent.UpdatePlayerVisit:
+        if (isTypedHandler<ServerToClientEvents["update-player-visit"]>(handler)) {
+          this.listeners["update-player-visit"].delete(handler);
+        }
+        break;
+    }
   }
 
   emit<K extends keyof ClientToServerEvents>(
@@ -162,7 +310,7 @@ export class PartykitClientAdapter implements GameSocket {
 
     this.ws.send(
       JSON.stringify({
-        type: "event",
+        type: PartyKitMessageType.Event,
         event,
         args: serializableArgs,
         ...(callbackId ? { callbackId } : {}),
@@ -197,35 +345,26 @@ export class PartykitClientAdapter implements GameSocket {
 
     this.ws.onmessage = (msgEvent: MessageEvent) => {
       if (typeof msgEvent.data !== "string") return;
-      let parsed: unknown;
+      let parsedData: unknown;
       try {
-        parsed = JSON.parse(msgEvent.data);
+        parsedData = JSON.parse(msgEvent.data);
       } catch {
         return;
       }
-      if (!isObject(parsed) || typeof parsed.type !== "string") return;
+      const parsed = partykitServerEnvelopeSchema.safeParse(parsedData);
+      if (!parsed.success) return;
 
-      if (
-        parsed.type === "callback" &&
-        typeof parsed.callbackId === "string" &&
-        Array.isArray(parsed.args)
-      ) {
-        const cb = this.pendingCallbacks.get(parsed.callbackId);
-        const result = parsed.args[0];
-        if (cb && (typeof result === "string" || typeof result === "number")) {
-          cb(result);
-          this.pendingCallbacks.delete(parsed.callbackId);
+      if (parsed.data.type === PartyKitMessageType.Callback) {
+        const cb = this.pendingCallbacks.get(parsed.data.callbackId);
+        const callbackArgs = joinRoomCallbackArgsSchema.safeParse(parsed.data.args);
+        this.pendingCallbacks.delete(parsed.data.callbackId);
+        if (cb && callbackArgs.success) {
+          cb(callbackArgs.data[0]);
         }
         return;
       }
 
-      if (
-        parsed.type === "event" &&
-        typeof parsed.event === "string" &&
-        Array.isArray(parsed.args)
-      ) {
-        this.dispatchEvent(parsed.event, parsed.args);
-      }
+      this.dispatchEvent(parsed.data.event, parsed.data.args);
     };
 
     this.ws.onclose = () => {
@@ -250,19 +389,6 @@ export class PartykitClientAdapter implements GameSocket {
     return this._connected;
   }
 
-  private callHandlers<K extends keyof ServerToClientEvents>(
-    event: K,
-    ...args: Parameters<ServerToClientEvents[K]>
-  ): void {
-    const handlers = this.listeners.get(event);
-    if (!handlers) return;
-    // Reflect.apply avoids the TypeScript limitation of spreading generic Parameters<T>
-    // while keeping the public API fully typed.
-    handlers.forEach((handler) => {
-      Reflect.apply(handler as CallableFunction, undefined, args);
-    });
-  }
-
   /**
    * Dispatches a received event to all registered handlers.
    * Performs type validation and transformation of message data.
@@ -272,77 +398,86 @@ export class PartykitClientAdapter implements GameSocket {
    */
   private dispatchEvent(event: string, args: unknown[]): void {
     switch (event) {
-      case ServerEvent.ReceiveMessage:
+      case ServerEvent.ReceiveMessage: {
+        const parsed = gameMessagePayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners.receiveMessage) {
+            handler(parsed.data);
+          }
+        }
+        break;
+      }
       case ServerEvent.ReceiveChatMessage:
       case ServerEvent.ReceiveWhisperMessage:
       case ServerEvent.ReceiveRole: {
         const [msg] = args;
         if (typeof msg === "string") {
-          this.callHandlers(event, msg);
+          for (const handler of this.listeners[event]) {
+            handler(msg);
+          }
         }
         break;
       }
       case ServerEvent.BlockMessages:
       case ServerEvent.DisableVoting:
       case ServerEvent.UpdatePlayerVisit: {
-        this.callHandlers(event);
+        for (const handler of this.listeners[event]) {
+          handler();
+        }
         break;
       }
       case ServerEvent.ReceiveNewPlayer:
       case ServerEvent.RemovePlayer: {
-        const [player] = args;
-        if (isObject(player) && typeof player.name === "string") {
-          this.callHandlers(event, { name: player.name });
+        const parsed = playerNamePayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners[event]) {
+            handler(parsed.data);
+          }
         }
         break;
       }
       case ServerEvent.ReceivePlayerList: {
-        const list = toPlayerList(args[0]);
-        if (list) this.callHandlers(ServerEvent.ReceivePlayerList, list);
+        const parsed = playerListPayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners["receive-player-list"]) {
+            handler(parsed.data);
+          }
+        }
         break;
       }
       case ServerEvent.UpdateDayTime: {
-        const [d] = args;
-        if (
-          isObject(d) &&
-          (d.time === DayTime.Day || d.time === DayTime.Night) &&
-          typeof d.dayNumber === "number" &&
-          typeof d.timeLeft === "number"
-        ) {
-          this.callHandlers(ServerEvent.UpdateDayTime, {
-            time: d.time,
-            dayNumber: d.dayNumber,
-            timeLeft: d.timeLeft,
-          });
+        const parsed = updateDayTimePayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners["update-day-time"]) {
+            handler(parsed.data);
+          }
         }
         break;
       }
       case ServerEvent.UpdatePlayerRole: {
-        const [d] = args;
-        if (isObject(d) && typeof d.name === "string") {
-          this.callHandlers(ServerEvent.UpdatePlayerRole, {
-            name: d.name,
-            role: typeof d.role === "string" ? d.role : undefined,
-          });
+        const parsed = updatePlayerRolePayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners["update-player-role"]) {
+            handler(parsed.data);
+          }
         }
         break;
       }
       case ServerEvent.AssignPlayerRole: {
-        const data = toPlayerReturned(args[0]);
-        if (data) this.callHandlers(ServerEvent.AssignPlayerRole, data);
+        const parsed = playerReturnedPayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners["assign-player-role"]) {
+            handler(parsed.data);
+          }
+        }
         break;
       }
       case ServerEvent.UpdateFactionRole: {
-        const [d] = args;
-        if (
-          isObject(d) &&
-          typeof d.name === "string" &&
-          typeof d.role === "string"
-        ) {
-          this.callHandlers(ServerEvent.UpdateFactionRole, {
-            name: d.name,
-            role: d.role,
-          });
+        const parsed = updateFactionRolePayloadSchema.safeParse(args[0]);
+        if (parsed.success) {
+          for (const handler of this.listeners["update-faction-role"]) {
+            handler(parsed.data);
+          }
         }
         break;
       }

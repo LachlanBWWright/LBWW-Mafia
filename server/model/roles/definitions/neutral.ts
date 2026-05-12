@@ -1,11 +1,29 @@
-import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { io } from "../../../servers/emitter.js";
 import { CombatLevel } from "../combatLevel.js";
 import { RoleGroup } from "../roleGroup.js";
 import type { RoleDefinition } from "../composition/roleDefinition.js";
 import { RoleTrait } from "../composition/roleTraits.js";
-import { chooseNightOther, roleblockVisit, simpleAttack } from "./helpers.js";
+import type { RoleInstance } from "../composition/roleInstance.js";
+import { chooseNightOther } from "../composition/handlers/targeting.js";
+import {
+  applyDamageMinimum,
+  registerNightVisit,
+  roleblockVisit,
+  simpleAttack,
+} from "../composition/handlers/effects.js";
+import {
+  actorNotice,
+  dispatchNotice,
+} from "../composition/handlers/notices.js";
+
+const SNIPER_LAST_VISITED_SLOT = "sniper-last-visited";
+const FRAMER_TARGET_SLOT = "framer-current-target";
+
+function findLivingTownTarget(role: RoleInstance) {
+  return role.room.playerList.find(
+    (candidate) => candidate.isAlive && candidate.role.group === RoleGroup.Town,
+  );
+}
 
 export const blankRoleDefinition: RoleDefinition = {
   kind: "built-in",
@@ -73,27 +91,25 @@ export const sniperDefinition: RoleDefinition = {
     nightVote: false,
   },
   traits: [RoleTrait.NeutralAligned, RoleTrait.Unique],
-  handlers: [
-    {
-      onAttach: ({ role }) => {
-        role.state.custom.sniper = { lastVisited: null };
+  handlers: () => {
+    return [
+      { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.SniperCannotSnipeSelf, MessageKey.SniperChoseToSnipe) },
+      { onNightVisit: ({ role }) => void registerNightVisit(role) },
+      {
+        onVisitOutcomes: ({ role }) => {
+          const target = role.visiting;
+          if (target === null) return;
+          const lastVisited = role.getPersistentTarget(SNIPER_LAST_VISITED_SLOT);
+          if (target.visiting === target || target.visiting === null) {
+            applyDamageMinimum(target, CombatLevel.High);
+          } else if (lastVisited === target && target.damage === CombatLevel.None) {
+            target.damage = CombatLevel.Low;
+          }
+          role.setPersistentTarget(SNIPER_LAST_VISITED_SLOT, target);
+        },
       },
-    },
-    { onNightCommand: ({ role, recipient }) => chooseNightOther(role, recipient, MessageKey.SniperCannotSnipeSelf, MessageKey.SniperChoseToSnipe) },
-    { onNightVisit: ({ role }) => role.visiting?.receiveVisit(role) },
-    {
-      onVisitOutcomes: ({ role }) => {
-        if (role.visiting === null) return;
-        const lastVisited = role.state.custom.sniper?.lastVisited ?? null;
-        if (role.visiting.visiting === role.visiting || role.visiting.visiting === null) {
-          if (role.visiting.damage < CombatLevel.High) role.visiting.damage = CombatLevel.High;
-        } else if (lastVisited === role.visiting && role.visiting.damage === CombatLevel.None) {
-          role.visiting.damage = CombatLevel.Low;
-        }
-        role.state.custom.sniper = { lastVisited: role.visiting };
-      },
-    },
-  ],
+    ];
+  },
 };
 
 export const framerDefinition: RoleDefinition = {
@@ -118,36 +134,35 @@ export const framerDefinition: RoleDefinition = {
   handlers: [
     {
       onInit: ({ role }) => {
-        const target = role.room.playerList.find(
-          (candidate) => candidate.isAlive && candidate.role.group === RoleGroup.Town,
-        );
+        const target = findLivingTownTarget(role);
         if (!target) return;
-        role.state.custom.framer = { target: target.role };
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.FramerTarget,
-          params: { targetName: target.username },
-        });
+        role.setPersistentTarget(FRAMER_TARGET_SLOT, target.role);
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: MessageKey.FramerTarget,
+            params: { targetName: target.username },
+          }),
+        );
       },
       onDayUpdate: ({ role }) => {
-        const target = role.state.custom.framer?.target ?? null;
-        if (role.victoryCondition || !target || target.player.isAlive) return;
-        const next = role.room.playerList.find(
-          (candidate) => candidate.isAlive && candidate.role.group === RoleGroup.Town,
-        );
+        const targetRole = role.getPersistentTarget(FRAMER_TARGET_SLOT);
+        if (role.victoryCondition || !targetRole || targetRole.player.isAlive) return;
+        const next = findLivingTownTarget(role);
         if (!next) return;
-        role.state.custom.framer = { target: next.role };
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.FramerNewTarget,
-          params: { targetName: next.username },
-        });
+        role.setPersistentTarget(FRAMER_TARGET_SLOT, next.role);
+        dispatchNotice(
+          role,
+          actorNotice({
+            key: MessageKey.FramerNewTarget,
+            params: { targetName: next.username },
+          }),
+        );
       },
       onPlayerVotedOut: ({ role, votedOut }) => {
-        const target = role.state.custom.framer?.target ?? null;
-        if (target === votedOut) {
+        if (role.getPersistentTarget(FRAMER_TARGET_SLOT) === votedOut) {
           role.victoryCondition = true;
-          io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-            key: MessageKey.FramerTargetVotedOut,
-          });
+          dispatchNotice(role, actorNotice({ key: MessageKey.FramerTargetVotedOut }));
         }
       },
     },
@@ -201,9 +216,7 @@ export const peacemakerDefinition: RoleDefinition = {
     {
       onNoDeathDraw: ({ role }) => {
         role.victoryCondition = true;
-        io.to(role.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.PeacemakerWon,
-        });
+        dispatchNotice(role, actorNotice({ key: MessageKey.PeacemakerWon }));
       },
     },
   ],

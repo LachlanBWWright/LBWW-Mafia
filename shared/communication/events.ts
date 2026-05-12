@@ -7,6 +7,54 @@ import type { GameMessage } from "./messages";
 // Re-export DayTime so consumers can import it from one place
 export { DayTime } from "../game/playerActionRules";
 
+/** Numeric error codes returned when a room join request is rejected. */
+export enum JoinRoomResultCode {
+  GenericError = 1,
+  CaptchaFailed = 2,
+  RoomFull = 3,
+}
+
+/** Discriminated acknowledgement result for room join requests. */
+export type JoinRoomResult =
+  | {
+      status: "joined";
+      username: string;
+    }
+  | {
+      status: "rejected";
+      code: JoinRoomResultCode;
+    };
+
+/** Named end-game outcome kinds used instead of string sentinels. */
+export enum GameOutcome {
+  Draw = "draw",
+  Faction = "faction",
+}
+
+/** Result emitted internally when a game ends. */
+export type GameEndResult =
+  | {
+      outcome: GameOutcome.Draw;
+    }
+  | {
+      outcome: GameOutcome.Faction;
+      factionName: string;
+    };
+
+/** Named action kinds persisted into match history. */
+export enum ActionKind {
+  Vote = "vote",
+  Whisper = "whisper",
+  DayVisit = "day-visit",
+  NightVisit = "night-visit",
+}
+
+/** Named PartyKit envelope kinds for the JSON socket protocol. */
+export enum PartyKitMessageType {
+  Event = "event",
+  Callback = "callback",
+}
+
 /** Enum of all server → client socket event names. */
 export enum ServerEvent {
   ReceiveMessage = "receiveMessage",
@@ -37,8 +85,8 @@ export enum ClientEvent {
 
 export type PlayerList = {
   name: string;
-  isAlive: boolean | undefined;
-  role: string;
+  isAlive?: boolean;
+  role?: string;
 };
 
 export type PlayerReturned = {
@@ -56,13 +104,13 @@ export type PlayerReturned = {
 export type ClientToServerEvents = {
   playerJoinRoom: (
     captchaToken: string,
-    cb: (result: string | number) => void,
+    cb: (result: JoinRoomResult) => void,
   ) => Promise<void>;
   disconnect: () => void;
-  messageSentByUser: (message: string, isDay: boolean) => void;
-  handleVote: (recipient: number | null, isDay: boolean) => void;
-  handleVisit: (recipient: number | null, isDay: boolean) => void;
-  handleWhisper: (recipient: number, message: string, isDay: boolean) => void;
+  messageSentByUser: (message: string, phase: DayTime) => void;
+  handleVote: (recipient: number, phase: DayTime) => void;
+  handleVisit: (recipient: number | null, phase: DayTime) => void;
+  handleWhisper: (recipient: number, message: string, phase: DayTime) => void;
 };
 
 export type ServerToClientEvents = {

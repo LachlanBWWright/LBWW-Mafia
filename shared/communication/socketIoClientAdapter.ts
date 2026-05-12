@@ -57,8 +57,9 @@ export class SocketIoClientAdapter implements GameSocket {
     this.socket.emit(event, ...args);
   }
 
-  connect(_onOpen?: () => void): void {
+  connect(onOpen?: () => void): void {
     this.socket.connect();
+    onOpen?.();
   }
 
   disconnect(): void {
