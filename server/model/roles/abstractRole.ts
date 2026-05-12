@@ -8,6 +8,7 @@ import { GamePhase } from "../rooms/gamePhase.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import type { RoleInterface } from "./roleInterface.js";
+import type { RoleTrait } from "./composition/roleTraits.js";
 
 export class Role implements RoleInterface {
   readonly room: Room;
@@ -65,6 +66,10 @@ export class Role implements RoleInterface {
    */
   assignFaction(faction: Faction) {
     this.faction = faction;
+  }
+
+  hasTrait(_trait: RoleTrait): boolean {
+    return false;
   }
 
   /**

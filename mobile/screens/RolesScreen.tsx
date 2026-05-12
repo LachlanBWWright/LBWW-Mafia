@@ -1,10 +1,9 @@
 import React from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View } from "react-native";
-import {
-  roleSections,
-  type RoleCatalogEntry,
-} from "@mernmafia/shared/game/roles";
+import { roleSections } from "@mernmafia/shared/game/rolesList";
+import { RoleFaction } from "@mernmafia/shared/game/rolesTypes";
+import type { RoleCatalogEntry } from "@mernmafia/shared/game/rolesTypes";
 import { StackParamList } from "../App";
 import { Badge, Card, Screen } from "../components/ui";
 
@@ -45,9 +44,9 @@ function RoleSection({
 
 export function RolesScreen({ navigation }: RolesScreenProps) {
   const accentClassNameByFaction = {
-    town: "text-primary",
-    mafia: "text-destructive",
-    neutral: "text-muted-foreground",
+    [RoleFaction.Town]: "text-primary",
+    [RoleFaction.Mafia]: "text-destructive",
+    [RoleFaction.Neutral]: "text-muted-foreground",
   } as const;
 
   return (

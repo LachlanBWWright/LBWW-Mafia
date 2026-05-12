@@ -50,7 +50,6 @@ cd server && npm run start:partykit
 # .env.local
 NEXT_PUBLIC_SOCKET_BACKEND=socketio   # or "partykit"
 NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
-NEXT_PUBLIC_PARTYKIT_ROOM=default     # only needed for partykit
 ```
 
 #### Client-side (Mobile)
@@ -58,7 +57,6 @@ NEXT_PUBLIC_PARTYKIT_ROOM=default     # only needed for partykit
 ```env
 EXPO_PUBLIC_SOCKET_BACKEND=socketio   # or "partykit"
 EXPO_PUBLIC_SOCKET_URL=http://localhost:8000
-EXPO_PUBLIC_PARTYKIT_ROOM=default     # only needed for partykit
 ```
 
 ### Adding a New Backend

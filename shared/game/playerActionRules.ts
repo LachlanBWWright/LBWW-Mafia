@@ -1,4 +1,5 @@
 import { roleFactionsByName } from "./rolesList";
+import { RoleFaction } from "./rolesTypes";
 
 /** Enum representing the two game phases as seen by clients (capitalized, used in wire protocol). */
 export enum DayTime {
@@ -30,7 +31,7 @@ export const defaultVisitCapability: VisitCapability = {
  * @param role - The name of the role to look up
  * @returns The faction string ("town" or "mafia") or null if not found
  */
-export const getRoleFaction = (role?: string): string | null => {
+export const getRoleFaction = (role?: string): RoleFaction | null => {
   if (!role) {
     return null;
   }

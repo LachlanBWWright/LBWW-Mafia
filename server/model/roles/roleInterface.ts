@@ -4,6 +4,7 @@ import { RoleGroup } from "./roleGroup.js";
 import { CombatLevel } from "./combatLevel.js";
 import { Faction } from "../factions/abstractFaction.js";
 import type { Role } from "./abstractRole.js";
+import type { RoleTrait } from "./composition/roleTraits.js";
 
 /**
  * Interface that all roles must implement.
@@ -47,6 +48,7 @@ export interface RoleInterface {
   jailed: Role | null;
 
   assignFaction(faction: Faction): void;
+  hasTrait(trait: RoleTrait): boolean;
   initRole(): void;
   dayUpdate(): void;
   handleMessage(message: string): void;

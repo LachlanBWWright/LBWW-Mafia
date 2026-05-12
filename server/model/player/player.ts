@@ -1,5 +1,5 @@
 import type { User } from "../user/user.js";
-import type { Role } from "../roles/abstractRole.js";
+import type { RoleLike } from "../roles/roleLike.js";
 
 /**
  * Represents the in-game character of a connected User.
@@ -9,7 +9,7 @@ import type { Role } from "../roles/abstractRole.js";
 export class Player {
   readonly user: User;
   readonly username: string;
-  role!: Role; // always assigned during startGame() before any game logic runs
+  role!: RoleLike; // always assigned during startGame() before any game logic runs
   isAlive: boolean;
   hasVoted: boolean;
   votesReceived: number;
@@ -23,7 +23,7 @@ export class Player {
   }
 
   /** Assign or change this player's role (e.g. at game start or mid-game conversion). */
-  assignRole(role: Role) {
+  assignRole(role: RoleLike) {
     this.role = role;
   }
 }

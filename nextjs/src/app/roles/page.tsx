@@ -6,10 +6,9 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import {
-  roleSections,
-  type RoleCatalogEntry,
-} from "@mernmafia/shared/game/roles";
+import { roleSections } from "@mernmafia/shared/game/rolesList";
+import { RoleFaction } from "@mernmafia/shared/game/rolesTypes";
+import type { RoleCatalogEntry } from "@mernmafia/shared/game/rolesTypes";
 
 function RoleSection({
   title,
@@ -57,9 +56,9 @@ export default function RolesPage() {
 
           {roleSections.map((section) => {
             const accentClass =
-              section.faction === "town"
+              section.faction === RoleFaction.Town
                 ? "text-primary"
-                : section.faction === "mafia"
+                : section.faction === RoleFaction.Mafia
                   ? "text-destructive"
                   : "text-muted-foreground";
 

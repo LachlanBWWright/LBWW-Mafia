@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { useGameLobby } from "./hooks/useGameLobby";
 import { Header } from "~/components/header";
 import { Button } from "~/components/ui/button";
@@ -102,12 +103,29 @@ function PlayerRow({
 }
 
 export default function LobbyClient({ roomId }: { roomId: string }) {
+  const [currentRoomId, setCurrentRoomId] = useState(roomId);
+
+  const refreshRoom = useCallback(async () => {
+    const response = await fetch("/api/matchmaking/current", {
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+    const data = (await response.json()) as { roomId?: unknown };
+    if (typeof data.roomId === "string" && data.roomId !== currentRoomId) {
+      setCurrentRoomId(data.roomId);
+    }
+  }, [currentRoomId]);
+
+  const handleRoomFull = useCallback(() => {
+    void refreshRoom();
+  }, [refreshRoom]);
+
   const {
     joinStatus, playerName, joining, players, messages,
     messageDraft, time, dayNumber, timeLeft, canTalk, canVote,
     visitCapability, currentUserRole,
     joinGame, sendMessage, voteForPlayer, visitPlayer, whisperToPlayer, setMessageDraft,
-  } = useGameLobby(roomId);
+  } = useGameLobby(currentRoomId, handleRoomFull);
 
   const isCurrentUserAlive =
     players.find((p) => p.name === playerName)?.isAlive !== false;

@@ -2,6 +2,8 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
 import { err, ok } from "neverthrow";
+import type { MatchHistoryEvent } from "./validators";
+import { MatchHistoryEventSchema } from "./validators";
 
 export type SessionUser = {
   id: string;
@@ -33,14 +35,6 @@ export type UserSummary = {
   isAdmin: boolean;
 };
 
-export type MatchHistoryEvent = {
-  time: number;
-  type: "system" | "chat" | "whisper" | "action";
-  actor?: string;
-  target?: string;
-  content: string;
-};
-
 export type MatchHistoryParticipant = {
   userId?: string | null;
   username: string;
@@ -67,6 +61,7 @@ export type RouterServices = {
   searchUsers: (input: { query: string; limit: number }) => Promise<UserSummary[]>;
   setUserAdmin: (input: { userId: string; isAdmin: boolean }) => Promise<void>;
   persistMatch: (input: PersistMatchInput) => Promise<{ id: number }>;
+  getCurrentRoom: () => Promise<{ roomId: string }>;
   rotateActiveRoom: () => Promise<{ roomId: string }>;
 };
 
@@ -152,12 +147,12 @@ export function createAppRouter(services: RouterServices) {
                 won: z.boolean(),
               }),
             ),
-            conversationHistory: z.array(z.unknown()),
-            actionHistory: z.array(z.unknown()),
+            conversationHistory: z.array(MatchHistoryEventSchema),
+            actionHistory: z.array(MatchHistoryEventSchema),
           }),
         )
         .mutation(({ input }) =>
-          services.persistMatch(input as PersistMatchInput),
+          services.persistMatch(input),
         ),
       recentByUsername: t.procedure
         .input(
@@ -187,6 +182,8 @@ export function createAppRouter(services: RouterServices) {
         }),
     }),
     room: t.router({
+      current: t.procedure
+        .query(() => services.getCurrentRoom()),
       rotate: backendProcedure
         .mutation(() => services.rotateActiveRoom()),
     }),

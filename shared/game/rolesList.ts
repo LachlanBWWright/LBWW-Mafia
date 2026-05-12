@@ -1,7 +1,10 @@
+import { RoleFaction } from "./rolesTypes";
+import type { RoleCatalogEntry, RoleSection } from "./rolesTypes";
+
 export const townRoles = [
   {
     name: "Doctor",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Protective",
     summary: "Protect a player from attacks.",
     description:
@@ -9,7 +12,7 @@ export const townRoles = [
   },
   {
     name: "Judge",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Investigative",
     summary: "Investigate alignments with uncertainty.",
     description:
@@ -17,7 +20,7 @@ export const townRoles = [
   },
   {
     name: "Watchman",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Investigative",
     summary: "See visitors to your target.",
     description:
@@ -25,7 +28,7 @@ export const townRoles = [
   },
   {
     name: "Investigator",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Investigative",
     summary: "Inspect faction clues at night.",
     description:
@@ -33,7 +36,7 @@ export const townRoles = [
   },
   {
     name: "Lawman",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Support",
     summary: "Coordinate with Lawman faction members.",
     description:
@@ -41,7 +44,7 @@ export const townRoles = [
   },
   {
     name: "Vetter",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Investigative",
     summary: "Vet two players to compare identities.",
     description:
@@ -49,7 +52,7 @@ export const townRoles = [
   },
   {
     name: "Tapper",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Support",
     summary: "Tap players to expose whispers/actions.",
     description:
@@ -57,7 +60,7 @@ export const townRoles = [
   },
   {
     name: "Tracker",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Investigative",
     summary: "Track who a target visits.",
     description:
@@ -65,7 +68,7 @@ export const townRoles = [
   },
   {
     name: "Bodyguard",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Protective",
     summary: "Guard a player and counter attackers.",
     description:
@@ -73,7 +76,7 @@ export const townRoles = [
   },
   {
     name: "Nimby",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Utility",
     summary: "Punish hostile visits to your target area.",
     description:
@@ -81,7 +84,7 @@ export const townRoles = [
   },
   {
     name: "Sacrificer",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Protective",
     summary: "Absorb damage for allies.",
     description:
@@ -89,7 +92,7 @@ export const townRoles = [
   },
   {
     name: "Fortifier",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Protective",
     summary: "Increase a target's defense.",
     description:
@@ -97,7 +100,7 @@ export const townRoles = [
   },
   {
     name: "Roleblocker",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Support",
     summary: "Prevent a player from acting.",
     description:
@@ -105,18 +108,18 @@ export const townRoles = [
   },
   {
     name: "Jailor",
-    faction: "town",
+    faction: RoleFaction.Town,
     category: "Town Control",
     summary: "Jail and execute key suspects.",
     description:
       "At day, you can choose to jail a player, blocking their abilities. You can then interrogate them, and choose to execute them. At day and night, visit a player to jail them, and visit yourself at night to execute who you have jailed.",
   },
-];
+] satisfies readonly RoleCatalogEntry[];
 
 export const mafiaRoles = [
   {
     name: "Mafia",
-    faction: "mafia",
+    faction: RoleFaction.Mafia,
     category: "Mafia Killing",
     summary: "Perform faction attacks at night.",
     description:
@@ -124,7 +127,7 @@ export const mafiaRoles = [
   },
   {
     name: "Mafia Roleblocker",
-    faction: "mafia",
+    faction: RoleFaction.Mafia,
     category: "Mafia Support",
     summary: "Roleblock priority targets.",
     description:
@@ -132,18 +135,18 @@ export const mafiaRoles = [
   },
   {
     name: "Mafia Investigator",
-    faction: "mafia",
+    faction: RoleFaction.Mafia,
     category: "Mafia Investigative",
     summary: "Discover threat roles.",
     description:
       "A Mafia role with investigation abilities. Can inspect other players to reveal their role during the night phase instead of attacking.",
   },
-];
+] satisfies readonly RoleCatalogEntry[];
 
 export const neutralRoles = [
   {
     name: "Maniac",
-    faction: "neutral",
+    faction: RoleFaction.Neutral,
     category: "Neutral Killing",
     summary: "Eliminate players for solo victory.",
     description:
@@ -151,7 +154,7 @@ export const neutralRoles = [
   },
   {
     name: "Sniper",
-    faction: "neutral",
+    faction: RoleFaction.Neutral,
     category: "Neutral Killing",
     summary: "Take precision shots with constraints.",
     description:
@@ -159,7 +162,7 @@ export const neutralRoles = [
   },
   {
     name: "Framer",
-    faction: "neutral",
+    faction: RoleFaction.Neutral,
     category: "Neutral Evil",
     summary: "Manipulate voting outcomes around targets.",
     description:
@@ -167,7 +170,7 @@ export const neutralRoles = [
   },
   {
     name: "Confesser",
-    faction: "neutral",
+    faction: RoleFaction.Neutral,
     category: "Neutral Chaos",
     summary: "Win by being voted out.",
     description:
@@ -175,22 +178,22 @@ export const neutralRoles = [
   },
   {
     name: "Peacemaker",
-    faction: "neutral",
+    faction: RoleFaction.Neutral,
     category: "Neutral Benign",
     summary: "Force a draw by prolonged peace.",
     description:
       "Your goal is to create peace by causing a tie, as a result of nobody dying for three consecutive days. Every night, you are able to select a person, and stop them from performing their action.",
   },
-];
+] satisfies readonly RoleCatalogEntry[];
 
 export const allRoles = [...townRoles, ...mafiaRoles, ...neutralRoles];
 
 export const roleSections = [
-  { title: "Town", faction: "town", roles: townRoles },
-  { title: "Mafia", faction: "mafia", roles: mafiaRoles },
-  { title: "Neutral", faction: "neutral", roles: neutralRoles },
-];
+  { title: "Town", faction: RoleFaction.Town, roles: townRoles },
+  { title: "Mafia", faction: RoleFaction.Mafia, roles: mafiaRoles },
+  { title: "Neutral", faction: RoleFaction.Neutral, roles: neutralRoles },
+] satisfies readonly RoleSection[];
 
-export const roleFactionsByName = new Map(
+export const roleFactionsByName: ReadonlyMap<string, RoleFaction> = new Map(
   [...townRoles, ...mafiaRoles].map((role) => [role.name, role.faction]),
 );

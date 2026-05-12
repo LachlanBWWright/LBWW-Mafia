@@ -3,7 +3,7 @@ import { resolve } from "path";
 
 export default defineConfig({
   test: {
-    include: ["../shared/**/*.test.ts"],
+    include: ["../shared/**/*.test.ts", "./**/*.test.ts"],
     exclude: ["**/node_modules/**", "../shared/node_modules/**"],
   },
   resolve: {

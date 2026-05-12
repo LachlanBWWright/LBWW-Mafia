@@ -13,6 +13,7 @@ import type {
   RouterServices,
   UserSummary,
 } from "@mernmafia/shared/trpc/appRouter";
+import { deserializeEventHistory, deserializeStringArray } from "@mernmafia/shared/trpc/validators";
 import { ok, err } from "neverthrow";
 
 type MatchRow = {
@@ -23,44 +24,6 @@ type MatchRow = {
   winningRoles: string;
   conversationHistory: string;
   actionHistory: string;
-};
-
-/**
- * Parses a JSON string into an array of strings.
- * Returns empty array if parsing fails.
- *
- * @param value - JSON string to parse
- * @returns Parsed array of strings, or empty array
- */
-const parseArray = (value: string): string[] => {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.filter((entry): entry is string => typeof entry === "string");
-    }
-  } catch (error) {
-    console.error("Failed to parse winningRoles JSON", error);
-  }
-  return [];
-};
-
-/**
- * Parses a JSON string into an array and returns its length.
- * Returns 0 if parsing fails.
- *
- * @param value - JSON string to parse
- * @returns Length of parsed array, or 0
- */
-const parseCount = (value: string): number => {
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.length;
-    }
-  } catch (error) {
-    console.error("Failed to parse history JSON", error);
-  }
-  return 0;
 };
 
 /**
@@ -161,10 +124,10 @@ const getRecentMatches = async ({
     roomName: row.roomName,
     endedAt: row.endedAt,
     winningFaction: row.winningFaction,
-    winningRoles: parseArray(row.winningRoles),
+    winningRoles: deserializeStringArray(row.winningRoles),
     participants: participantMap.get(row.id) ?? [],
-    conversationCount: parseCount(row.conversationHistory),
-    actionCount: parseCount(row.actionHistory),
+    conversationCount: deserializeEventHistory(row.conversationHistory).length,
+    actionCount: deserializeEventHistory(row.actionHistory).length,
   }));
 };
 
@@ -279,6 +242,39 @@ const persistMatch = async (input: PersistMatchInput): Promise<{ id: number }> =
 };
 
 /**
+ * Returns the active PartyKit room ID, creating it if this is the first lobby request.
+ * This is matchmaking state only; live game state remains inside PartyKit.
+ *
+ * @returns The current room ID clients should connect to
+ */
+const getCurrentRoom = async (): Promise<{ roomId: string }> => {
+  const existingRows = await db
+    .select({ roomId: activeRoom.roomId })
+    .from(activeRoom)
+    .where(eq(activeRoom.id, 1))
+    .limit(1);
+
+  const existing = existingRows[0];
+  if (existing) {
+    return { roomId: existing.roomId };
+  }
+
+  const roomId = crypto.randomUUID();
+  await db
+    .insert(activeRoom)
+    .values({ id: 1, roomId })
+    .onConflictDoNothing();
+
+  const rows = await db
+    .select({ roomId: activeRoom.roomId })
+    .from(activeRoom)
+    .where(eq(activeRoom.id, 1))
+    .limit(1);
+
+  return { roomId: rows[0]?.roomId ?? roomId };
+};
+
+/**
  * Rotates the active game room ID.
  * Generates a new random UUID and updates the singleton active room record.
  *
@@ -301,5 +297,6 @@ export const trpcServices: RouterServices = {
   searchUsers,
   setUserAdmin,
   persistMatch,
+  getCurrentRoom,
   rotateActiveRoom,
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { SocketIoClientAdapter } from "@mernmafia/shared/communication/socketIoClientAdapter";
 import { PartykitClientAdapter } from "@mernmafia/shared/communication/partykitClientAdapter";
@@ -95,6 +95,7 @@ type JoinContext = {
   joiningRef: { current: boolean };
   playerNameRef: { current: string };
   msgIdRef: { current: number };
+  onRoomFull?: () => void;
   setJoinStatus: (s: string) => void;
   setJoining: (b: boolean) => void;
   setPlayerName: (n: string) => void;
@@ -146,7 +147,8 @@ function performJoin(ctx: JoinContext) {
           ctx.setCanTalk(true);
           ctx.setCanVote(true);
         } else if (result === JOIN_ERROR.ROOM_FULL) {
-          ctx.setJoinStatus("Room is full. Please try again.");
+          ctx.setJoinStatus("Room is full. Finding another room...");
+          ctx.onRoomFull?.();
         } else if (result === JOIN_ERROR.CAPTCHA_FAILED) {
           ctx.setJoinStatus("Failed captcha verification.");
         } else {
@@ -169,6 +171,7 @@ function performJoin(ctx: JoinContext) {
  */
 export function useGameLobby(
   roomId: string,
+  onRoomFull?: () => void,
 ): GameLobbyState & GameLobbyActions {
   const [joinStatus, setJoinStatus] = useState("");
   const [playerName, setPlayerName] = useState("");
@@ -186,14 +189,12 @@ export function useGameLobby(
   );
   const [currentUserRole, setCurrentUserRole] = useState<string | undefined>();
 
-  // Socket is created once via lazy useState initializer (never changes after mount)
-  const [socket] = useState<GameSocket | null>(() => buildSocket(roomId));
+  const socket = useMemo(() => buildSocket(roomId), [roomId]);
 
   const msgIdRef = useRef(0);
   const joiningRef = useRef(false);
   const playerNameRef = useRef("");
 
-  // Socket setup runs once on mount (socket is stable — never reassigned after init)
   useEffect(() => {
     if (!socket) return;
 
@@ -210,6 +211,7 @@ export function useGameLobby(
       joiningRef,
       playerNameRef,
       msgIdRef,
+      onRoomFull,
       setJoinStatus,
       setJoining,
       setPlayerName,
@@ -298,7 +300,7 @@ export function useGameLobby(
       socket.off(ServerEvent.UpdatePlayerVisit);
       socket.disconnect();
     };
-  }, [socket]); // socket is stable (lazy useState initializer, never changes)
+  }, [socket, onRoomFull]);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -315,6 +317,7 @@ export function useGameLobby(
       joiningRef,
       playerNameRef,
       msgIdRef,
+      onRoomFull,
       setJoinStatus,
       setJoining,
       setPlayerName,

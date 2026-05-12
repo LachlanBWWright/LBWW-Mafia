@@ -1,4 +1,3 @@
-import Crypto from "crypto";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { User } from "../user/user.js";
 import { Player } from "../player/player.js";
@@ -7,16 +6,13 @@ import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { DayTime } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../servers/emitter.js";
-import { Confesser } from "../roles/neutral/confesser.js";
 import { Faction } from "../factions/abstractFaction.js";
-import { BlankRole } from "../roles/blankRole.js";
 import { Role } from "../roles/abstractRole.js";
-import { Framer } from "../roles/neutral/framer.js";
-import { Peacemaker } from "../roles/neutral/peacemaker.js";
 import { RoleGroup } from "../roles/roleGroup.js";
 import { CombatLevel } from "../roles/combatLevel.js";
 import { GamePhase } from "./gamePhase.js";
 import { names } from "../player/names/namesList.js";
+import { GameSystems } from "./systems/gameSystems.js";
 import {
   persistMatchHistory,
   rotateActiveRoom,
@@ -37,6 +33,14 @@ const VOTE_QUORUM_OFFSET = 1;
 const GENERIC_JOIN_ERROR_CODE = 1;
 const ROOM_FULL_ERROR_CODE = 3;
 
+function createRoomName(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+}
+
 export class Room {
   readonly name: string;
   readonly size: number;
@@ -48,23 +52,20 @@ export class Room {
 
   started = false;
   time: GamePhase = GamePhase.Idle;
-  roleList: (typeof BlankRole)[] = [];
+  roleList: ReturnType<RoleHandler["assignGame"]> = [];
   factionList: Faction[] = [];
+  systems: GameSystems | null = null;
   sessionLength: number;
   gameHasEnded = false;
   endDay = DEFAULT_END_DAY_COUNT;
-
-  framer: Framer | null = null;
   confesserVotedOut = false;
-  peacemaker: Peacemaker | null = null;
-  confesser?: Confesser;
 
   startedAt = new Date();
   conversationHistory: MatchHistoryEvent[] = [];
   actionHistory: MatchHistoryEvent[] = [];
 
   constructor(size: number, name?: string) {
-    this.name = name ?? Crypto.randomBytes(8).toString("hex");
+    this.name = name ?? createRoomName();
     this.size = size;
     this.sessionLength = this.size * SESSION_LENGTH_PER_PLAYER_MS;
   }
@@ -118,7 +119,12 @@ export class Room {
     const socketId = playerSocket.id;
     if (this.userList.some((u) => u.socketId === socketId))
       return GENERIC_JOIN_ERROR_CODE;
-    if (this.userList.length >= this.size) return ROOM_FULL_ERROR_CODE;
+    if (this.userList.length >= this.size) {
+      void rotateActiveRoom().catch((error) => {
+        console.error("Failed to rotate active room", error);
+      });
+      return ROOM_FULL_ERROR_CODE;
+    }
 
     const takenNames = this.userList.map((u) => u.username);
     const username = names.find((n) => !takenNames.includes(n));
@@ -278,7 +284,7 @@ export class Room {
         return;
       }
       foundPlayer.hasVoted = true;
-      foundPlayer.role.handleNightVote(foundRecipient);
+      this.systems?.roleCommands.runNightVote(foundPlayer, foundRecipient);
       return;
     }
 
@@ -523,12 +529,11 @@ export class Room {
       });
     }
 
-    this.factionList.push(
-      ...roleHandler.assignFactionsFromPlayerList(this.playerList),
-    );
+    this.factionList.push(...roleHandler.assignFactionsFromPlayerList(this.playerList, this));
     for (const faction of this.factionList)
       faction.findMembers(this.playerList);
     for (const player of this.playerList) player.role.initRole();
+    this.systems = new GameSystems(this);
 
     this.startFirstDaySession(this.sessionLength);
   }
@@ -601,13 +606,7 @@ export class Room {
     io.to(this.name).emit(ServerEvent.ReceiveMessage, {
       key: MessageKey.GameEndedNobodyDied,
     });
-    if (this.peacemaker !== null) {
-      this.peacemaker.victoryCondition = true;
-      io.to(this.peacemaker.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        { key: MessageKey.PeacemakerWon },
-      );
-    }
+    this.systems?.victory.onNoDeathDraw();
     this.endGame("nobody");
   }
 
@@ -657,26 +656,12 @@ export class Room {
       if (livingPlayer.votesReceived >= votesRequired) {
         this.endDay = dayNumber + DRAW_TRIGGER_DAYS;
         this.handlePlayerVotedOut(livingPlayer);
-        this.checkFramerVictory(livingPlayer);
       }
     }
   }
 
   private handlePlayerVotedOut(player: Player): void {
-    if (player.role instanceof Confesser) {
-      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.ConfeserVotedOut,
-        params: { playerName: player.username },
-      });
-      this.confesserVotedOut = true;
-      player.role.victoryCondition = true;
-      io.to(this.name).emit(ServerEvent.DisableVoting);
-    } else {
-      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.PlayerVotedOutByTown,
-        params: { playerName: player.username },
-      });
-    }
+    this.systems?.victory.handlePlayerVotedOut(player);
 
     io.to(player.user.socketId).emit(
       ServerEvent.ReceiveMessage,
@@ -687,19 +672,6 @@ export class Room {
     io.to(this.name).emit(ServerEvent.UpdatePlayerRole, {
       name: player.username,
     });
-  }
-
-  private checkFramerVictory(votedOutPlayer: Player): void {
-    if (
-      this.framer !== null &&
-      this.framer.target === votedOutPlayer
-    ) {
-      this.framer.victoryCondition = true;
-      io.to(this.framer.player.user.socketId).emit(
-        ServerEvent.ReceiveMessage,
-        { key: MessageKey.FramerTargetVotedOut },
-      );
-    }
   }
 
   private prepareForNight(dayNumber: number): void {
@@ -733,64 +705,9 @@ export class Room {
 
   private processNightActions(nightNumber: number): void {
     this.time = GamePhase.Processing;
-
-    this.processFactionActions();
-    this.processRoleBlockers();
-    this.processVisitors();
-    this.handleVisitOutcomes();
-    this.cleanupNightState(nightNumber);
-  }
-
-  private processFactionActions(): void {
-    for (const faction of this.factionList) {
-      faction.removeMembers();
-      faction.handleNightVote();
-    }
-  }
-
-  private processRoleBlockers(): void {
-    for (const player of this.playerList) {
-      if (player.role.roleblocker) {
-        player.role.visit();
-      }
-    }
-  }
-
-  private processVisitors(): void {
-    for (const player of this.playerList) {
-      if (player.role.roleblocked && !player.role.roleblocker) {
-        player.role.visiting = null;
-        io.to(player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.YouWereRoleblocked,
-        });
-        player.role.roleblocked = false;
-      } else if (player.role.visiting !== null && !player.role.roleblocker) {
-        player.role.visit();
-      }
-    }
-  }
-
-  private handleVisitOutcomes(): void {
-    for (const player of this.playerList) {
-      if (player.isAlive) {
-        player.role.handleVisits();
-      }
-    }
-  }
-
-  private cleanupNightState(nightNumber: number): void {
-    for (const player of this.playerList) {
-      if (!player.isAlive) continue;
-
-      if (player.role.handleDamage()) {
-        this.endDay = nightNumber + DRAW_TRIGGER_DAYS;
-      }
-      player.role.dayVisiting = null;
-      player.role.visiting = null;
-      player.role.roleblocked = false;
-      player.role.visitors = [];
-      player.role.nightTapped = false;
-    }
+    this.systems?.factions.resolveNight();
+    this.systems?.visits.resolveNight();
+    this.systems?.combat.resolveNightCleanup(nightNumber, DRAW_TRIGGER_DAYS);
   }
 
   private checkForWinningFaction(

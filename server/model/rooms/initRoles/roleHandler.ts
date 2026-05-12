@@ -1,363 +1,196 @@
-import { RoleGroup } from "../../roles/roleGroup.js";
-//Imports all the roles used
-
-//Town Roles
-import { Doctor } from "../../roles/town/doctor.js";
-import { Judge } from "../../roles/town/judge.js";
-import { Watchman } from "../../roles/town/watchman.js";
-import { Investigator } from "../../roles/town/investigator.js";
-import { Lawman } from "../../roles/town/lawman.js";
-import { Vetter } from "../../roles/town/vetter.js";
-import { Tapper } from "../../roles/town/tapper.js";
-import { Tracker } from "../../roles/town/tracker.js";
-import { Bodyguard } from "../../roles/town/bodyguard.js";
-import { Nimby } from "../../roles/town/nimby.js";
-import { Sacrificer } from "../../roles/town/sacrificer.js";
-import { Fortifier } from "../../roles/town/fortifier.js";
-import { Roleblocker } from "../../roles/town/roleblocker.js";
-import { Jailor } from "../../roles/town/jailor.js";
-
-//Mafia Roles
-import { Mafia } from "../../roles/mafia/mafia.js";
-import { MafiaRoleblocker } from "../../roles/mafia/mafiaRoleblocker.js";
-import { MafiaInvestigator } from "../../roles/mafia/mafiaInvestigator.js";
-
-//Neutral Roles
-import { Maniac } from "../../roles/maniac/maniac.js";
-import { Sniper } from "../../roles/sniper/sniper.js";
-import { Framer } from "../../roles/neutral/framer.js";
-import { Confesser } from "../../roles/neutral/confesser.js";
-import { Peacemaker } from "../../roles/neutral/peacemaker.js";
-
-//Imports all the factions used
-import { MafiaFaction } from "../../factions/mafiaFaction.js";
-import { LawmanFaction } from "../../factions/lawmanFaction.js";
-import { Faction } from "../../factions/abstractFaction.js";
-
-import { Player } from "../../player/player.js";
-import { BlankRole } from "../../roles/blankRole.js";
+import type { Player } from "../../player/player.js";
+import type { Room } from "../room.js";
 import {
-  CustomRoleFactory,
-  CustomRoleDefinition,
-} from "../../roles/composition/index.js";
-import { Room } from "../room.js";
-import { Role } from "../../roles/abstractRole.js";
+  bodyguardDefinition,
+  doctorDefinition,
+  fortifierDefinition,
+  investigatorDefinition,
+  jailorDefinition,
+  judgeDefinition,
+  lawmanDefinition,
+  nimbyDefinition,
+  roleblockerDefinition,
+  sacrificerDefinition,
+  tapperDefinition,
+  trackerDefinition,
+  vetterDefinition,
+  watchmanDefinition,
+} from "../../roles/definitions/town.js";
+import {
+  mafiaDefinition,
+  mafiaInvestigatorDefinition,
+  mafiaRoleblockerDefinition,
+} from "../../roles/definitions/mafia.js";
+import {
+  blankRoleDefinition,
+  confesserDefinition,
+  framerDefinition,
+  maniacDefinition,
+  peacemakerDefinition,
+  sniperDefinition,
+} from "../../roles/definitions/neutral.js";
+import type { RoleDefinition } from "../../roles/composition/roleDefinition.js";
+import { CustomRoleFactory } from "../../roles/composition/customRoleFactory.js";
+import type { CustomRoleDefinition } from "../../roles/composition/roleFactory.js";
+import { RoleFactory } from "../../roles/composition/roleFactory.js";
+import { lawmanFactionDefinition } from "../../factions/definitions/lawman.js";
+import { mafiaFactionDefinition } from "../../factions/definitions/mafia.js";
+import { FactionFactory } from "../../factions/composition/factionFactory.js";
+import type { Faction } from "../../factions/abstractFaction.js";
 
 const ROLE_BALANCE_TOLERANCE = 15;
 const RANDOM_BALANCE_OFFSET_MIN = -15;
 const RANDOM_BALANCE_OFFSET_RANGE = 30;
 const NEUTRAL_ROLE_SELECTION_THRESHOLD = 0.3;
 
-const ROLE_POWER_VALUES = {
-  DOCTOR: 5,
-  JUDGE: 6,
-  WATCHMAN: 4,
-  INVESTIGATOR: 4,
-  LAWMAN: 8,
-  VETTER: 4,
-  TAPPER: 3,
-  TRACKER: 5,
-  BODYGUARD: 6,
-  NIMBY: 5,
-  SACRIFICER: 8,
-  FORTIFIER: 8,
-  ROLEBLOCKER: 5,
-  JAILOR: 12,
-  MAFIA: -13,
-  MAFIA_ROLEBLOCKER: -20,
-  MAFIA_INVESTIGATOR: -15,
-  MANIAC: -12,
-  SNIPER: -10,
-  FRAMER: -5,
-  CONFESSER: -5,
-  PEACEMAKER: -2,
-} as const;
+type RoleSelectionEntry = RoleDefinition | CustomRoleDefinition;
 
-//This generates the an array of role classes to be used, and then returns it to the room.
-/**
- * Manages role assignment for games, balancing team power dynamically.
- * Assigns roles to players using power scoring to maintain game balance between Town and Mafia.
- * Also creates and assigns faction groups for coordinated roles.
- *
- * @class RoleHandler
- */
+const builtInRoleDefinitions: RoleDefinition[] = [
+  doctorDefinition,
+  judgeDefinition,
+  watchmanDefinition,
+  investigatorDefinition,
+  lawmanDefinition,
+  vetterDefinition,
+  tapperDefinition,
+  trackerDefinition,
+  bodyguardDefinition,
+  nimbyDefinition,
+  sacrificerDefinition,
+  fortifierDefinition,
+  roleblockerDefinition,
+  jailorDefinition,
+  mafiaDefinition,
+  mafiaRoleblockerDefinition,
+  mafiaInvestigatorDefinition,
+  maniacDefinition,
+  sniperDefinition,
+  framerDefinition,
+  confesserDefinition,
+  peacemakerDefinition,
+  blankRoleDefinition,
+];
+
+const factionDefinitions = [mafiaFactionDefinition, lawmanFactionDefinition];
+
+function isBuiltInRoleDefinition(entry: RoleSelectionEntry): entry is RoleDefinition {
+  return entry.kind === "built-in";
+}
+
 export class RoleHandler {
-  /**
-   * The size of the game room (number of players).
-   * @type {number}
-   */
   roomSize: number;
-
-  /**
-   * Optional custom role definitions to include in role selection.
-   * @type {CustomRoleDefinition[]}
-   */
   customRoles: CustomRoleDefinition[];
 
-  /**
-   * Creates a new RoleHandler for a given room size.
-   *
-   * @param roomSize - The number of players in the game
-   * @param customRoles - Optional custom roles to enable
-   */
   constructor(roomSize: number, customRoles: CustomRoleDefinition[] = []) {
     this.roomSize = roomSize;
     this.customRoles = customRoles;
   }
 
-  /**
-   * Assigns a balanced set of roles for all players in the game.
-   * Uses comparative power scoring to ensure Town and Mafia remain balanced.
-   * Removes unique roles from selection pools to prevent duplicates.
-   *
-   * @returns Array of role classes to assign to players
-   */
-  assignGame(): (typeof BlankRole)[] {
-    let roleList: (typeof BlankRole)[] = [];
+  assignGame(): RoleSelectionEntry[] {
+    const roleList: RoleSelectionEntry[] = [];
     let comparativePower = 0;
 
-    //Role Lists
-    let randomTownList: (typeof BlankRole)[] = [
-      Doctor,
-      Judge,
-      Watchman,
-      Investigator,
-      Lawman,
-      Vetter,
-      Tapper,
-      Tracker,
-      Bodyguard,
-      Nimby,
-      Sacrificer,
-      Fortifier,
-      Roleblocker,
-      Jailor,
+    const randomTownList = [
+      doctorDefinition,
+      judgeDefinition,
+      watchmanDefinition,
+      investigatorDefinition,
+      lawmanDefinition,
+      vetterDefinition,
+      tapperDefinition,
+      trackerDefinition,
+      bodyguardDefinition,
+      nimbyDefinition,
+      sacrificerDefinition,
+      fortifierDefinition,
+      roleblockerDefinition,
+      jailorDefinition,
     ];
-    let randomMafiaList = [Mafia, MafiaRoleblocker, MafiaInvestigator];
-    let randomNeutralList = [Maniac, Sniper, Framer, Confesser, Peacemaker];
+    const randomMafiaList = [
+      mafiaDefinition,
+      mafiaRoleblockerDefinition,
+      mafiaInvestigatorDefinition,
+    ];
+    const randomNeutralList = [
+      maniacDefinition,
+      sniperDefinition,
+      framerDefinition,
+      confesserDefinition,
+      peacemakerDefinition,
+    ];
 
-    for (const slotToken of Array.from({ length: this.roomSize }, () => true)) {
-      if (!slotToken) continue;
-      //
-      let randomiser =
-        Math.random() * RANDOM_BALANCE_OFFSET_RANGE + RANDOM_BALANCE_OFFSET_MIN;
-      //For testing specific roles, comment out otherwise
-      /*             if(i == 0) {
-                roleList.push(MafiaInvestigator);
-                comparativePower += this.getPower(MafiaInvestigator);
-                randomNeutralList.splice(4, 1);
-                continue;
-            }  */
-
-      if (
-        comparativePower < ROLE_BALANCE_TOLERANCE &&
-        comparativePower > -ROLE_BALANCE_TOLERANCE
-      ) {
+    for (let i = 0; i < this.roomSize; i++) {
+      const randomiser = Math.random() * RANDOM_BALANCE_OFFSET_RANGE + RANDOM_BALANCE_OFFSET_MIN;
+      if (comparativePower < ROLE_BALANCE_TOLERANCE && comparativePower > -ROLE_BALANCE_TOLERANCE) {
         if (randomiser > comparativePower) {
-          //The weaker the town, the higher the chance of a town member being added
-          let index = Math.floor(Math.random() * randomTownList.length);
-          let addedRole = randomTownList[index];
-          roleList.push(addedRole);
-          comparativePower += this.getPower(addedRole);
-          if (this.uniqueRoleCheck(addedRole)) randomTownList.splice(index, 1);
+          this.pushRandomRole(roleList, randomTownList, (entry) => {
+            comparativePower += this.getRolePower(entry);
+          });
+        } else if (Math.random() > NEUTRAL_ROLE_SELECTION_THRESHOLD || randomNeutralList.length === 0) {
+          this.pushRandomRole(roleList, randomMafiaList, (entry) => {
+            comparativePower += this.getRolePower(entry);
+          });
         } else {
-          //Add mafia/neutral role
-          if (
-            Math.random() > NEUTRAL_ROLE_SELECTION_THRESHOLD ||
-            randomNeutralList.length == 0
-          ) {
-            //Add Mafia
-            let index = Math.floor(Math.random() * randomMafiaList.length);
-            let addedRole = randomMafiaList[index];
-            roleList.push(addedRole);
-            comparativePower += this.getPower(addedRole);
-            if (this.uniqueRoleCheck(addedRole))
-              randomMafiaList.splice(index, 1);
-          } else {
-            //Add neutral role
-            let index = Math.floor(Math.random() * randomNeutralList.length);
-            let addedRole = randomNeutralList[index];
-            roleList.push(addedRole);
-            comparativePower += this.getPower(addedRole);
-            if (this.uniqueRoleCheck(addedRole))
-              randomNeutralList.splice(index, 1);
-          }
+          this.pushRandomRole(roleList, randomNeutralList, (entry) => {
+            comparativePower += this.getRolePower(entry);
+          });
         }
       } else if (comparativePower >= ROLE_BALANCE_TOLERANCE) {
-        //Town is too powerful - Add mafia
-        let index = Math.floor(Math.random() * randomMafiaList.length);
-        let addedRole = randomMafiaList[index];
-        roleList.push(addedRole);
-        comparativePower += this.getPower(addedRole);
-        if (this.uniqueRoleCheck(addedRole)) randomMafiaList.splice(index, 1);
+        this.pushRandomRole(roleList, randomMafiaList, (entry) => {
+          comparativePower += this.getRolePower(entry);
+        });
       } else {
-        //Mafia is too powerful - Add town
-        let index = Math.floor(Math.random() * randomTownList.length);
-        let addedRole = randomTownList[index];
-        roleList.push(addedRole);
-        comparativePower += this.getPower(addedRole);
-        if (this.uniqueRoleCheck(addedRole)) randomTownList.splice(index, 1);
+        this.pushRandomRole(roleList, randomTownList, (entry) => {
+          comparativePower += this.getRolePower(entry);
+        });
       }
     }
+
     return roleList;
   }
 
-  /**
-   * Assigns faction objects to players based on their roles.
-   * Creates a LawmanFaction if any Lawman exists, and a MafiaFaction if any Mafia role exists.
-   *
-   * @param playerList - List of all players in the game
-   * @returns Array of faction objects to manage coordinated role actions
-   */
-  assignFactionsFromPlayerList(playerList: Player[]): Faction[] {
-    const factionList: Faction[] = [];
-
-    for (const player of playerList) {
-      if (player.role.name === "Lawman") {
-        factionList.push(new LawmanFaction());
-        break;
-      }
-    }
-
-    for (const player of playerList) {
-      if (player.role.group === RoleGroup.Mafia) {
-        factionList.push(new MafiaFaction());
-        break;
-      }
-    }
-
-    return factionList;
-  }
-
-  /**
-   * Determines if a role is unique and should only appear once per game.
-   * Checks against a hardcoded list of unique roles.
-   *
-   * @param role - The role class to check
-   * @returns True if the role is unique and should be removed from selection, false otherwise
-   */
-  uniqueRoleCheck(role: typeof BlankRole) {
-    switch (role) {
-      //Town
-      case Jailor:
-        return true;
-      case Lawman:
-        return true;
-
-      //Mafia
-      //None applicable at present
-
-      //Neutral
-      case Maniac:
-        return true;
-      case Sniper:
-        return true;
-      case Framer:
-        return true;
-      case Confesser:
-        return true;
-      case Peacemaker:
-        return true;
-      default:
-        return false;
+  private pushRandomRole(
+    target: RoleSelectionEntry[],
+    source: RoleDefinition[],
+    onChosen: (entry: RoleDefinition) => void,
+  ): void {
+    if (source.length === 0) return;
+    const index = Math.floor(Math.random() * source.length);
+    const addedRole = source[index];
+    target.push(addedRole);
+    onChosen(addedRole);
+    if (this.isUniqueRole(addedRole)) {
+      source.splice(index, 1);
     }
   }
 
-  /**
-   * Calculates the power value of a role for game balance purposes.
-   * Positive values favor Town, negative values favor Mafia/Neutral.
-   * Used to dynamically select roles to maintain competitive balance.
-   *
-   * @param role - The role class to evaluate
-   * @returns Power value of the role (higher = more Town-favorable)
-   */
-  getPower(role: typeof BlankRole) {
-    switch (role) {
-      //Town Roles
-      case Doctor:
-        return ROLE_POWER_VALUES.DOCTOR;
-      case Judge:
-        return ROLE_POWER_VALUES.JUDGE;
-      case Watchman:
-        return ROLE_POWER_VALUES.WATCHMAN;
-      case Investigator:
-        return ROLE_POWER_VALUES.INVESTIGATOR;
-      case Lawman:
-        return ROLE_POWER_VALUES.LAWMAN;
-      case Vetter:
-        return ROLE_POWER_VALUES.VETTER;
-      case Tapper:
-        return ROLE_POWER_VALUES.TAPPER;
-      case Tracker:
-        return ROLE_POWER_VALUES.TRACKER;
-      case Bodyguard:
-        return ROLE_POWER_VALUES.BODYGUARD;
-      case Nimby:
-        return ROLE_POWER_VALUES.NIMBY;
-      case Sacrificer:
-        return ROLE_POWER_VALUES.SACRIFICER;
-      case Fortifier:
-        return ROLE_POWER_VALUES.FORTIFIER;
-      case Roleblocker:
-        return ROLE_POWER_VALUES.ROLEBLOCKER;
-      case Jailor:
-        return ROLE_POWER_VALUES.JAILOR;
-      //Mafia Roles
-      case Mafia:
-        return ROLE_POWER_VALUES.MAFIA;
-      case MafiaRoleblocker:
-        return ROLE_POWER_VALUES.MAFIA_ROLEBLOCKER;
-      case MafiaInvestigator:
-        return ROLE_POWER_VALUES.MAFIA_INVESTIGATOR;
-      //Neutral Roles
-      case Maniac:
-        return ROLE_POWER_VALUES.MANIAC;
-      case Sniper:
-        return ROLE_POWER_VALUES.SNIPER;
-      case Framer:
-        return ROLE_POWER_VALUES.FRAMER;
-      case Confesser:
-        return ROLE_POWER_VALUES.CONFESSER;
-      case Peacemaker:
-        return ROLE_POWER_VALUES.PEACEMAKER;
-      default:
-        return 0;
+  assignFactionsFromPlayerList(playerList: Player[], room: Room): Faction[] {
+    const factions = FactionFactory.createFactions(room, playerList, factionDefinitions);
+    return factions;
+  }
+
+  getRolePower(entry: RoleSelectionEntry): number {
+    if (isBuiltInRoleDefinition(entry)) {
+      return entry.balance.power;
     }
+    return entry.metadata.powerValue ?? 0;
   }
 
-  /**
-   * Gets the power value for a custom role definition.
-   *
-   * @param customRole - The custom role definition
-   * @returns Power value of the custom role
-   */
-  getCustomRolePower(customRole: CustomRoleDefinition): number {
-    return customRole.metadata.powerValue ?? 0;
-  }
-
-  /**
-   * Instantiates a role instance from a role class or custom definition.
-   * Handles both built-in roles and dynamically created custom roles.
-   *
-   * @param roleOrDef - Role class or custom definition
-   * @param room - The game room
-   * @param player - The player to assign the role to
-   * @returns Instantiated role
-   */
-  private static isCustomRoleDefinition(
-    roleOrDef: typeof BlankRole | CustomRoleDefinition,
-  ): roleOrDef is CustomRoleDefinition {
-    return typeof roleOrDef === "object";
-  }
-
-  instantiateRole(
-    roleOrDef: typeof BlankRole | CustomRoleDefinition,
-    room: Room,
-    player: Player,
-  ): Role {
-    if (RoleHandler.isCustomRoleDefinition(roleOrDef)) {
-      return CustomRoleFactory.createRole(room, player, roleOrDef);
+  isUniqueRole(entry: RoleSelectionEntry): boolean {
+    if (isBuiltInRoleDefinition(entry)) {
+      return entry.metadata.isUnique;
     }
-    return new roleOrDef(room, player);
+    return entry.metadata.isUnique ?? false;
+  }
+
+  instantiateRole(roleOrDef: RoleSelectionEntry, room: Room, player: Player) {
+    if (isBuiltInRoleDefinition(roleOrDef)) {
+      return RoleFactory.createRole(roleOrDef, room, player);
+    }
+    return CustomRoleFactory.createRole(room, player, roleOrDef);
+  }
+
+  getBuiltInDefinitions(): RoleDefinition[] {
+    return builtInRoleDefinitions;
   }
 }
