@@ -1,13 +1,13 @@
 import type { GameMessage } from "@mernmafia/shared/communication/messages";
 import type { Player } from "../../player/player.js";
 import type { Room } from "../../rooms/room.js";
-import type { ComposedFaction } from "./composedFaction.js";
+import type { GameFaction } from "../factionContracts.js";
 import type { FactionNightActionIntent } from "../nightIntent.js";
 import type { RoleTrait } from "../../roles/composition/roleTraits.js";
 
 export type FactionContext = {
   room: Room;
-  faction: ComposedFaction;
+  faction: GameFaction;
 };
 
 export interface FactionMembershipRule {

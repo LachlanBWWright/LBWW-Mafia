@@ -17,13 +17,13 @@ export const mafiaFactionDefinition: FactionDefinition = {
     },
   },
   votePolicy: {
-    resolveVotes: ({ faction }) => {
+    resolveVotes: ({ faction, room }) => {
       const attackList = faction.readNightVotes();
       faction.clearNightVotes();
       if (attackList.length === 0 || faction.memberList.length === 0) return [];
 
-      const victim = attackList[faction.room.randomIndex(attackList.length)];
-      const attacker = faction.memberList[faction.room.randomIndex(faction.memberList.length)]?.role;
+      const victim = attackList[room.randomIndex(attackList.length)];
+      const attacker = faction.memberList[room.randomIndex(faction.memberList.length)]?.role;
       if (!victim || !attacker) return [];
       return [
         {

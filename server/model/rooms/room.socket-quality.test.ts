@@ -6,15 +6,17 @@ import {
   ServerEvent,
 } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setGameEmitter } from "../../servers/emitter.js";
 import { Player } from "../player/player.js";
 import { createRoleInstance } from "../roles/composition/roleFactory.js";
 import { mafiaDefinition } from "../roles/definitions/mafia.js";
 import { doctorDefinition } from "../roles/definitions/town.js";
+import { User } from "../user/user.js";
 import { GamePhase } from "./gamePhase.js";
 import { Room } from "./room.js";
 import { GameSystems } from "./systems/gameSystems.js";
+import { resolveDayVote } from "./systems/voteSystem.js";
 
 type EmittedCall = {
   target: string;
@@ -85,6 +87,10 @@ beforeEach(() => {
       };
     },
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("room socket quality", () => {
@@ -199,5 +205,77 @@ describe("room socket quality", () => {
           (message as { key: MessageKey }).key === MessageKey.FactionWon,
       ),
     ).toBe(true);
+  });
+
+  it("resolves one explicit day-vote outcome from the highest quorum target", () => {
+    const room = new Room(3, "vote-room");
+    const alpha = new Player(new User(createSocket("alpha-socket"), "alpha"));
+    const beta = new Player(new User(createSocket("beta-socket"), "beta"));
+    const gamma = new Player(new User(createSocket("gamma-socket"), "gamma"));
+    room.playerList = [alpha, beta, gamma];
+
+    alpha.votesReceived = 3;
+    beta.votesReceived = 2;
+    gamma.votesReceived = 3;
+
+    const outcome = resolveDayVote(room.playerList, 2);
+
+    expect(outcome).toMatchObject({
+      kind: "tie",
+      votes: 3,
+    });
+  });
+
+  it("uses the room RNG for deterministic role assignment and shuffling", async () => {
+    vi.useFakeTimers();
+
+    const randomValues = [0.11, 0.73, 0.29, 0.61, 0.43, 0.97, 0.19, 0.53, 0.07, 0.87];
+    const buildRoom = (name: string) => {
+      const room = new Room(4, name);
+      room.userList = ["a", "b", "c", "d"].map(
+        (label, index) => new User(createSocket(`${name}-socket-${index}`), `${name}-${label}`),
+      );
+      let randomIndex = 0;
+      room.setRandomSource(() => {
+        const value = randomValues[randomIndex % randomValues.length];
+        randomIndex += 1;
+        return value ?? 0;
+      });
+      return room;
+    };
+
+    const roomA = buildRoom("rng-a");
+    const roomB = buildRoom("rng-b");
+
+    await roomA.startGame();
+    await roomB.startGame();
+
+    expect(roomA.playerList.map((player) => player.role.name)).toEqual(
+      roomB.playerList.map((player) => player.role.name),
+    );
+
+    roomA.endGame({ outcome: GameOutcome.Draw });
+    roomB.endGame({ outcome: GameOutcome.Draw });
+  });
+
+  it("cancels scheduled phase transitions once the game ends", () => {
+    vi.useFakeTimers();
+
+    const { room } = createStartedRoom("timer-room");
+    room.startFirstDaySession(0);
+    room.endGame({ outcome: GameOutcome.Draw });
+
+    vi.advanceTimersByTime(60_000);
+
+    expect(room.time).toBe(GamePhase.Day);
+    expect(
+      findMessages(room.name, ServerEvent.ReceiveMessage).some(
+        (message) =>
+          typeof message === "object" &&
+          message !== null &&
+          "key" in message &&
+          (message as { key: MessageKey }).key === MessageKey.Night1Started,
+      ),
+    ).toBe(false);
   });
 });

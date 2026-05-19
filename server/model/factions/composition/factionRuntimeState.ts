@@ -1,8 +1,8 @@
-import type { Role } from "../../roles/abstractRole.js";
+import type { GameRole } from "../../roles/roleContracts.js";
 import type { FactionNightActionIntent } from "../nightIntent.js";
 
 export type FactionRuntimeState = {
-  votes: Map<string, Role>;
+  votes: Map<string, GameRole>;
   intents: FactionNightActionIntent[];
 };
 

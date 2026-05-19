@@ -5,9 +5,10 @@ import { Player } from "../../player/player.js";
 import { Room } from "../../rooms/room.js";
 import { User } from "../../user/user.js";
 import {
+  compileCustomRole,
   createRoleInstance,
+  parseCustomRoleInput,
   type CustomRoleDefinition,
-  validateCustomRoleDefinition,
 } from "./roleFactory.js";
 import { setGameEmitter } from "../../../servers/emitter.js";
 
@@ -68,7 +69,22 @@ describe("custom role composition", () => {
     expect(target.damage).toBe(CombatLevel.Low);
   });
 
-  it("returns structured validation issues for unsupported custom-role combinations", () => {
+  it("uses safeParse to reject malformed custom-role boundary input", () => {
+    const parsed = parseCustomRoleInput({
+      kind: "custom",
+      metadata: {
+        name: "Invalid",
+        faction: RoleFaction.Town,
+        category: "town-support",
+      },
+    });
+
+    expect(parsed.status).toBe("error");
+    if (parsed.status !== "error") return;
+    expect(parsed.issues[0]?.code).toBe("invalid-input-shape");
+  });
+
+  it("returns structured compile issues for unsupported custom-role combinations", () => {
     const invalidDefinition: CustomRoleDefinition = {
       kind: "custom",
       metadata: {
@@ -90,9 +106,11 @@ describe("custom role composition", () => {
       behaviors: [{ kind: "no-action" }, { kind: "night-attack" }],
     };
 
-    const issues = validateCustomRoleDefinition(invalidDefinition);
+    const compileResult = compileCustomRole(invalidDefinition);
 
-    expect(issues).toEqual(
+    expect(compileResult.status).toBe("error");
+    if (compileResult.status !== "error") return;
+    expect(compileResult.issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           code: "conflicting-behaviors",

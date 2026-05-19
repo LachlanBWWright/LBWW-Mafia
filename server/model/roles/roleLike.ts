@@ -1,3 +1,3 @@
-import type { Role } from "./abstractRole.js";
+import type { GameRole } from "./roleContracts.js";
 
-export type RoleLike = Role;
+export type RoleLike = GameRole;

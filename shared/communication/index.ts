@@ -1,27 +1,50 @@
 /**
  * Central export point for socket communication types and utilities.
- * Re-exports event types, adapters, and factories for both client and server.
+ * Exports event types, adapters, and factories for both client and server.
  */
-export type {
+import type {
   ClientToServerEvents,
   ServerToClientEvents,
   InterServerEvents,
   PlayerList,
   PlayerReturned,
 } from "./events";
-export { ServerEvent, ClientEvent } from "./events";
-export { DayTime } from "../game/playerActionRules";
-export type {
+import { ServerEvent, ClientEvent } from "./events";
+import { DayTime } from "../game/playerActionRules";
+import type {
   GameEmitter,
   EmitTarget,
   DisconnectTarget,
   GamePlayerSocket,
 } from "./serverTypes";
-export type {
+import type {
   GameSocket,
   SocketBackendType,
   GameSocketConfig,
 } from "./clientTypes";
-export { SocketIoClientAdapter } from "./socketIoClientAdapter";
-export { PartykitClientAdapter } from "./partykitClientAdapter";
-export { createGameSocket } from "./createGameSocket";
+import { SocketIoClientAdapter } from "./socketIoClientAdapter";
+import { PartykitClientAdapter } from "./partykitClientAdapter";
+import { createGameSocket } from "./createGameSocket";
+
+export type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+  PlayerList,
+  PlayerReturned,
+  GameEmitter,
+  EmitTarget,
+  DisconnectTarget,
+  GamePlayerSocket,
+  GameSocket,
+  SocketBackendType,
+  GameSocketConfig,
+};
+export {
+  ServerEvent,
+  ClientEvent,
+  DayTime,
+  SocketIoClientAdapter,
+  PartykitClientAdapter,
+  createGameSocket,
+};

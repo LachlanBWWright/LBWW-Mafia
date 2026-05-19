@@ -1,7 +1,7 @@
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import type { Player } from "../../../player/player.js";
-import type { Role } from "../../abstractRole.js";
+import type { GameRole } from "../../roleContracts.js";
 import type { RoleInstance } from "../roleInstance.js";
 import { accepted, rejected } from "./results.js";
 import { actorNotice, dispatchNotice } from "./notices.js";
@@ -92,7 +92,7 @@ export function chooseLivingTarget(
   role: RoleInstance,
   recipient: Player,
   successKey: MessageKey,
-  applySelection: (target: Role) => void,
+  applySelection: (target: GameRole) => void,
 ) {
   if (!recipient.isAlive) {
     return rejectTarget(role, MessageKey.InvalidChoice);
@@ -124,7 +124,7 @@ export function chooseOtherLivingTarget(
   recipient: Player,
   selfKey: MessageKey,
   successKey: MessageKey,
-  applySelection: (target: Role) => void,
+  applySelection: (target: GameRole) => void,
 ) {
   if (recipient === role.player) {
     return rejectTarget(role, selfKey);

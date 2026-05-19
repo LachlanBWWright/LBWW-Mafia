@@ -1,5 +1,5 @@
 import { CombatLevel } from "../combatLevel.js";
-import type { Role } from "../abstractRole.js";
+import type { GameRole } from "../roleContracts.js";
 
 /**
  * Explicit per-role runtime state used by composed handlers.
@@ -12,34 +12,36 @@ export type RoleFactionAction =
 export type RoleRuntimeState = {
   persistent: {
     charges: Record<string, number>;
-    targets: Record<string, Role | null>;
+    targets: Record<string, GameRole | null>;
     flags: Record<string, boolean>;
   };
   dayAction: {
-    target: Role | null;
+    target: GameRole | null;
   };
   nightAction: {
-    target: Role | null;
-    factionVoteTarget: Role | null;
+    target: GameRole | null;
+    factionVoteTarget: GameRole | null;
     factionAction: RoleFactionAction | null;
+    isAttacking: boolean;
   };
   combat: {
     defence: CombatLevel;
     damage: CombatLevel;
-    attackers: Role[];
-    visitors: Role[];
+    attackers: GameRole[];
+    visitors: GameRole[];
   };
   statuses: {
-    roleblocking: Role | null;
+    roleblocking: GameRole | null;
     roleblocked: boolean;
     silenced: boolean;
-    dayTappedBy: Role | null;
-    nightTappedBy: Role | null;
-    jailedBy: Role | null;
+    dayTappedBy: GameRole | null;
+    nightTappedBy: GameRole | null;
+    jailedBy: GameRole | null;
   };
-  compatibility: {
-    isAttacking: boolean;
+  mentalState: {
     isInsane: boolean;
+  };
+  victory: {
     victoryCondition: boolean;
   };
 };
@@ -64,6 +66,7 @@ export function createRoleRuntimeState(baseDefence: CombatLevel): RoleRuntimeSta
       target: null,
       factionVoteTarget: null,
       factionAction: null,
+      isAttacking: false,
     },
     combat: {
       defence: baseDefence,
@@ -79,9 +82,10 @@ export function createRoleRuntimeState(baseDefence: CombatLevel): RoleRuntimeSta
       nightTappedBy: null,
       jailedBy: null,
     },
-    compatibility: {
-      isAttacking: false,
+    mentalState: {
       isInsane: false,
+    },
+    victory: {
       victoryCondition: false,
     },
   };
@@ -111,6 +115,7 @@ export function resetNightActionState(
   state.nightAction.target = null;
   state.nightAction.factionVoteTarget = null;
   state.nightAction.factionAction = null;
+  state.nightAction.isAttacking = false;
   state.combat.defence = baseDefence;
   state.combat.damage = CombatLevel.None;
   state.combat.attackers = [];
@@ -119,5 +124,4 @@ export function resetNightActionState(
   state.statuses.roleblocking = null;
   state.statuses.nightTappedBy = null;
   state.statuses.jailedBy = null;
-  state.compatibility.isAttacking = false;
 }

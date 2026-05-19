@@ -4,8 +4,7 @@
  */
 import { DayTime } from "../game/playerActionRules";
 import type { GameMessage } from "./messages";
-// Re-export DayTime so consumers can import it from one place
-export { DayTime } from "../game/playerActionRules";
+export { DayTime };
 
 /** Numeric error codes returned when a room join request is rejected. */
 export enum JoinRoomResultCode {

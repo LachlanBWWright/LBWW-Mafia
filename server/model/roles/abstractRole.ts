@@ -1,11 +1,10 @@
-import { io } from "../../servers/emitter.js";
-import { Faction } from "../factions/abstractFaction.js";
+import type { GameFaction } from "../factions/factionContracts.js";
 import { Player } from "../player/player.js";
 import { GamePhase } from "../rooms/gamePhase.js";
 import type { Room } from "../rooms/room.js";
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import type { RoleInterface } from "./roleInterface.js";
+import type { GameRole } from "./roleContracts.js";
 import { CombatLevel } from "./combatLevel.js";
 import type { RoleTrait } from "./composition/roleTraits.js";
 import {
@@ -15,15 +14,20 @@ import {
   type RoleRuntimeState,
 } from "./composition/roleRuntimeState.js";
 import { RoleGroup } from "./roleGroup.js";
+import { actorNotice, dispatchNotice } from "./composition/handlers/notices.js";
 
-export class Role implements RoleInterface {
+/**
+ * Concrete runtime compatibility adapter used by RoleInstance.
+ * New gameplay behavior should be authored via RoleDefinition/RoleHandler composition.
+ */
+export class Role implements GameRole {
   readonly room: Room;
   readonly player: Player;
   readonly runtimeState: RoleRuntimeState;
 
   name = "Role";
   group = RoleGroup.Unaligned;
-  faction?: Faction;
+  faction?: GameFaction;
 
   baseDefence = CombatLevel.None;
 
@@ -65,75 +69,75 @@ export class Role implements RoleInterface {
     this.runtimeState.combat.damage = value;
   }
 
-  get attackVote(): Role | null {
+  get attackVote(): GameRole | null {
     return this.runtimeState.nightAction.factionVoteTarget;
   }
 
-  set attackVote(value: Role | null) {
+  set attackVote(value: GameRole | null) {
     this.runtimeState.nightAction.factionVoteTarget = value;
   }
 
   get isAttacking(): boolean {
-    return this.runtimeState.compatibility.isAttacking;
+    return this.runtimeState.nightAction.isAttacking;
   }
 
   set isAttacking(value: boolean) {
-    this.runtimeState.compatibility.isAttacking = value;
+    this.runtimeState.nightAction.isAttacking = value;
   }
 
   get isInsane(): boolean {
-    return this.runtimeState.compatibility.isInsane;
+    return this.runtimeState.mentalState.isInsane;
   }
 
   set isInsane(value: boolean) {
-    this.runtimeState.compatibility.isInsane = value;
+    this.runtimeState.mentalState.isInsane = value;
   }
 
   get victoryCondition(): boolean {
-    return this.runtimeState.compatibility.victoryCondition;
+    return this.runtimeState.victory.victoryCondition;
   }
 
   set victoryCondition(value: boolean) {
-    this.runtimeState.compatibility.victoryCondition = value;
+    this.runtimeState.victory.victoryCondition = value;
   }
 
-  get dayVisiting(): Role | null {
+  get dayVisiting(): GameRole | null {
     return this.runtimeState.dayAction.target;
   }
 
-  set dayVisiting(value: Role | null) {
+  set dayVisiting(value: GameRole | null) {
     this.runtimeState.dayAction.target = value;
   }
 
-  get roleblocking(): Role | null {
+  get roleblocking(): GameRole | null {
     return this.runtimeState.statuses.roleblocking;
   }
 
-  set roleblocking(value: Role | null) {
+  set roleblocking(value: GameRole | null) {
     this.runtimeState.statuses.roleblocking = value;
   }
 
-  get visiting(): Role | null {
+  get visiting(): GameRole | null {
     return this.runtimeState.nightAction.target;
   }
 
-  set visiting(value: Role | null) {
+  set visiting(value: GameRole | null) {
     this.runtimeState.nightAction.target = value;
   }
 
-  get visitors(): Role[] {
+  get visitors(): GameRole[] {
     return this.runtimeState.combat.visitors;
   }
 
-  set visitors(value: Role[]) {
+  set visitors(value: GameRole[]) {
     this.runtimeState.combat.visitors = value;
   }
 
-  get attackers(): Role[] {
+  get attackers(): GameRole[] {
     return this.runtimeState.combat.attackers;
   }
 
-  set attackers(value: Role[]) {
+  set attackers(value: GameRole[]) {
     this.runtimeState.combat.attackers = value;
   }
 
@@ -153,27 +157,27 @@ export class Role implements RoleInterface {
     this.runtimeState.statuses.silenced = value;
   }
 
-  get dayTappedBy(): Role | null {
+  get dayTappedBy(): GameRole | null {
     return this.runtimeState.statuses.dayTappedBy;
   }
 
-  set dayTappedBy(value: Role | null) {
+  set dayTappedBy(value: GameRole | null) {
     this.runtimeState.statuses.dayTappedBy = value;
   }
 
-  get nightTappedBy(): Role | null {
+  get nightTappedBy(): GameRole | null {
     return this.runtimeState.statuses.nightTappedBy;
   }
 
-  set nightTappedBy(value: Role | null) {
+  set nightTappedBy(value: GameRole | null) {
     this.runtimeState.statuses.nightTappedBy = value;
   }
 
-  get jailed(): Role | null {
+  get jailed(): GameRole | null {
     return this.runtimeState.statuses.jailedBy;
   }
 
-  set jailed(value: Role | null) {
+  set jailed(value: GameRole | null) {
     this.runtimeState.statuses.jailedBy = value;
   }
 
@@ -188,11 +192,11 @@ export class Role implements RoleInterface {
     this.runtimeState.persistent.charges[slot] = value;
   }
 
-  getPersistentTarget(slot: string): Role | null {
+  getPersistentTarget(slot: string): GameRole | null {
     return this.runtimeState.persistent.targets[slot] ?? null;
   }
 
-  setPersistentTarget(slot: string, target: Role | null): void {
+  setPersistentTarget(slot: string, target: GameRole | null): void {
     this.runtimeState.persistent.targets[slot] = target;
   }
 
@@ -236,7 +240,7 @@ export class Role implements RoleInterface {
    * @param faction - The faction to assign
    * @returns
    */
-  assignFaction(faction: Faction) {
+  assignFaction(faction: GameFaction) {
     this.faction = faction;
   }
 
@@ -266,40 +270,28 @@ export class Role implements RoleInterface {
    * @returns
    */
   handleMessage(message: string) {
-    const socketId = this.player.user.socketId;
-    if (this.room.time === GamePhase.Day) {
-      if (this.silenced) {
-        io.to(socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.SilencedCannotTalk,
-        });
-      } else {
-        io.to(this.room.name).emit(
-          ServerEvent.ReceiveChatMessage,
-          `${this.player.username}: ${message}`,
-        );
-      }
-    } else if (this.jailed != null) {
-      io.to(socketId).emit(
-        ServerEvent.ReceiveChatMessage,
-        `${this.player.username}: ${message}`,
-      );
-      io.to(this.jailed.player.user.socketId).emit(
-        ServerEvent.ReceiveChatMessage,
-        `${this.player.username}: ${message}`,
-      );
-    } else if (typeof this.faction === "undefined") {
-      io.to(socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.CannotSpeakAtNight,
-      });
-    } else {
-      this.faction.handleNightMessage(message, this.player.username);
-      if (this.nightTappedBy !== null) {
-        io.to(this.nightTappedBy.player.user.socketId).emit(
-          ServerEvent.ReceiveChatMessage,
-          `${this.player.username}: ${message}`,
-        );
-      }
+    if (this.room.systems?.chat) {
+      this.room.systems.chat.handleRoleMessage(this, message);
+      return;
     }
+
+    if (this.room.time === GamePhase.Day && !this.silenced) {
+      this.room.messenger.emitToRoom(
+        ServerEvent.ReceiveChatMessage,
+        `${this.player.username}: ${message}`,
+      );
+      return;
+    }
+
+    dispatchNotice(
+      this,
+      actorNotice({
+        key:
+          this.room.time === GamePhase.Day
+            ? MessageKey.SilencedCannotTalk
+            : MessageKey.CannotSpeakAtNight,
+      }),
+    );
   }
 
   /**
@@ -310,9 +302,13 @@ export class Role implements RoleInterface {
    * @returns
    */
   handleDayAction(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-      key: MessageKey.NoDayAction,
-    });
+    if (this.room.systems?.chat) {
+      this.room.systems.chat.sendActorNotice(this.player, {
+        key: MessageKey.NoDayAction,
+      });
+      return;
+    }
+    dispatchNotice(this, actorNotice({ key: MessageKey.NoDayAction }));
   }
 
   /**
@@ -321,9 +317,13 @@ export class Role implements RoleInterface {
    * @returns
    */
   cancelDayAction() {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-      key: MessageKey.CancelledDayAction,
-    });
+    if (this.room.systems?.chat) {
+      this.room.systems.chat.sendActorNotice(this.player, {
+        key: MessageKey.CancelledDayAction,
+      });
+    } else {
+      dispatchNotice(this, actorNotice({ key: MessageKey.CancelledDayAction }));
+    }
     this.dayVisiting = null;
   }
 
@@ -335,9 +335,13 @@ export class Role implements RoleInterface {
    * @returns
    */
   handleNightAction(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-      key: MessageKey.NoNightAction,
-    });
+    if (this.room.systems?.chat) {
+      this.room.systems.chat.sendActorNotice(this.player, {
+        key: MessageKey.NoNightAction,
+      });
+      return;
+    }
+    dispatchNotice(this, actorNotice({ key: MessageKey.NoNightAction }));
   }
 
   /**
@@ -348,9 +352,13 @@ export class Role implements RoleInterface {
    * @returns
    */
   handleNightVote(_recipient: Player) {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-      key: MessageKey.NoNightVote,
-    });
+    if (this.room.systems?.chat) {
+      this.room.systems.chat.sendActorNotice(this.player, {
+        key: MessageKey.NoNightVote,
+      });
+      return;
+    }
+    dispatchNotice(this, actorNotice({ key: MessageKey.NoNightVote }));
   }
 
   /**
@@ -359,9 +367,13 @@ export class Role implements RoleInterface {
    * @returns
    */
   cancelNightAction() {
-    io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-      key: MessageKey.CancelledNightAction,
-    });
+    if (this.room.systems?.chat) {
+      this.room.systems.chat.sendActorNotice(this.player, {
+        key: MessageKey.CancelledNightAction,
+      });
+    } else {
+      dispatchNotice(this, actorNotice({ key: MessageKey.CancelledNightAction }));
+    }
     this.visiting = null;
   }
 
@@ -371,7 +383,7 @@ export class Role implements RoleInterface {
    * @param role - The role that is visiting
    * @returns
    */
-  receiveVisit(role: Role) {
+  receiveVisit(role: GameRole) {
     this.visitors.push(role);
   }
 
@@ -383,38 +395,7 @@ export class Role implements RoleInterface {
    * @returns True if the player died, false otherwise
    */
   handleDamage() {
-    if (this.baseDefence > this.defence) this.defence = this.baseDefence;
-    if (this.damage > this.defence) {
-      const socketId = this.player.user.socketId;
-      io.to(socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.YouHaveDied,
-      });
-      io.to(socketId).emit(ServerEvent.BlockMessages);
-      io.to(this.room.name).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.PlayerHasDied,
-        params: {
-          playerName: this.player.username,
-          roleName: this.name.toLowerCase(),
-        },
-      });
-      this.player.isAlive = false;
-      this.damage = CombatLevel.None;
-      this.attackers = [];
-      io.to(this.room.name).emit(ServerEvent.UpdatePlayerRole, {
-        name: this.player.username,
-        role: this.name,
-      });
-      return true;
-    }
-    if (this.damage !== CombatLevel.None) {
-      io.to(this.player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-        key: MessageKey.AttackedButSurvived,
-      });
-    }
-    this.defence = this.baseDefence;
-    this.damage = CombatLevel.None;
-    this.attackers = [];
-    return false;
+    return this.room.systems?.combat.resolveRoleDamage(this) ?? false;
   }
 
   /**
@@ -437,7 +418,7 @@ export class Role implements RoleInterface {
    * @param _role - The role that is visiting
    * @returns
    */
-  receiveDayVisit(_role: Role) {}
+  receiveDayVisit(_role: GameRole) {}
 
   /**
    * Processes all daytime visits to this role. Override in subclasses for role-specific logic.
@@ -457,7 +438,7 @@ export class Role implements RoleInterface {
     this.resetNightState();
   }
 
-  onPlayerVotedOut(_votedOut: Role): void {}
+  onPlayerVotedOut(_votedOut: GameRole): void {}
 
   onNoDeathDraw(): void {}
 }

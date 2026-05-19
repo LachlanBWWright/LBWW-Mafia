@@ -7,6 +7,7 @@ import type { RoleLike } from "../roles/roleLike.js";
  * Their role may be changed mid-game (e.g. conversion mechanics).
  */
 export class Player {
+  readonly id: string;
   readonly user: User;
   readonly username: string;
   role!: RoleLike; // always assigned during startGame() before any game logic runs
@@ -15,6 +16,7 @@ export class Player {
   votesReceived: number;
 
   constructor(user: User) {
+    this.id = user.username;
     this.user = user;
     this.username = user.username;
     this.isAlive = true;

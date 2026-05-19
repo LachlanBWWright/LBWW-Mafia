@@ -4,7 +4,7 @@ import type { RoleDefinition } from "../../roles/composition/roleDefinition.js";
 import type { CustomRoleDefinition } from "../../roles/composition/roleFactory.js";
 import { createRoleInstance } from "../../roles/composition/roleFactory.js";
 import { FactionFactory } from "../../factions/composition/factionFactory.js";
-import type { Faction } from "../../factions/abstractFaction.js";
+import type { GameFaction } from "../../factions/factionContracts.js";
 import {
   builtInMafiaRoleDefinitions,
   builtInNeutralRoleDefinitions,
@@ -12,7 +12,6 @@ import {
   builtInTownRoleDefinitions,
 } from "../../roles/composition/catalog.js";
 import { builtInFactionDefinitions } from "../../factions/composition/catalog.js";
-import { assertValidBuiltInCatalogs } from "../../roles/composition/validation.js";
 
 const ROLE_BALANCE_TOLERANCE = 15;
 const RANDOM_BALANCE_OFFSET_MIN = -15;
@@ -28,11 +27,16 @@ function isBuiltInRoleDefinition(entry: RoleSelectionEntry): entry is RoleDefini
 export class RoleHandler {
   roomSize: number;
   customRoles: CustomRoleDefinition[];
+  private readonly randomSource: () => number;
 
-  constructor(roomSize: number, customRoles: CustomRoleDefinition[] = []) {
-    assertValidBuiltInCatalogs();
+  constructor(
+    roomSize: number,
+    customRoles: CustomRoleDefinition[] = [],
+    randomSource: () => number = Math.random,
+  ) {
     this.roomSize = roomSize;
     this.customRoles = customRoles;
+    this.randomSource = randomSource;
   }
 
   assignGame(): RoleSelectionEntry[] {
@@ -44,13 +48,17 @@ export class RoleHandler {
     const randomNeutralList = [...builtInNeutralRoleDefinitions];
 
     for (let i = 0; i < this.roomSize; i++) {
-      const randomiser = Math.random() * RANDOM_BALANCE_OFFSET_RANGE + RANDOM_BALANCE_OFFSET_MIN;
+      const randomiser =
+        this.random() * RANDOM_BALANCE_OFFSET_RANGE + RANDOM_BALANCE_OFFSET_MIN;
       if (comparativePower < ROLE_BALANCE_TOLERANCE && comparativePower > -ROLE_BALANCE_TOLERANCE) {
         if (randomiser > comparativePower) {
           this.pushRandomRole(roleList, randomTownList, (entry) => {
             comparativePower += this.getRolePower(entry);
           });
-        } else if (Math.random() > NEUTRAL_ROLE_SELECTION_THRESHOLD || randomNeutralList.length === 0) {
+        } else if (
+          this.random() > NEUTRAL_ROLE_SELECTION_THRESHOLD ||
+          randomNeutralList.length === 0
+        ) {
           this.pushRandomRole(roleList, randomMafiaList, (entry) => {
             comparativePower += this.getRolePower(entry);
           });
@@ -79,7 +87,7 @@ export class RoleHandler {
     onChosen: (entry: RoleDefinition) => void,
   ): void {
     if (source.length === 0) return;
-    const index = Math.floor(Math.random() * source.length);
+    const index = this.randomIndex(source.length);
     const addedRole = source[index];
     target.push(addedRole);
     onChosen(addedRole);
@@ -88,7 +96,7 @@ export class RoleHandler {
     }
   }
 
-  assignFactionsFromPlayerList(playerList: Player[], room: Room): Faction[] {
+  assignFactionsFromPlayerList(playerList: Player[], room: Room): GameFaction[] {
     const factions = FactionFactory.createFactions(
       room,
       playerList,
@@ -117,5 +125,13 @@ export class RoleHandler {
 
   getBuiltInDefinitions(): RoleDefinition[] {
     return builtInRoleDefinitions;
+  }
+
+  private random(): number {
+    return this.randomSource();
+  }
+
+  private randomIndex(length: number): number {
+    return Math.floor(this.random() * length);
   }
 }

@@ -1,15 +1,15 @@
 import type { CombatLevel } from "../roles/combatLevel.js";
-import type { Role } from "../roles/abstractRole.js";
+import type { GameRole } from "../roles/roleContracts.js";
 
 export type FactionNightActionIntent =
   | {
       kind: "attack";
-      actor: Role;
-      target: Role;
+      actor: GameRole;
+      target: GameRole;
       damage: CombatLevel;
     }
   | {
       kind: "forced-visit";
-      actor: Role;
-      target: Role;
+      actor: GameRole;
+      target: GameRole;
     };

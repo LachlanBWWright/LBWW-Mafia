@@ -2,12 +2,18 @@ import type { Player } from "../../player/player.js";
 import type { Room } from "../../rooms/room.js";
 import { RoleFaction } from "@mernmafia/shared/game/rolesTypes";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
+import { z } from "zod";
 import { RoleGroup } from "../roleGroup.js";
 import { CombatLevel } from "../combatLevel.js";
-import type { RoleDefinition } from "./roleDefinition.js";
+import type { RoleDefinition, RoleCapabilityFlags } from "./roleDefinition.js";
+import {
+  nightActionRoleDefinition,
+  nightActionWithNightVoteRoleDefinition,
+  nightVoteRoleDefinition,
+  passiveRoleDefinition,
+} from "./roleDefinition.js";
 import { RoleInstance } from "./roleInstance.js";
 import { RoleTrait } from "./roleTraits.js";
-import type { ValidationIssue } from "./validation.js";
 import { chooseNightOther, chooseLivingTarget } from "./handlers/targeting.js";
 import {
   addAttacker,
@@ -16,13 +22,9 @@ import {
   registerNightVisit,
   roleblockTarget,
 } from "./handlers/effects.js";
-import {
-  actorNotice,
-  dispatchNotice,
-  factionNotice,
-} from "./handlers/notices.js";
+import { actorNotice, dispatchNotice, factionNotice } from "./handlers/notices.js";
 import { accepted, rejected } from "./handlers/results.js";
-import { ComposedFaction } from "../../factions/composition/composedFaction.js";
+import type { RoleHandlerInput } from "./handlers/types.js";
 
 export type CustomRoleBehaviorMessages = {
   selfKey?: MessageKey;
@@ -56,28 +58,79 @@ export type CustomRoleBehavior =
       messages?: CustomRoleBehaviorMessages;
     };
 
-export type CustomRoleDefinition = {
-  kind: "custom";
-  id?: number;
-  metadata: {
-    name: string;
-    faction: RoleFaction;
-    category: string;
-    summary: string;
-    description: string;
-    powerValue?: number;
-    isUnique?: boolean;
-    capabilities: {
-      dayVisitSelf: boolean;
-      dayVisitOthers: boolean;
-      dayVisitFaction: boolean;
-      nightVisitSelf: boolean;
-      nightVisitOthers: boolean;
-      nightVisitFaction: boolean;
-      nightVote?: boolean;
-    };
-  };
-  behaviors?: CustomRoleBehavior[];
+const customRoleBehaviorMessagesSchema = z.object({
+  selfKey: z.nativeEnum(MessageKey).optional(),
+  successKey: z.nativeEnum(MessageKey).optional(),
+});
+
+const customRoleBehaviorSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("no-action") }),
+  z.object({
+    kind: z.literal("night-attack"),
+    damage: z.nativeEnum(CombatLevel).optional(),
+    canTargetSelf: z.boolean().optional(),
+    messages: customRoleBehaviorMessagesSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("night-protect"),
+    defence: z.nativeEnum(CombatLevel).optional(),
+    canTargetSelf: z.boolean().optional(),
+    messages: customRoleBehaviorMessagesSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("roleblock"),
+    townAlways: z.boolean().optional(),
+    canTargetSelf: z.boolean().optional(),
+    messages: customRoleBehaviorMessagesSchema.optional(),
+  }),
+  z.object({
+    kind: z.literal("investigate"),
+    result: z.enum(["exact-role", "alignment", "guesses"]),
+    canTargetSelf: z.boolean().optional(),
+    messages: customRoleBehaviorMessagesSchema.optional(),
+  }),
+]);
+
+export const CustomRoleInputSchema = z.object({
+  kind: z.literal("custom"),
+  id: z.number().int().optional(),
+  metadata: z.object({
+    name: z.string(),
+    faction: z.nativeEnum(RoleFaction),
+    category: z.string(),
+    summary: z.string(),
+    description: z.string(),
+    powerValue: z.number().optional(),
+    isUnique: z.boolean().optional(),
+    capabilities: z.object({
+      dayVisitSelf: z.boolean(),
+      dayVisitOthers: z.boolean(),
+      dayVisitFaction: z.boolean(),
+      nightVisitSelf: z.boolean(),
+      nightVisitOthers: z.boolean(),
+      nightVisitFaction: z.boolean(),
+      nightVote: z.boolean().optional(),
+    }),
+  }),
+  behaviors: z.array(customRoleBehaviorSchema).optional(),
+});
+
+export type CustomRoleDefinition = z.infer<typeof CustomRoleInputSchema>;
+
+export type CustomRoleIssue = {
+  code: string;
+  path: string;
+  message: string;
+};
+
+type CompileResult<T> =
+  | { status: "ok"; value: T }
+  | { status: "error"; issues: CustomRoleIssue[] };
+
+const factionGroupMap: Record<RoleFaction, RoleGroup> = {
+  [RoleFaction.Town]: RoleGroup.Town,
+  [RoleFaction.Mafia]: RoleGroup.Mafia,
+  [RoleFaction.Neutral]: RoleGroup.Neutral,
 };
 
 export function createRoleInstance(
@@ -94,33 +147,54 @@ export function toRoleDefinition(
   if (definition.kind === "built-in") {
     return definition;
   }
-  const issues = validateCustomRoleDefinition(definition);
-  if (issues.length > 0) {
-    throw new CustomRoleValidationError(issues);
+
+  const parsedInput = parseCustomRoleInput(definition);
+  if (parsedInput.status === "error") {
+    throw new CustomRoleInputError(parsedInput.issues);
   }
 
-  const groupMap: Record<CustomRoleDefinition["metadata"]["faction"], RoleGroup> = {
-    [RoleFaction.Town]: RoleGroup.Town,
-    [RoleFaction.Mafia]: RoleGroup.Mafia,
-    [RoleFaction.Neutral]: RoleGroup.Neutral,
-  };
+  const compiled = compileCustomRole(parsedInput.value);
+  if (compiled.status === "error") {
+    throw new CustomRoleCompileError(compiled.issues);
+  }
+  return compiled.value;
+}
 
-  const capabilities = {
-    dayVisitSelf: definition.metadata.capabilities.dayVisitSelf,
-    dayVisitOthers: definition.metadata.capabilities.dayVisitOthers,
-    dayVisitFaction: definition.metadata.capabilities.dayVisitFaction,
-    nightVisitSelf: definition.metadata.capabilities.nightVisitSelf,
-    nightVisitOthers: definition.metadata.capabilities.nightVisitOthers,
-    nightVisitFaction: definition.metadata.capabilities.nightVisitFaction,
-    nightVote: definition.metadata.capabilities.nightVote ?? false,
-  };
-
+export function parseCustomRoleInput(rawInput: unknown): CompileResult<CustomRoleDefinition> {
+  const parsed = CustomRoleInputSchema.safeParse(rawInput);
+  if (parsed.success) {
+    return { status: "ok", value: parsed.data };
+  }
   return {
-    kind: "built-in",
-    id: `custom-${definition.id ?? definition.metadata.name.toLowerCase().replaceAll(/\s+/g, "-")}`,
+    status: "error",
+    issues: parsed.error.issues.map((issue) => ({
+      code: "invalid-input-shape",
+      path: issue.path.join("."),
+      message: issue.message,
+    })),
+  };
+}
+
+export function compileCustomRole(
+  definition: CustomRoleDefinition,
+): CompileResult<RoleDefinition> {
+  const issues = collectCustomRoleDomainIssues(definition);
+  if (issues.length > 0) {
+    return { status: "error", issues };
+  }
+
+  const includeNightVote = definition.metadata.capabilities.nightVote ?? false;
+  const behaviors = definition.behaviors ?? [{ kind: "no-action" } satisfies CustomRoleBehavior];
+  const activeBehavior = behaviors.find(
+    (behavior): behavior is Exclude<CustomRoleBehavior, { kind: "no-action" }> =>
+      behavior.kind !== "no-action",
+  );
+  const baseDefinition = {
+    kind: "built-in" as const,
+    id: toCustomRoleId(definition),
     metadata: {
       name: definition.metadata.name,
-      group: groupMap[definition.metadata.faction],
+      group: factionGroupMap[definition.metadata.faction],
       category: definition.metadata.category,
       summary: definition.metadata.summary,
       description: definition.metadata.description,
@@ -128,10 +202,58 @@ export function toRoleDefinition(
     },
     balance: { power: definition.metadata.powerValue ?? 0 },
     combat: { baseDefence: CombatLevel.None },
-    capabilities,
-    traits: createCustomRoleTraits(definition, capabilities.nightVote),
-    handlers: createCustomRoleHandlers(definition, capabilities.nightVote),
+    traits: createCustomRoleTraits(definition, includeNightVote),
   };
+  const nightCapabilities: RoleCapabilityFlags = {
+    self: definition.metadata.capabilities.nightVisitSelf,
+    others: definition.metadata.capabilities.nightVisitOthers,
+    faction: definition.metadata.capabilities.nightVisitFaction,
+  };
+
+  if (!activeBehavior && includeNightVote) {
+    return {
+      status: "ok",
+      value: nightVoteRoleDefinition({
+        ...baseDefinition,
+        onNightVote: createGenericMafiaVoteHandler().onNightVote[0]!,
+      }),
+    };
+  }
+
+  if (!activeBehavior) {
+    return { status: "ok", value: passiveRoleDefinition(baseDefinition) };
+  }
+
+  const onNightCommand = ({ role, recipient }: { role: RoleInstance; recipient: Player }) =>
+    chooseCustomNightTarget(role, recipient, activeBehavior);
+  const behaviorHandlers = createCustomBehaviorHandlers(activeBehavior);
+
+  if (includeNightVote) {
+    return {
+      status: "ok",
+      value: nightActionWithNightVoteRoleDefinition({
+        ...baseDefinition,
+        night: nightCapabilities,
+        onNightVote: createGenericMafiaVoteHandler().onNightVote[0]!,
+        onNightCommand,
+        handlers: behaviorHandlers,
+      }),
+    };
+  }
+
+  return {
+    status: "ok",
+    value: nightActionRoleDefinition({
+      ...baseDefinition,
+      night: nightCapabilities,
+      onNightCommand,
+      handlers: behaviorHandlers,
+    }),
+  };
+}
+
+function toCustomRoleId(definition: CustomRoleDefinition): string {
+  return `custom-${definition.id ?? definition.metadata.name.toLowerCase().replaceAll(/\s+/g, "-")}`;
 }
 
 function createCustomRoleTraits(
@@ -161,12 +283,8 @@ function createCustomRoleTraits(
 
 function createGenericMafiaVoteHandler() {
   return {
-    onNightVote: ({ role, recipient }) => {
-      if (
-        !(role.faction instanceof ComposedFaction) ||
-        !recipient.isAlive ||
-        recipient.role.faction === role.faction
-      ) {
+    onNightVote: [({ role, recipient }) => {
+      if (!role.faction || !recipient.isAlive || recipient.role.faction === role.faction) {
         role.attackVote = null;
         dispatchNotice(role, actorNotice({ key: MessageKey.MafiaInvalidVote }));
         return rejected;
@@ -183,7 +301,7 @@ function createGenericMafiaVoteHandler() {
         }),
       );
       return accepted;
-    },
+    }],
   };
 }
 
@@ -228,7 +346,7 @@ function createInvestigativeVisitHandler(
   behavior: Extract<CustomRoleBehavior, { kind: "investigate" }>,
 ) {
   return {
-    onNightVisit: ({ role }) => {
+    onNightVisit: [({ role }) => {
       const target = registerNightVisit(role);
       if (!target) return;
       if (behavior.result === "exact-role") {
@@ -248,9 +366,7 @@ function createInvestigativeVisitHandler(
         let factionName = target.group;
         if (role.room.random() < 0.3) {
           const living = role.room.playerList.filter((player) => player.isAlive);
-          factionName =
-            living[role.room.randomIndex(living.length)]?.role.group ??
-            factionName;
+          factionName = living[role.room.randomIndex(living.length)]?.role.group ?? factionName;
         }
         dispatchNotice(
           role,
@@ -286,101 +402,57 @@ function createInvestigativeVisitHandler(
           },
         }),
       );
-    },
+    }],
   };
 }
 
-function createCustomRoleHandlers(
-  definition: CustomRoleDefinition,
-  includeNightVote: boolean,
-) {
-  const handlers: RoleDefinition["handlers"] =
-    definition.behaviors?.flatMap((behavior) => {
-      if (behavior.kind === "no-action") {
-        return [];
-      }
-      const selectionHandler = {
-        onNightCommand: ({ role, recipient }: { role: RoleInstance; recipient: Player }) =>
-          chooseCustomNightTarget(role, recipient, behavior),
-      };
-
-      if (behavior.kind === "night-attack") {
-        return [
-          selectionHandler,
-          {
-            onNightVisit: ({ role }: { role: RoleInstance }) => {
-              const target = registerNightVisit(role);
-              if (!target) return;
-              applyDamageMinimum(target, behavior.damage ?? CombatLevel.Low);
-              addAttacker(target, role);
-            },
-          },
-        ];
-      }
-
-      if (behavior.kind === "night-protect") {
-        return [
-          selectionHandler,
-          {
-            onNightVisit: ({ role }: { role: RoleInstance }) => {
-              const target = registerNightVisit(role);
-              if (!target) return;
-              applyDefenceMinimum(target, behavior.defence ?? CombatLevel.Low);
-            },
-          },
-        ];
-      }
-
-      if (behavior.kind === "roleblock") {
-        return [
-          selectionHandler,
-          {
-            onNightVisit: ({ role }: { role: RoleInstance }) => {
-              const target = registerNightVisit(role);
-              if (!target) return;
-              if (
-                behavior.townAlways ||
-                target.group === RoleGroup.Town ||
-                role.room.random() > 0.5
-              ) {
-                roleblockTarget(target, role);
-              }
-            },
-          },
-        ];
-      }
-
-      return [selectionHandler, createInvestigativeVisitHandler(behavior)];
-    }) ?? [];
-
-  if (includeNightVote) {
-    handlers.unshift(createGenericMafiaVoteHandler());
+function createCustomBehaviorHandlers(
+  behavior: Exclude<CustomRoleBehavior, { kind: "no-action" }>,
+) : RoleHandlerInput {
+  if (behavior.kind === "night-attack") {
+    return {
+      onNightVisit: [({ role }: { role: RoleInstance }) => {
+        const target = registerNightVisit(role);
+        if (!target) return;
+        applyDamageMinimum(target, behavior.damage ?? CombatLevel.Low);
+        addAttacker(target, role);
+      }],
+    };
   }
-  return handlers;
+
+  if (behavior.kind === "night-protect") {
+    return {
+      onNightVisit: [({ role }: { role: RoleInstance }) => {
+        const target = registerNightVisit(role);
+        if (!target) return;
+        applyDefenceMinimum(target, behavior.defence ?? CombatLevel.Low);
+      }],
+    };
+  }
+
+  if (behavior.kind === "roleblock") {
+    return {
+      onNightVisit: [({ role }: { role: RoleInstance }) => {
+        const target = registerNightVisit(role);
+        if (!target) return;
+        if (
+          behavior.townAlways ||
+          target.group === RoleGroup.Town ||
+          role.room.random() > 0.5
+        ) {
+          roleblockTarget(target, role);
+        }
+      }],
+    };
+  }
+
+  return createInvestigativeVisitHandler(behavior);
 }
 
-/**
- * Structured validation error for custom role schema input.
- */
-export class CustomRoleValidationError extends Error {
-  readonly issues: ValidationIssue[];
-
-  constructor(issues: ValidationIssue[]) {
-    super("Invalid custom role definition.");
-    this.issues = issues;
-  }
-}
-
-/**
- * Validates a serializable custom role behavior definition.
- *
- * @param definition - Custom role to validate.
- * @returns Structured validation issues.
- */
-export function validateCustomRoleDefinition(
+function collectCustomRoleDomainIssues(
   definition: CustomRoleDefinition,
-): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
+): CustomRoleIssue[] {
+  const issues: CustomRoleIssue[] = [];
   const behaviors = definition.behaviors ?? [{ kind: "no-action" } satisfies CustomRoleBehavior];
   const activeNightBehaviors = behaviors.filter(
     (behavior) => behavior.kind !== "no-action",
@@ -391,6 +463,18 @@ export function validateCustomRoleDefinition(
       code: "missing-name",
       path: "metadata.name",
       message: "Custom roles must have a name.",
+    });
+  }
+
+  if (
+    definition.metadata.capabilities.dayVisitSelf ||
+    definition.metadata.capabilities.dayVisitOthers ||
+    definition.metadata.capabilities.dayVisitFaction
+  ) {
+    issues.push({
+      code: "unsupported-day-capabilities",
+      path: "metadata.capabilities",
+      message: "Custom roles currently only support night actions.",
     });
   }
 
@@ -406,8 +490,7 @@ export function validateCustomRoleDefinition(
     issues.push({
       code: "multiple-night-actions",
       path: "behaviors",
-      message:
-        "Custom roles currently support one active night behavior at a time.",
+      message: "Custom roles currently support one active night behavior at a time.",
     });
   }
 
@@ -420,8 +503,7 @@ export function validateCustomRoleDefinition(
     issues.push({
       code: "missing-night-visit-capability",
       path: "metadata.capabilities",
-      message:
-        "Night behaviors require at least one night visit capability flag.",
+      message: "Night behaviors require at least one night visit capability flag.",
     });
   }
 
@@ -436,22 +518,23 @@ export function validateCustomRoleDefinition(
     });
   }
 
-  for (const [index, behavior] of behaviors.entries()) {
-    if (behavior.kind === "night-attack" && behavior.damage !== undefined && behavior.damage < CombatLevel.None) {
-      issues.push({
-        code: "invalid-damage",
-        path: `behaviors.${index}.damage`,
-        message: "Custom attack damage must be a valid CombatLevel.",
-      });
-    }
-    if (behavior.kind === "night-protect" && behavior.defence !== undefined && behavior.defence < CombatLevel.None) {
-      issues.push({
-        code: "invalid-defence",
-        path: `behaviors.${index}.defence`,
-        message: "Custom protection defence must be a valid CombatLevel.",
-      });
-    }
-  }
-
   return issues;
+}
+
+export class CustomRoleInputError extends Error {
+  readonly issues: CustomRoleIssue[];
+
+  constructor(issues: CustomRoleIssue[]) {
+    super("Invalid custom role input.");
+    this.issues = issues;
+  }
+}
+
+export class CustomRoleCompileError extends Error {
+  readonly issues: CustomRoleIssue[];
+
+  constructor(issues: CustomRoleIssue[]) {
+    super("Unsupported custom role definition.");
+    this.issues = issues;
+  }
 }

@@ -1,5 +1,5 @@
-import type { RoleHandler } from "./types.js";
+import type { RoleHandlerInput } from "./types.js";
 
-export function chatHandler(handler: Pick<RoleHandler, "onHandleMessage">): RoleHandler {
+export function chatHandler(handler: RoleHandlerInput): RoleHandlerInput {
   return handler;
 }

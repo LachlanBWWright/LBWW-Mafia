@@ -3,8 +3,7 @@ import type { GameMessage } from "@mernmafia/shared/communication/messages";
 import { io } from "../../../../servers/emitter.js";
 import type { Player } from "../../../player/player.js";
 import type { Room } from "../../../rooms/room.js";
-import type { Role } from "../../abstractRole.js";
-import type { ComposedFaction } from "../../../factions/composition/composedFaction.js";
+import type { GameRole } from "../../roleContracts.js";
 import type { GameNotice } from "../resultTypes.js";
 
 function emitToPlayer(
@@ -21,7 +20,7 @@ function emitToPlayer(
  * @param role - Role acting as the notice anchor.
  * @param notice - Notice to dispatch.
  */
-export function dispatchNotice(role: Role, notice: GameNotice): void {
+export function dispatchNotice(role: GameRole, notice: GameNotice): void {
   if (notice.target === "actor") {
     emitToPlayer(role.player, notice.event, notice.message);
     return;
@@ -38,9 +37,7 @@ export function dispatchNotice(role: Role, notice: GameNotice): void {
     return;
   }
   if (notice.target === "faction") {
-    const faction = role.faction as ComposedFaction | undefined;
-    if (!faction) return;
-    faction.sendNotice(notice.event, notice.message);
+    role.faction?.sendNotice(notice.event, notice.message);
     return;
   }
   emitToPlayer(notice.target, notice.event, notice.message);
@@ -52,7 +49,7 @@ export function dispatchNotice(role: Role, notice: GameNotice): void {
  * @param role - Role acting as the notice anchor.
  * @param notices - Notices to dispatch.
  */
-export function dispatchNotices(role: Role, notices: GameNotice[]): void {
+export function dispatchNotices(role: GameRole, notices: GameNotice[]): void {
   for (const notice of notices) {
     dispatchNotice(role, notice);
   }

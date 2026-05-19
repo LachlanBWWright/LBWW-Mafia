@@ -13,12 +13,19 @@ import {
 } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { io } from "../../servers/emitter.js";
-import { Faction } from "../factions/abstractFaction.js";
+import type { GameFaction } from "../factions/factionContracts.js";
 import { RoleGroup } from "../roles/roleGroup.js";
 import { CombatLevel } from "../roles/combatLevel.js";
 import { clientPhaseMatchesRoomPhase, GamePhase } from "./gamePhase.js";
 import { names } from "../player/names/namesList.js";
 import { GameSystems } from "./systems/gameSystems.js";
+import { RoomMessenger } from "./roomMessenger.js";
+import { PhaseScheduler } from "./systems/phaseScheduler.js";
+import {
+  resolveDayVote,
+  type DayVoteOutcome,
+} from "./systems/voteSystem.js";
+import { determineWinningFaction } from "./systems/victoryResolution.js";
 import {
   persistMatchHistory,
   rotateActiveRoom,
@@ -48,7 +55,9 @@ function createRoomName(): string {
 export class Room {
   readonly name: string;
   readonly size: number;
+  readonly messenger: RoomMessenger;
   private randomSource: () => number = Math.random;
+  private readonly phaseScheduler = new PhaseScheduler(() => this.gameHasEnded);
 
   /** Users connected in the lobby (before the game starts). */
   userList: User[] = [];
@@ -58,7 +67,7 @@ export class Room {
   started = false;
   time: GamePhase = GamePhase.Idle;
   roleList: ReturnType<RoleHandler["assignGame"]> = [];
-  factionList: Faction[] = [];
+  factionList: GameFaction[] = [];
   systems: GameSystems | null = null;
   sessionLength: number;
   gameHasEnded = false;
@@ -73,6 +82,7 @@ export class Room {
     this.name = name ?? createRoomName();
     this.size = size;
     this.sessionLength = this.size * SESSION_LENGTH_PER_PLAYER_MS;
+    this.messenger = new RoomMessenger(this.name);
   }
 
   /**
@@ -531,12 +541,18 @@ export class Room {
   }
 
   async startGame() {
-    const roleHandler = new RoleHandler(this.userList.length);
+    if (this.gameHasEnded) return;
+
+    const roleHandler = new RoleHandler(
+      this.userList.length,
+      [],
+      () => this.random(),
+    );
     this.roleList.push(...roleHandler.assignGame());
 
     let currentIndex = this.roleList.length;
     while (currentIndex !== 0) {
-      const randomIndex = Math.floor(Math.random() * currentIndex);
+      const randomIndex = this.randomIndex(currentIndex);
       currentIndex--;
       [this.roleList[currentIndex], this.roleList[randomIndex]] = [
         this.roleList[randomIndex],
@@ -584,6 +600,7 @@ export class Room {
   }
 
   startFirstDaySession(sessionLength: number) {
+    if (this.gameHasEnded) return;
     this.time = GamePhase.Day;
     io.to(this.name).emit(ServerEvent.ReceiveMessage, {
       key: MessageKey.Day1Started,
@@ -593,7 +610,8 @@ export class Room {
       dayNumber: 1,
       timeLeft: DAY_START_TIME_LEFT_SECONDS,
     });
-    setTimeout(() => {
+    this.phaseScheduler.schedule(DAY_START_DELAY_MS, () => {
+      if (this.gameHasEnded) return;
       for (const player of this.playerList) {
         if (player.isAlive) player.role.dayVisit();
       }
@@ -601,10 +619,11 @@ export class Room {
         key: MessageKey.Night1Started,
       });
       this.startNightSession(1, sessionLength);
-    }, DAY_START_DELAY_MS);
+    });
   }
 
   startDaySession(dayNumber: number, sessionLength: number) {
+    if (this.gameHasEnded) return;
     this.time = GamePhase.Day;
 
     if (this.shouldEndGameForNoDeath(dayNumber)) {
@@ -637,9 +656,9 @@ export class Room {
       params: { count: votesRequired },
     });
 
-    setTimeout(
-      () => this.processDayEnd(dayNumber, sessionLength, livingPlayerList, votesRequired),
+    this.phaseScheduler.schedule(
       sessionLength + DAY_END_EXTRA_SECONDS * 1000,
+      () => this.processDayEnd(dayNumber, sessionLength, livingPlayerList, votesRequired),
     );
   }
 
@@ -674,7 +693,12 @@ export class Room {
     livingPlayerList: Player[],
     votesRequired: number,
   ): void {
-    this.processVotes(dayNumber, livingPlayerList, votesRequired);
+    if (this.gameHasEnded) return;
+
+    this.applyDayVoteOutcome(
+      dayNumber,
+      this.resolveDayVoteOutcome(livingPlayerList, votesRequired),
+    );
     this.prepareForNight(dayNumber);
 
     if (dayNumber >= MAX_GAME_DAYS) {
@@ -693,31 +717,36 @@ export class Room {
     }
   }
 
-  private processVotes(
-    dayNumber: number,
+  private resolveDayVoteOutcome(
     livingPlayerList: Player[],
     votesRequired: number,
-  ): void {
-    if (this.confesserVotedOut) return;
-
-    for (const livingPlayer of livingPlayerList) {
-      if (livingPlayer.votesReceived >= votesRequired) {
-        this.endDay = dayNumber + DRAW_TRIGGER_DAYS;
-        this.handlePlayerVotedOut(livingPlayer);
-      }
+  ): DayVoteOutcome {
+    if (this.confesserVotedOut) {
+      return { kind: "no-elimination" };
     }
+    return resolveDayVote(livingPlayerList, votesRequired);
+  }
+
+  private applyDayVoteOutcome(dayNumber: number, outcome: DayVoteOutcome | void): void {
+    if (!outcome || outcome.kind !== "eliminated") {
+      return;
+    }
+
+    this.endDay = dayNumber + DRAW_TRIGGER_DAYS;
+    this.handlePlayerVotedOut(outcome.player);
   }
 
   private handlePlayerVotedOut(player: Player): void {
     this.systems?.victory.handlePlayerVotedOut(player);
 
-    io.to(player.user.socketId).emit(
+    this.messenger.emitToPlayer(
+      player,
       ServerEvent.ReceiveMessage,
       { key: MessageKey.YouHaveBeenVotedOut },
     );
-    io.to(player.user.socketId).emit(ServerEvent.BlockMessages);
+    this.messenger.emitToPlayer(player, ServerEvent.BlockMessages);
     player.isAlive = false;
-    io.to(this.name).emit(ServerEvent.UpdatePlayerRole, {
+    this.messenger.emitToRoom(ServerEvent.UpdatePlayerRole, {
       name: player.username,
     });
   }
@@ -738,6 +767,7 @@ export class Room {
   }
 
   startNightSession(nightNumber: number, sessionLength: number) {
+    if (this.gameHasEnded) return;
     this.time = GamePhase.Night;
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
       time: DayTime.Night,
@@ -745,13 +775,15 @@ export class Room {
       timeLeft: NIGHT_TIME_LEFT_SECONDS,
     });
 
-    setTimeout(() => {
+    this.phaseScheduler.schedule(NIGHT_START_DELAY_MS, () => {
+      if (this.gameHasEnded) return;
       this.processNightActions(nightNumber);
       this.checkForWinningFaction(nightNumber, sessionLength);
-    }, NIGHT_START_DELAY_MS);
+    });
   }
 
   private processNightActions(nightNumber: number): void {
+    if (this.gameHasEnded) return;
     this.time = GamePhase.Processing;
     this.systems?.factions.resolveNight();
     this.systems?.visits.resolveNight();
@@ -762,6 +794,7 @@ export class Room {
     nightNumber: number,
     sessionLength: number,
   ): void {
+    if (this.gameHasEnded) return;
     const winningFaction = this.findWinningFaction();
     if (winningFaction !== null) {
       this.endGame({
@@ -774,21 +807,14 @@ export class Room {
   }
 
   findWinningFaction(): string | null {
-    let lastFaction: string = RoleGroup.Neutral;
-    for (const player of this.playerList) {
-      if (player.role.group !== RoleGroup.Neutral && player.isAlive) {
-        if (lastFaction === RoleGroup.Neutral) {
-          lastFaction = player.role.group;
-        } else if (player.role.group !== lastFaction) {
-          return null;
-        }
-      }
-    }
-    return lastFaction;
+    return determineWinningFaction(this.playerList);
   }
 
   endGame(result: GameEndResult) {
+    if (this.gameHasEnded) return;
+
     this.gameHasEnded = true;
+    this.phaseScheduler.cancelAll();
     const winningFactionName =
       result.outcome === GameOutcome.Faction ? result.factionName : GameOutcome.Draw;
 
@@ -824,23 +850,23 @@ export class Room {
     });
 
     if (result.outcome === GameOutcome.Draw) {
-      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      this.messenger.emitToRoom(ServerEvent.ReceiveMessage, {
         key: MessageKey.GameEndedDraw,
       });
     } else if (winningFactionName === RoleGroup.Neutral) {
-      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      this.messenger.emitToRoom(ServerEvent.ReceiveMessage, {
         key: MessageKey.NeutralPlayersWon,
       });
     } else {
-      io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+      this.messenger.emitToRoom(ServerEvent.ReceiveMessage, {
         key: MessageKey.FactionWon,
         params: { factionName: winningFactionName },
       });
     }
-    io.to(this.name).emit(ServerEvent.ReceiveMessage, {
+    this.messenger.emitToRoom(ServerEvent.ReceiveMessage, {
       key: MessageKey.ClosingRoom,
     });
-    io.to(this.name).emit(ServerEvent.BlockMessages);
-    io.in(this.name).disconnectSockets();
+    this.messenger.emitToRoom(ServerEvent.BlockMessages);
+    this.messenger.disconnectRoom();
   }
 }

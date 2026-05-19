@@ -1,7 +1,9 @@
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import type { GameMessage } from "@mernmafia/shared/communication/messages";
-import { io } from "../../../servers/emitter.js";
-import { Faction } from "../abstractFaction.js";
+import {
+  initializeFactionMembers,
+  type GameFaction,
+} from "../factionContracts.js";
 import type { Player } from "../../player/player.js";
 import type { Room } from "../../rooms/room.js";
 import type { FactionDefinition, FactionContext } from "./factionDefinition.js";
@@ -9,16 +11,16 @@ import {
   createFactionRuntimeState,
   type FactionRuntimeState,
 } from "./factionRuntimeState.js";
-import type { Role } from "../../roles/abstractRole.js";
+import type { GameRole } from "../../roles/roleContracts.js";
 import type { FactionNightActionIntent } from "../nightIntent.js";
 
-export class ComposedFaction extends Faction {
+export class ComposedFaction implements GameFaction {
+  memberList: Player[] = [];
   readonly definition: FactionDefinition;
   readonly room: Room;
   readonly state: FactionRuntimeState;
 
   constructor(definition: FactionDefinition, room: Room) {
-    super();
     this.definition = definition;
     this.room = room;
     this.state = createFactionRuntimeState();
@@ -36,25 +38,26 @@ export class ComposedFaction extends Faction {
     this.memberList = playerList.filter((player) => this.definition.membership.includes(player, this.context));
   }
 
-  override findMembers(playerList: Player[]): void {
+  findMembers(playerList: Player[]): void {
     this.refreshMembers(playerList);
-    this.initializeMembers();
+    initializeFactionMembers(this);
+    this.broadcastMemberRoles();
   }
 
-  override sendMessage(message: GameMessage): void {
+  sendMessage(message: GameMessage): void {
     if (this.definition.onSendMessage) {
       this.definition.onSendMessage(this.context, message);
       return;
     }
-    for (const member of this.memberList) {
-      io.to(member.user.socketId).emit(ServerEvent.ReceiveMessage, message);
-    }
+    this.room.messenger.emitToPlayers(
+      this.memberList,
+      ServerEvent.ReceiveMessage,
+      message,
+    );
   }
 
   sendNotice(event: ServerEvent, message: GameMessage | string): void {
-    for (const member of this.memberList) {
-      io.to(member.user.socketId).emit(event, message);
-    }
+    this.room.messenger.emitToPlayers(this.memberList, event, message);
   }
 
   sendPlayerNotice(
@@ -62,11 +65,11 @@ export class ComposedFaction extends Faction {
     event: ServerEvent,
     message: GameMessage | string,
   ): void {
-    io.to(player.user.socketId).emit(event, message);
+    this.room.messenger.emitToPlayer(player, event, message);
   }
 
-  override recordNightVote(actor: Role, target: Role | null): void {
-    const voteKey = actor.player.user.socketId;
+  recordNightVote(actor: GameRole, target: GameRole | null): void {
+    const voteKey = actor.player.id;
     if (target === null) {
       this.state.votes.delete(voteKey);
       return;
@@ -74,11 +77,11 @@ export class ComposedFaction extends Faction {
     this.state.votes.set(voteKey, target);
   }
 
-  override readNightVotes(): Role[] {
+  readNightVotes(): GameRole[] {
     return [...this.state.votes.values()];
   }
 
-  override clearNightVotes(): void {
+  clearNightVotes(): void {
     this.state.votes.clear();
   }
 
@@ -86,23 +89,38 @@ export class ComposedFaction extends Faction {
     this.state.intents = intents;
   }
 
-  override drainNightIntents(): FactionNightActionIntent[] {
+  drainNightIntents(): FactionNightActionIntent[] {
     const intents = [...this.state.intents];
     this.state.intents = [];
     return intents;
   }
 
-  override handleNightVote(): void {
+  handleNightVote(): void {
     this.setNightIntents(this.definition.votePolicy?.resolveVotes(this.context) ?? []);
   }
 
-  override handleNightMessage(message: string, playerUsername: string): void {
+  handleNightMessage(message: string, playerUsername: string): void {
     this.definition.chatPolicy.handleNightMessage(this.context, message, playerUsername);
   }
 
-  override removeMembers(): void {
+  removeMembers(): void {
     this.memberList = this.memberList.filter((member) =>
       this.definition.cleanupPolicy.keepMember(member, this.context),
     );
+  }
+
+  private broadcastMemberRoles(): void {
+    for (const member of this.memberList) {
+      for (const targetMember of this.memberList) {
+        this.room.messenger.emitToPlayer(
+          targetMember,
+          ServerEvent.UpdateFactionRole,
+          {
+            name: member.username,
+            role: member.role.name,
+          },
+        );
+      }
+    }
   }
 }

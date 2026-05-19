@@ -1,17 +1,17 @@
 import { CombatLevel } from "../../combatLevel.js";
 import { RoleGroup } from "../../roleGroup.js";
-import type { Role } from "../../abstractRole.js";
+import type { GameRole } from "../../roleContracts.js";
 import type { RoleInstance } from "../roleInstance.js";
-import type { RoleHandler } from "./types.js";
+import type { RoleHandlerInput } from "./types.js";
 import { accepted } from "./results.js";
 
-export function applyDefenceMinimum(role: Role, level: CombatLevel): void {
+export function applyDefenceMinimum(role: GameRole, level: CombatLevel): void {
   if (role.defence < level) {
     role.defence = level;
   }
 }
 
-export function applyDamageMinimum(role: Role, level: CombatLevel): void {
+export function applyDamageMinimum(role: GameRole, level: CombatLevel): void {
   if (role.damage < level) {
     role.damage = level;
   }
@@ -23,7 +23,7 @@ export function applyDamageMinimum(role: Role, level: CombatLevel): void {
  * @param role - Visiting role.
  * @returns Visited role if one exists.
  */
-export function registerNightVisit(role: RoleInstance): Role | null {
+export function registerNightVisit(role: RoleInstance): GameRole | null {
   const target = role.visiting;
   if (!target) {
     return null;
@@ -38,7 +38,7 @@ export function registerNightVisit(role: RoleInstance): Role | null {
  * @param role - Visiting role.
  * @returns Visited role if one exists.
  */
-export function registerDayVisit(role: RoleInstance): Role | null {
+export function registerDayVisit(role: RoleInstance): GameRole | null {
   const target = role.dayVisiting;
   if (!target) {
     return null;
@@ -53,7 +53,7 @@ export function registerDayVisit(role: RoleInstance): Role | null {
  * @param target - Target that is being attacked.
  * @param attacker - Role dealing the attack.
  */
-export function addAttacker(target: Role, attacker: Role): void {
+export function addAttacker(target: GameRole, attacker: GameRole): void {
   target.attackers.push(attacker);
 }
 
@@ -64,8 +64,8 @@ export function addAttacker(target: Role, attacker: Role): void {
  * @param actor - Optional source role.
  */
 export function roleblockTarget(
-  target: Role,
-  actor?: Role,
+  target: GameRole,
+  actor?: GameRole,
 ): void {
   target.roleblocked = true;
   target.roleblocking = actor ?? null;
@@ -77,7 +77,7 @@ export function roleblockTarget(
  * @param role - Role making the choice.
  * @param target - Selected target.
  */
-export function chooseDayTarget(role: RoleInstance, target: Role): void {
+export function chooseDayTarget(role: RoleInstance, target: GameRole): void {
   role.dayVisiting = target;
 }
 
@@ -89,7 +89,7 @@ export function chooseDayTarget(role: RoleInstance, target: Role): void {
  */
 export function chooseNightTarget(
   role: RoleInstance,
-  target: Role,
+  target: GameRole,
 ): void {
   role.visiting = target;
 }
@@ -111,14 +111,14 @@ export function toggleNightSelfTarget(role: RoleInstance) {
  * @param level - Minimum damage applied to the target.
  * @returns Reusable role handler.
  */
-export function simpleAttack(level: CombatLevel): RoleHandler {
+export function simpleAttack(level: CombatLevel): RoleHandlerInput {
   return {
-    onNightVisit: ({ role }) => {
+    onNightVisit: [({ role }) => {
       const target = registerNightVisit(role);
       if (!target) return;
       applyDamageMinimum(target, level);
       addAttacker(target, role);
-    },
+    }],
   };
 }
 
@@ -128,15 +128,15 @@ export function simpleAttack(level: CombatLevel): RoleHandler {
  * @param townAlways - Whether the block always succeeds on town or everyone.
  * @returns Reusable role handler.
  */
-export function roleblockVisit(townAlways = true): RoleHandler {
+export function roleblockVisit(townAlways = true): RoleHandlerInput {
   return {
-    onNightVisit: ({ role }) => {
+    onNightVisit: [({ role }) => {
       const target = role.visiting;
       if (!target) return;
       if (townAlways || target.group === RoleGroup.Town || role.room.random() > 0.5) {
         target.receiveVisit(role);
         roleblockTarget(target, role);
       }
-    },
+    }],
   };
 }

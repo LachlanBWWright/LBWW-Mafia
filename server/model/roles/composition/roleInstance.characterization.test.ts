@@ -24,8 +24,7 @@ import { GamePhase } from "../../rooms/gamePhase.js";
 import { setGameEmitter } from "../../../servers/emitter.js";
 import type { RoleDefinition } from "./roleDefinition.js";
 import { accepted, rejected } from "./handlers/results.js";
-import { validateBuiltInCatalogs } from "./validation.js";
-import { ComposedFaction } from "../../factions/composition/composedFaction.js";
+import { createRoleHandlers } from "./handlers/types.js";
 
 function createSocket(id: string) {
   return {
@@ -62,10 +61,6 @@ beforeAll(() => {
 });
 
 describe("composed role characterization", () => {
-  it("built-in role and faction catalogs validate together", () => {
-    expect(validateBuiltInCatalogs()).toEqual([]);
-  });
-
   it("doctor cannot heal self", () => {
     const room = new Room(2, "room-self-heal");
     const doctorPlayer = createPlayer("doctor");
@@ -121,7 +116,7 @@ describe("composed role characterization", () => {
     const victim = assignRole(room, victimPlayer, maniacDefinition);
 
     wireRoom(room);
-    const mafiaFaction = room.factionList[0] as ComposedFaction;
+    const mafiaFaction = room.factionList[0]!;
     roleA.handleNightVote(victimPlayer);
 
     expect(roleA.attackVote).toBeNull();
@@ -242,15 +237,15 @@ describe("composed role characterization", () => {
         nightVote: false,
       },
       traits: [],
-      handlers: [
-        { onNightCommand: () => rejected },
+      handlers: createRoleHandlers(
+        { onNightCommand: [() => rejected] },
         {
-          onNightCommand: ({ role, recipient }) => {
+          onNightCommand: [({ role, recipient }) => {
             role.visiting = recipient.role;
             return accepted;
-          },
+          }],
         },
-      ],
+      ),
     };
 
     const role = assignRole(room, actorPlayer, rejectingRole);

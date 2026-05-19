@@ -1,7 +1,7 @@
-import type { RoleHandler } from "./types.js";
+import type { RoleHandlerInput } from "./types.js";
 
 export function victoryHandler(
-  handler: Pick<RoleHandler, "onPlayerVotedOut" | "onNoDeathDraw">,
-): RoleHandler {
+  handler: RoleHandlerInput,
+): RoleHandlerInput {
   return handler;
 }

@@ -1,16 +1,28 @@
 import { ServerEvent } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { io } from "../../../servers/emitter.js";
 import type { Room } from "../room.js";
+import { buildVisitResolutionPlan } from "./visitResolution.js";
 
 export class VisitResolutionSystem {
   constructor(private readonly room: Room) {}
 
   resolveNight(): void {
     this.applyFactionIntents();
-    this.processRoleBlockers();
-    this.processVisitors();
-    this.handleVisitOutcomes();
+    const resolutionPlan = buildVisitResolutionPlan(this.room.playerList);
+
+    for (const step of resolutionPlan) {
+      if (step.stage === "preVisit") {
+        step.player.role.visit();
+        continue;
+      }
+
+      if (step.stage === "visit") {
+        this.processVisitor(step.player);
+        continue;
+      }
+
+      step.player.role.handleVisits();
+    }
   }
 
   private applyFactionIntents(): void {
@@ -32,33 +44,18 @@ export class VisitResolutionSystem {
     }
   }
 
-  private processRoleBlockers(): void {
-    for (const player of this.room.playerList) {
-      if (player.role.roleblocker) {
-        player.role.visit();
-      }
+  private processVisitor(player: Room["playerList"][number]): void {
+    if (player.role.roleblocked) {
+      player.role.visiting = null;
+      this.room.messenger.emitToPlayer(player, ServerEvent.ReceiveMessage, {
+        key: MessageKey.YouWereRoleblocked,
+      });
+      player.role.roleblocked = false;
+      return;
     }
-  }
 
-  private processVisitors(): void {
-    for (const player of this.room.playerList) {
-      if (player.role.roleblocked && !player.role.roleblocker) {
-        player.role.visiting = null;
-        io.to(player.user.socketId).emit(ServerEvent.ReceiveMessage, {
-          key: MessageKey.YouWereRoleblocked,
-        });
-        player.role.roleblocked = false;
-      } else if (player.role.visiting !== null && !player.role.roleblocker) {
-        player.role.visit();
-      }
-    }
-  }
-
-  private handleVisitOutcomes(): void {
-    for (const player of this.room.playerList) {
-      if (player.isAlive) {
-        player.role.handleVisits();
-      }
+    if (player.role.visiting !== null) {
+      player.role.visit();
     }
   }
 }
