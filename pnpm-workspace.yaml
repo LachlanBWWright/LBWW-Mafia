@@ -1,0 +1,7 @@
+packages:
+  - "client"
+  - "db"
+  - "mobile"
+  - "nextjs"
+  - "server"
+  - "shared"

@@ -38,10 +38,10 @@ The backend is selected via environment variables. No code changes are required 
 
 ```bash
 # Socket.IO (default)
-cd server && npm run start:socketio
+cd server && pnpm run start:socketio
 
 # PartyKit
-cd server && npm run start:partykit
+cd server && pnpm run start:partykit
 ```
 
 #### Client-side (NextJS)
@@ -72,26 +72,23 @@ To add a new socket backend:
 ### Server
 
 ```bash
-cd server
-npm install
-npm start          # Socket.IO mode (default)
-npm run start:partykit  # PartyKit mode
+pnpm install
+pnpm --dir server run start:socketio  # Socket.IO mode (default)
+pnpm --dir server run start:partykit  # PartyKit mode
 ```
 
 ### Next.js Web App
 
 ```bash
-cd nextjs
-npm install
-npm run dev
+pnpm install
+pnpm --dir nextjs run dev
 ```
 
 ### Mobile App
 
 ```bash
-cd mobile
-npm install
-npm start
+pnpm install
+pnpm --dir mobile run start
 ```
 
 ## Linting
@@ -100,20 +97,20 @@ All three components have ESLint configured:
 
 ```bash
 # Server
-cd server && npm run lint
+pnpm --dir server run lint
 
 # Next.js
-cd nextjs && npm run lint
+pnpm --dir nextjs run lint
 
 # Mobile
-cd mobile && npm run lint
+pnpm --dir mobile run lint
 ```
 
 ## Testing
 
 ```bash
 # Run all tests (from server directory)
-cd server && npm test
+pnpm --dir server test
 ```
 
 ## Tech Stack

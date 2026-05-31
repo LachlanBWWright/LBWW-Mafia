@@ -11,5 +11,5 @@ This app uses NativeWind for all app-owned styling.
 
 ## Checks
 
-- `npm run lint`
-- `npm run check:styles`
+- `pnpm run lint`
+- `pnpm run check:styles`

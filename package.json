@@ -2,24 +2,19 @@
   "name": "lbww-mafia-monorepo",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "nextjs",
-    "server",
-    "shared",
-    "db"
-  ],
+  "packageManager": "pnpm@10.28.1",
   "scripts": {
-    "dev": "docker compose up -d && wait-on tcp:5432 && concurrently --names \"next,server\" --prefix-colors \"cyan,yellow\" \"cd nextjs && npm run dev\" \"cd server && npm start\"",
+    "dev": "docker compose up -d && wait-on tcp:5432 && concurrently --names \"next,server\" --prefix-colors \"cyan,yellow\" \"pnpm --dir nextjs run dev\" \"pnpm --dir server run start\"",
     "dev:down": "docker compose down",
     "metrics:ts": "bash scripts/ts-file-metrics.sh --top=100",
-    "lint": "npm run lint:server && npm run lint:nextjs && npm run lint:mobile",
-    "lint:server": "cd server && npm run lint",
-    "lint:nextjs": "cd nextjs && npm run lint",
-    "lint:mobile": "cd mobile && npm run lint",
-    "lint:fix": "npm run lint:fix:server && npm run lint:fix:nextjs && npm run lint:fix:mobile",
-    "lint:fix:server": "cd server && npm run lint:fix",
-    "lint:fix:nextjs": "cd nextjs && npm run lint:fix",
-    "lint:fix:mobile": "cd mobile && npm run lint:fix"
+    "lint": "pnpm run lint:server && pnpm run lint:nextjs && pnpm run lint:mobile",
+    "lint:server": "pnpm --dir server run lint",
+    "lint:nextjs": "pnpm --dir nextjs run lint",
+    "lint:mobile": "pnpm --dir mobile run lint",
+    "lint:fix": "pnpm run lint:fix:server && pnpm run lint:fix:nextjs && pnpm run lint:fix:mobile",
+    "lint:fix:server": "pnpm --dir server run lint:fix",
+    "lint:fix:nextjs": "pnpm --dir nextjs run lint:fix",
+    "lint:fix:mobile": "pnpm --dir mobile run lint:fix"
   },
   "description": "LBWW Mafia monorepo root",
   "devDependencies": {

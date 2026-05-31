@@ -17,7 +17,8 @@ The application uses modern web technologies:
 1. Install dependencies:
 
 ```bash
-npm install
+# Run this from the repository root so pnpm sees the workspace packages.
+pnpm install
 ```
 
 2. Set up your environment variables (copy `.env.example` to `.env` and fill in values)
@@ -25,13 +26,13 @@ npm install
 3. Run database migrations:
 
 ```bash
-npm run db:push
+pnpm run db:push
 ```
 
 4. Start the development server:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the app.
@@ -42,10 +43,10 @@ The app uses Drizzle ORM with SQLite for local development. The shared schema is
 
 ### Database Commands
 
-- `npm run db:generate` - Generate migrations
-- `npm run db:migrate` - Run migrations
-- `npm run db:push` - Push schema to database
-- `npm run db:studio` - Open Drizzle Studio
+- `pnpm run db:generate` - Generate migrations
+- `pnpm run db:migrate` - Run migrations
+- `pnpm run db:push` - Push schema to database
+- `pnpm run db:studio` - Open Drizzle Studio
 
 ## Learn More
 

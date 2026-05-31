@@ -12,26 +12,26 @@ run_project_checks() {
   echo "==> Verifying ${project_dir}"
   (
     cd "$project_dir"
-    npm install
-    npm run lint
-    if npm run | grep -q " test"; then
-      npm run test
+    pnpm run lint
+    if pnpm run | grep -q " test"; then
+      pnpm run test
     fi
-    if npm run | grep -q " build"; then
+    if pnpm run | grep -q " build"; then
       if [ "$project_dir" = "$NEXTJS_PROJECT_DIR" ]; then
         AUTH_SECRET=dummy \
         AUTH_GOOGLE_ID=dummy \
         AUTH_GOOGLE_SECRET=dummy \
         DATABASE_URL=file:./dev.db \
-        npm run build
+        pnpm run build
       else
-        npm run build
+        pnpm run build
       fi
     fi
   )
 }
 
 echo "==> Running project checks"
+pnpm install
 run_project_checks "server"
 run_project_checks "nextjs"
 run_project_checks "mobile"

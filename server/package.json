@@ -7,13 +7,13 @@
   "scripts": {
     "start": "tsx server.ts",
     "start:socketio": "tsx server.ts",
-    "start:partykit": "npx partykit dev servers/partykit/partykitServer.ts",
+    "start:partykit": "pnpm exec partykit dev servers/partykit/partykitServer.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:model": "vitest run model",
     "test:systems": "vitest run model/rooms/systems",
     "test:roles": "vitest run model/roles",
-    "build": "npm run typecheck",
+    "build": "pnpm run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
@@ -31,7 +31,7 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "@mernmafia/db": "*",
+    "@mernmafia/db": "workspace:*",
     "@trpc/server": "^11.10.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",

@@ -9,10 +9,10 @@
     "web": "expo start --web",
     "eject": "expo eject",
     "test": "vitest run",
-    "build": "npm run typecheck",
+    "build": "pnpm run typecheck",
     "check:styles": "bash ../scripts/check-mobile-styling.sh",
-    "lint": "eslint . && npm run check:styles",
-    "lint:fix": "eslint . --fix && npm run check:styles",
+    "lint": "eslint . && pnpm run check:styles",
+    "lint:fix": "eslint . --fix && pnpm run check:styles",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
