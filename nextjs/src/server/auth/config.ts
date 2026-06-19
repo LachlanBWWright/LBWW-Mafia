@@ -21,15 +21,12 @@ declare module "next-auth" {
     user: {
       id: string;
       isAdmin: boolean;
-      // ...other properties
-      // role: UserRole;
     } & DefaultSession["user"];
   }
 
-  // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
+  interface User {
+    isAdmin: boolean;
+  }
 }
 
 /**
@@ -39,7 +36,10 @@ declare module "next-auth" {
  */
 export const authConfig = {
   providers: [
-    GoogleProvider,
+    GoogleProvider({
+      clientId: process.env.AUTH_GOOGLE_ID ?? "",
+      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
+    }),
     /**
      * ...add more providers here.
      *
@@ -58,17 +58,12 @@ export const authConfig = {
   }),
   callbacks: {
     session: ({ session, user }) => {
-      const isAdmin =
-        typeof (user as { isAdmin?: unknown }).isAdmin === "boolean"
-          ? (user as unknown as { isAdmin: boolean }).isAdmin
-          : false;
-
       return {
         ...session,
         user: {
           ...session.user,
           id: user.id,
-          isAdmin,
+          isAdmin: user.isAdmin,
         },
       };
     },

@@ -4,6 +4,9 @@ import neverthrow from "eslint-plugin-neverthrow";
 
 export default [
   {
+    ignores: ["build/**"],
+  },
+  {
     files: ["**/*.ts"],
     languageOptions: {
       parser: tsparser,
