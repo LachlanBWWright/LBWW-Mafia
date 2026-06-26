@@ -24,6 +24,7 @@ import type {
 } from "./clientTypes";
 import { SocketIoClientAdapter } from "./socketIoClientAdapter";
 import { PartykitClientAdapter } from "./partykitClientAdapter";
+import { SupabaseRealtimeClientAdapter } from "./supabaseRealtimeClientAdapter";
 import { createGameSocket } from "./createGameSocket";
 
 export type {
@@ -46,5 +47,6 @@ export {
   DayTime,
   SocketIoClientAdapter,
   PartykitClientAdapter,
+  SupabaseRealtimeClientAdapter,
   createGameSocket,
 };

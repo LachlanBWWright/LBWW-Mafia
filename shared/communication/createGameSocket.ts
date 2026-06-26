@@ -10,6 +10,10 @@
 import type { GameSocket, GameSocketConfig } from "./clientTypes";
 import { SocketIoClientAdapter, type SocketIoCompatible } from "./socketIoClientAdapter";
 import { PartykitClientAdapter } from "./partykitClientAdapter";
+import {
+  createSupabaseRealtimeClient,
+  SupabaseRealtimeClientAdapter,
+} from "./supabaseRealtimeClientAdapter";
 import { ok, err, Result } from "neverthrow";
 
 export function createGameSocket(
@@ -31,6 +35,21 @@ export function createGameSocket(
       const room = config.room ?? "default";
       return ok(new PartykitClientAdapter(
         `${wsUrl}/party/${room}`,
+        config.autoConnect ?? true,
+      ));
+    }
+
+    case "supabase": {
+      if (!config.apiKey) {
+        return err(new Error(
+          "Supabase backend requires an anon/public API key in config.apiKey.",
+        ));
+      }
+      const room = config.room ?? "default";
+      const client = createSupabaseRealtimeClient(config.url, config.apiKey);
+      return ok(new SupabaseRealtimeClientAdapter(
+        client,
+        room,
         config.autoConnect ?? true,
       ));
     }

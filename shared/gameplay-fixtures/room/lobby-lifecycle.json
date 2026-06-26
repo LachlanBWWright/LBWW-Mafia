@@ -1,0 +1,26 @@
+{
+  "roomSize": 2,
+  "roomName": "fixture-lobby",
+  "actions": [
+    { "type": "addUser", "socketId": "socket-a" },
+    { "type": "addUser", "socketId": "socket-b" }
+  ],
+  "expectedJoinResults": [
+    { "status": "joined", "username": "Glen" },
+    { "status": "joined", "username": "Finn" }
+  ],
+  "expectedState": {
+    "started": true,
+    "phase": "day",
+    "userNames": ["Glen", "Finn"],
+    "playerCount": 2
+  },
+  "expectedEvents": [
+    { "target": "fixture-lobby", "event": "receive-new-player" },
+    {
+      "target": "fixture-lobby",
+      "event": "receiveMessage",
+      "messageKey": "room_full_starting_game"
+    }
+  ]
+}

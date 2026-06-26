@@ -130,3 +130,9 @@ export const partykitServerEnvelopeSchema = z.discriminatedUnion("type", [
   partykitServerEventEnvelopeSchema,
   partykitCallbackEnvelopeSchema,
 ]);
+
+export const supabaseClientEnvelopeSchema = z.object({
+  roomId: z.string().min(1),
+  socketId: z.string().min(1),
+  message: partykitClientEventEnvelopeSchema,
+});
