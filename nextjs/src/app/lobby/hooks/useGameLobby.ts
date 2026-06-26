@@ -2,8 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { SocketIoClientAdapter } from "@mernmafia/shared/communication/socketIoClientAdapter";
-import { PartykitClientAdapter } from "@mernmafia/shared/communication/partykitClientAdapter";
 import type {
   JoinRoomResult,
   PlayerList,
@@ -21,6 +19,7 @@ import type {
   GameSocket,
   SocketBackendType,
 } from "@mernmafia/shared/communication/clientTypes";
+import { createGameSocket } from "@mernmafia/shared/communication/createGameSocket";
 import {
   createTranslator,
   type GameMessage,
@@ -34,11 +33,15 @@ import { en } from "@mernmafia/shared/communication/locales/en";
  * @returns Resolved backend type, defaults to "socketio"
  */
 function resolveBackend(value: string | undefined): SocketBackendType {
-  return value === "partykit" ? "partykit" : "socketio";
+  if (value === "partykit" || value === "supabase") {
+    return value;
+  }
+  return "socketio";
 }
 
 const SOCKET_BACKEND = resolveBackend(process.env.NEXT_PUBLIC_SOCKET_BACKEND);
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const CAPTCHA_TOKEN =
   process.env.NEXT_PUBLIC_CAPTCHA_TOKEN ??
   (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
@@ -58,12 +61,18 @@ type ChatMessage = { id: number; text: string };
  */
 function buildSocket(roomId: string): GameSocket | null {
   if (!SOCKET_URL) return null;
-  if (SOCKET_BACKEND === "partykit") {
-    const wsUrl = SOCKET_URL.replace(/^http(s?)/, "ws$1");
-    return new PartykitClientAdapter(`${wsUrl}/party/${roomId}`, false);
-  }
-  const raw = io(SOCKET_URL, { autoConnect: false });
-  return new SocketIoClientAdapter(raw);
+  const socketConfig = {
+    type: SOCKET_BACKEND,
+    url: SOCKET_URL,
+    room: roomId,
+    autoConnect: false,
+    apiKey: SUPABASE_ANON_KEY,
+  } as const;
+  const rawSocket = SOCKET_BACKEND === "socketio"
+    ? io(SOCKET_URL, { autoConnect: false })
+    : undefined;
+  const socket = createGameSocket(socketConfig, rawSocket);
+  return socket.isOk() ? socket.value : null;
 }
 
 export type GameLobbyState = {

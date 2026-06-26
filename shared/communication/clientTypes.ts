@@ -28,11 +28,12 @@ export interface GameSocket {
   readonly connected: boolean;
 }
 
-export type SocketBackendType = "socketio" | "partykit";
+export type SocketBackendType = "socketio" | "partykit" | "supabase";
 
 export interface GameSocketConfig {
   type: SocketBackendType;
   url: string;
+  apiKey?: string;
   room?: string;
   autoConnect?: boolean;
 }

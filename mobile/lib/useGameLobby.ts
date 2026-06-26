@@ -18,8 +18,7 @@ import type {
   GameSocket,
   SocketBackendType,
 } from "../../shared/communication/clientTypes";
-import { SocketIoClientAdapter } from "../../shared/communication/socketIoClientAdapter";
-import { PartykitClientAdapter } from "../../shared/communication/partykitClientAdapter";
+import { createGameSocket } from "../../shared/communication/createGameSocket";
 import { createTranslator } from "../../shared/communication/messages";
 import { en } from "../../shared/communication/locales/en";
 import type { GameMessage } from "../../shared/communication/messages";
@@ -37,7 +36,10 @@ type ChatMessage = {
 };
 
 function resolveBackend(value: string | undefined): SocketBackendType {
-  return value === "partykit" ? "partykit" : "socketio";
+  if (value === "partykit" || value === "supabase") {
+    return value;
+  }
+  return "socketio";
 }
 
 function buildSocket(roomId: string) {
@@ -47,13 +49,17 @@ function buildSocket(roomId: string) {
   }
 
   const backend = resolveBackend(process.env.EXPO_PUBLIC_SOCKET_BACKEND);
-  if (backend === "partykit") {
-    const wsUrl = socketUrl.replace(/^http(s?)/, "ws$1");
-    return new PartykitClientAdapter(`${wsUrl}/party/${roomId}`, false);
-  }
-
-  const raw = io(socketUrl, { autoConnect: false });
-  return new SocketIoClientAdapter(raw);
+  const socket = createGameSocket(
+    {
+      type: backend,
+      url: socketUrl,
+      room: roomId,
+      autoConnect: false,
+      apiKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+    },
+    backend === "socketio" ? io(socketUrl, { autoConnect: false }) : undefined,
+  );
+  return socket.isOk() ? socket.value : null;
 }
 
 export type LobbyState = {
