@@ -1,6 +1,47 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DayTime {
+    #[serde(rename = "Day")]
+    Day,
+    #[serde(rename = "Night")]
+    Night,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JoinRoomResultCode {
+    GenericError = 1,
+    CaptchaFailed = 2,
+    RoomFull = 3,
+}
+
+impl Serialize for JoinRoomResultCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u8(*self as u8)
+    }
+}
+
+impl<'de> Deserialize<'de> for JoinRoomResultCode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let code = u8::deserialize(deserializer)?;
+        match code {
+            1 => Ok(Self::GenericError),
+            2 => Ok(Self::CaptchaFailed),
+            3 => Ok(Self::RoomFull),
+            other => Err(serde::de::Error::custom(format!(
+                "unsupported join room result code: {other}"
+            ))),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PartyKitMessageType {
@@ -62,7 +103,7 @@ pub enum JoinRoomResult {
     #[serde(rename = "joined")]
     Joined { username: String },
     #[serde(rename = "rejected")]
-    Rejected { code: u8 },
+    Rejected { code: JoinRoomResultCode },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
