@@ -7,6 +7,7 @@ import {
   ClientEvent,
   DayTime,
   JoinRoomResultCode,
+  PartyKitMessageType,
   ServerEvent,
 } from "./events";
 import { MessageKey } from "./messages";

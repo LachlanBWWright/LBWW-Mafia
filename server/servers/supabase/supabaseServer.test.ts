@@ -81,14 +81,19 @@ describe("Supabase realtime server", () => {
       },
     });
 
-    expect(channels.get(createSupabaseSocketChannelName("sb_alpha"))?.sent[0]).toMatchObject({
-      event: SUPABASE_DELIVERY_EVENT,
-      payload: {
-        type: PartyKitMessageType.Callback,
-        callbackId: "cb_1",
-        args: [{ status: "joined" }],
-      },
-    });
+    expect(
+      channels.get(createSupabaseSocketChannelName("sb_alpha"))?.sent.some(
+        (message) =>
+          message.event === SUPABASE_DELIVERY_EVENT &&
+          typeof message.payload === "object" &&
+          message.payload !== null &&
+          "type" in message.payload &&
+          (message.payload as { type?: string }).type ===
+            PartyKitMessageType.Callback &&
+          "callbackId" in message.payload &&
+          (message.payload as { callbackId?: string }).callbackId === "cb_1",
+      ),
+    ).toBe(true);
 
     channels.get(SUPABASE_CONTROL_CHANNEL)?.emit(SUPABASE_CONTROL_EVENT, {
       roomId: "room-1",

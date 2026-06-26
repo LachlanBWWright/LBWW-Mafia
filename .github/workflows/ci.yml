@@ -26,10 +26,12 @@ jobs:
           node-version: 20
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+      - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir server run lint
       - run: pnpm --dir server run typecheck
       - run: pnpm --dir server run test
+      - run: cargo test --manifest-path rust/Cargo.toml --workspace
 
   nextjs-test:
     name: Next.js — lint, typecheck, test, build

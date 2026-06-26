@@ -8,7 +8,7 @@ Playable at: https://lbww-mafia.herokuapp.com/
 
 This is a monorepo containing three main components:
 
-- **server/**: Node.js/Express backend with Socket.IO or PartyKit for real-time gameplay
+- **server/**: Node.js/Express backend with Socket.IO, PartyKit, or Supabase Realtime for real-time gameplay
 - **nextjs/**: Next.js web application using the T3 Stack
 - **mobile/**: React Native mobile application using Expo
 - **shared/**: Shared game logic, types, and communication abstractions
@@ -20,7 +20,7 @@ This is a monorepo containing three main components:
 
 ## Socket Backend Architecture
 
-The application supports two real-time communication backends:
+The application supports multiple real-time communication backends:
 
 ### Socket.IO (Default)
 
@@ -30,9 +30,13 @@ A single Socket.IO server hosts multiple game rooms. This is the traditional app
 
 Each PartyKit party instance hosts a single game room/match. PartyKit runs on Cloudflare Workers for global low-latency deployment.
 
+### Supabase Realtime
+
+Supabase Realtime is available as a managed channel-based transport that can relay room broadcasts and targeted player callbacks without changing the gameplay contract.
+
 ### Switching Backends
 
-The backend is selected via environment variables. No code changes are required to switch between Socket.IO and PartyKit.
+The backend is selected via environment variables. No code changes are required to switch between Socket.IO, PartyKit, and Supabase-backed clients.
 
 #### Server-side
 
@@ -42,21 +46,26 @@ cd server && pnpm run start:socketio
 
 # PartyKit
 cd server && pnpm run start:partykit
+
+# Supabase Realtime
+cd server && pnpm run start:supabase
 ```
 
 #### Client-side (NextJS)
 
 ```env
 # .env.local
-NEXT_PUBLIC_SOCKET_BACKEND=socketio   # or "partykit"
+NEXT_PUBLIC_SOCKET_BACKEND=socketio   # or "partykit" / "supabase"
 NEXT_PUBLIC_SOCKET_URL=http://localhost:8000
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
 #### Client-side (Mobile)
 
 ```env
-EXPO_PUBLIC_SOCKET_BACKEND=socketio   # or "partykit"
+EXPO_PUBLIC_SOCKET_BACKEND=socketio   # or "partykit" / "supabase"
 EXPO_PUBLIC_SOCKET_URL=http://localhost:8000
+EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
 
 ### Adding a New Backend
@@ -75,6 +84,7 @@ To add a new socket backend:
 pnpm install
 pnpm --dir server run start:socketio  # Socket.IO mode (default)
 pnpm --dir server run start:partykit  # PartyKit mode
+pnpm --dir server run start:supabase  # Supabase Realtime mode
 ```
 
 ### Next.js Web App
@@ -121,6 +131,7 @@ pnpm --dir server test
 - MongoDB with Mongoose
 - Socket.IO for real-time communication
 - PartyKit for alternative real-time communication (Cloudflare Workers)
+- Supabase Realtime for managed channel-based transport
 - TypeScript
 
 ### Next.js

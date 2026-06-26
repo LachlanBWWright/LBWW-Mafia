@@ -66,8 +66,9 @@ export function createSupabaseRealtimeServer(
   const rooms = new Map<string, Room>();
   const playerSockets = new Map<string, SupabasePlayerSocket>();
   const emitter = new SupabaseEmitter(client);
-  const controlChannel = client
-    .channel(SUPABASE_CONTROL_CHANNEL)
+  const controlChannel = (client.channel(
+    SUPABASE_CONTROL_CHANNEL,
+  ) as unknown as SupabaseServerChannelLike)
     .on("broadcast", { event: SUPABASE_CONTROL_EVENT }, ({ payload }) => {
       const parsed = supabaseClientEnvelopeSchema.safeParse(payload);
       if (!parsed.success) {
