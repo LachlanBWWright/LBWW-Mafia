@@ -169,7 +169,7 @@ export class Room {
    * Adds a connected client to the lobby.
    * Returns an error code on failure or the assigned username on success.
    */
-  addUser(playerSocket: GamePlayerSocket): JoinRoomResult {
+  addUser(playerSocket: GamePlayerSocket, identity?: { userId: string; handle?: string }): JoinRoomResult {
     const socketId = playerSocket.id;
     if (this.userList.some((u) => u.socketId === socketId))
       return { status: "rejected", code: JoinRoomResultCode.GenericError };
@@ -181,12 +181,15 @@ export class Room {
     }
 
     const takenNames = this.userList.map((u) => u.username);
-    const username = names.find((n) => !takenNames.includes(n));
+    const preferredName = identity?.handle?.trim().slice(0, 24);
+    const username = preferredName && !takenNames.includes(preferredName)
+      ? preferredName
+      : names.find((n) => !takenNames.includes(n));
     if (!username) {
       return { status: "rejected", code: JoinRoomResultCode.GenericError };
     }
 
-    const user = new User(playerSocket, username);
+    const user = new User(playerSocket, username, identity?.userId);
     const position = this.userList.push(user) - 1;
     playerSocket.data.position = position;
 
@@ -834,6 +837,7 @@ export class Room {
       winningFaction: winningFactionName,
       winningRoles,
       participants: this.playerList.map((player) => ({
+        userId: player.user.userId,
         username: player.username,
         role: player.role.name,
         won:

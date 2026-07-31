@@ -50,6 +50,23 @@ export const users = createTable("user", () => ({
     sql`now()`,
   ),
   image: varchar("image", { length: 255 }),
+  handle: varchar("handle", { length: 32 }).unique(),
+  passwordHash: text("password_hash"),
+  bio: varchar("bio", { length: 280 }),
+  profileVisibility: varchar("profile_visibility", { length: 16 })
+    .notNull()
+    .default("public"),
+  historyVisibility: varchar("history_visibility", { length: 16 })
+    .notNull()
+    .default("public"),
+  theme: varchar("theme", { length: 16 }).notNull().default("dark"),
+  reducedMotion: boolean("reduced_motion").notNull().default(false),
+  soundEnabled: boolean("sound_enabled").notNull().default(true),
+  notificationsEnabled: boolean("notifications_enabled").notNull().default(true),
+  accountStatus: varchar("account_status", { length: 24 })
+    .notNull()
+    .default("active"),
+  deletedAt: timestamp("deleted_at", { withTimezone: true }),
   isAdmin: boolean("is_admin").notNull().default(false),
 }));
 
@@ -159,6 +176,78 @@ export const matchParticipants = createTable(
   ],
 );
 
+export const userRoles = createTable(
+  "user_role",
+  () => ({
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 32 }).notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [primaryKey({ columns: [t.userId, t.role] })],
+);
+
+export const friendships = createTable(
+  "friendship",
+  () => ({
+    requesterId: varchar("requester_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    addresseeId: varchar("addressee_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [
+    primaryKey({ columns: [t.requesterId, t.addresseeId] }),
+    index("friendship_addressee_idx").on(t.addresseeId),
+  ],
+);
+
+export const userBlocks = createTable(
+  "user_block",
+  () => ({
+    blockerId: varchar("blocker_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    blockedId: varchar("blocked_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] })],
+);
+
+export const auditLogs = createTable(
+  "audit_log",
+  () => ({
+    id: serial("id").primaryKey(),
+    actorId: varchar("actor_id", { length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    subjectId: varchar("subject_id", { length: 255 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    action: varchar("action", { length: 64 }).notNull(),
+    metadata: text("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [index("audit_log_subject_idx").on(t.subjectId)],
+);
+
 // helper object for easier schema imports
 export const schema = {
   createTable,
@@ -173,4 +262,8 @@ export const schema = {
   matches,
   activeRoom,
   matchParticipants,
+  userRoles,
+  friendships,
+  userBlocks,
+  auditLogs,
 };

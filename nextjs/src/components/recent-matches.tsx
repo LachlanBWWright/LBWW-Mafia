@@ -8,8 +8,9 @@ import type { RecentMatchSummary } from "@mernmafia/shared/trpc/appRouter";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 
 type RecentMatchesProps = {
-  username: string;
+  username?: string;
   title: string;
+  currentUser?: boolean;
 };
 
 function createClient() {
@@ -23,19 +24,21 @@ function createClient() {
   });
 }
 
-export function RecentMatches({ username, title }: RecentMatchesProps) {
+export function RecentMatches({ username = "", title, currentUser = false }: RecentMatchesProps) {
   const [matches, setMatches] = useState<RecentMatchSummary[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
   const [trpcClient] = useState(createClient);
 
   useEffect(() => {
-    if (!username.trim()) {
+    if (!currentUser && !username.trim()) {
       return;
     }
 
-    void trpcClient.match.recentByUsername
-      .query({ username, limit: 10 })
+    const request = currentUser
+      ? trpcClient.match.recentForCurrentUser.query({ limit: 10 })
+      : trpcClient.match.recentByUsername.query({ username, limit: 10 });
+    void request
       .then((result: RecentMatchSummary[]) => {
         setMatches(result);
         setError("");
@@ -47,7 +50,7 @@ export function RecentMatches({ username, title }: RecentMatchesProps) {
         setError(message);
         setHasLoaded(true);
       });
-  }, [trpcClient, username]);
+  }, [currentUser, trpcClient, username]);
 
   return (
     <Card>
@@ -55,7 +58,7 @@ export function RecentMatches({ username, title }: RecentMatchesProps) {
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {!username.trim() ? (
+        {!currentUser && !username.trim() ? (
           <p className="text-sm text-muted-foreground">
             No username available for history lookup.
           </p>
@@ -84,4 +87,3 @@ export function RecentMatches({ username, title }: RecentMatchesProps) {
     </Card>
   );
 }
-

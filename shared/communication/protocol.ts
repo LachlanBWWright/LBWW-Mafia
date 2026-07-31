@@ -30,7 +30,7 @@ export const joinRoomResultSchema = z.discriminatedUnion("status", [
 ]);
 
 export const joinRoomCallbackArgsSchema = z.tuple([joinRoomResultSchema]);
-export const joinRoomArgsSchema = z.tuple([z.string()]);
+export const joinRoomArgsSchema = z.tuple([z.string(), z.string().optional()]);
 export const messageSentArgsSchema = z.tuple([chatMessageSchema, clientPhaseSchema]);
 export const voteArgsSchema = z.tuple([recipientIndexSchema, clientPhaseSchema]);
 export const visitArgsSchema = z.tuple([

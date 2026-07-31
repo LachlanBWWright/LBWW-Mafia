@@ -122,7 +122,7 @@ type JoinContext = {
  *
  * @param ctx - Join context with socket and state setters
  */
-function performJoin(ctx: JoinContext) {
+async function performJoin(ctx: JoinContext) {
   if (ctx.joiningRef.current) return;
   if (!SOCKET_URL) {
     ctx.setJoinStatus("Socket server URL is not configured.");
@@ -135,6 +135,10 @@ function performJoin(ctx: JoinContext) {
   ctx.joiningRef.current = true;
   ctx.setJoining(true);
   ctx.setJoinStatus("Joining game room...");
+  const identityToken = await fetch("/api/account/game-ticket")
+    .then((response) => response.ok ? response.json() as Promise<{ token: string | null }> : { token: null })
+    .then((body) => body.token ?? undefined)
+    .catch(() => undefined);
   const timeout = setTimeout(() => {
     ctx.setJoinStatus("Could not connect to the game server.");
     ctx.joiningRef.current = false;
@@ -144,6 +148,7 @@ function performJoin(ctx: JoinContext) {
     ctx.socket.emit(
       ClientEvent.PlayerJoinRoom,
       CAPTCHA_TOKEN,
+      identityToken ?? "",
       (result: JoinRoomResult) => {
         clearTimeout(timeout);
         if (result.status === "joined") {
@@ -293,7 +298,7 @@ export function useGameLobby(
     socket.on(ServerEvent.UpdateDayTime, onDayTime);
     socket.on(ServerEvent.UpdatePlayerVisit, () => undefined);
 
-    const autoJoin = setTimeout(() => performJoin(joinCtx), AUTO_JOIN_DELAY_MS);
+    const autoJoin = setTimeout(() => void performJoin(joinCtx), AUTO_JOIN_DELAY_MS);
 
     return () => {
       clearTimeout(autoJoin);
@@ -324,7 +329,7 @@ export function useGameLobby(
 
   const joinGame = () => {
     if (!socket) return;
-    performJoin({
+    void performJoin({
       socket,
       joiningRef,
       playerNameRef,

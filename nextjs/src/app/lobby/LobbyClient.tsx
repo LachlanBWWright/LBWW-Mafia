@@ -2,7 +2,6 @@
 
 import { useCallback, useState } from "react";
 import { useGameLobby } from "./hooks/useGameLobby";
-import { Header } from "~/components/header";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
@@ -131,23 +130,21 @@ export default function LobbyClient({ roomId }: { roomId: string }) {
     players.find((p) => p.name === playerName)?.isAlive !== false;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="mx-auto h-[calc(100vh-3.5rem)] w-full max-w-7xl px-4 py-3">
-        {!playerName ? (
-          <Card className="mx-auto mt-16 max-w-2xl">
-            <CardContent className="space-y-3 p-6 text-center">
-              <CardTitle className="text-2xl">Connecting to Game Lobby</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {joinStatus || "Attempting to join a room now..."}
-              </p>
-              <Button onClick={joinGame} disabled={joining} className="mx-auto" size="sm">
-                {joining ? "Connecting..." : "Retry Connection"}
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid h-full gap-3 lg:grid-cols-[2fr_1fr]">
+    <div className="mx-auto h-[calc(100vh-3.5rem)] w-full max-w-7xl px-4 py-3">
+      {!playerName ? (
+        <Card className="mx-auto mt-16 max-w-2xl">
+          <CardContent className="space-y-3 p-6 text-center">
+            <CardTitle className="text-2xl">Connecting to Game Lobby</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {joinStatus || "Attempting to join a room now..."}
+            </p>
+            <Button onClick={joinGame} disabled={joining} className="mx-auto" size="sm">
+              {joining ? "Connecting..." : "Retry Connection"}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid h-full gap-3 lg:grid-cols-[2fr_1fr]">
             <Card className="h-full">
               <CardContent className="flex h-full flex-col gap-2 p-3">
                 <div className="themed-scrollbar flex-1 space-y-1 overflow-y-auto rounded-md border p-2">
@@ -206,9 +203,8 @@ export default function LobbyClient({ roomId }: { roomId: string }) {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

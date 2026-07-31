@@ -45,7 +45,7 @@ export default async function ProfilePage() {
             ) : null}
           </CardContent>
         </Card>
-        <RecentMatches username={session.user.name ?? ""} title="Your Recent Matches" />
+        <RecentMatches currentUser title="Your Recent Matches" />
       </main>
     </div>
   );

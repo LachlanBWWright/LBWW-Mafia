@@ -1,0 +1,2 @@
+import { redirect } from "next/navigation"; import { Header } from "~/components/header"; import { AccountSettings } from "~/components/account-settings"; import { auth } from "~/server/auth";
+export default async function SettingsPage() { if (!(await auth())?.user) redirect("/signin"); return <div className="min-h-screen bg-background"><Header /><main className="mx-auto max-w-4xl px-4 py-8"><AccountSettings /></main></div>; }

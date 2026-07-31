@@ -4,6 +4,9 @@ import { trpcClient } from "./trpc";
 export async function fetchRecentMatches(username: string, limit = 10) {
   return trpcClient.match.recentByUsername.query({ username, limit });
 }
+export async function fetchCurrentUserMatches(limit = 10) {
+  return trpcClient.match.recentForCurrentUser.query({ limit });
+}
 
 export async function searchUsers(query: string, limit = 25) {
   return trpcClient.admin.searchUsers.query({ query, limit });

@@ -1,6 +1,7 @@
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "../../shared/trpc/appRouter";
+import { getAuthToken } from "./authToken";
 
 /**
  * tRPC client configured for the React Native mobile app.
@@ -14,6 +15,7 @@ export const trpcClient = createTRPCProxyClient<AppRouter>({
     httpBatchLink({
       url: trpcUrl,
       transformer: superjson,
+      headers() { const token = getAuthToken(); return token ? { Authorization: `Bearer ${token}` } : {}; },
     }),
   ],
 });
