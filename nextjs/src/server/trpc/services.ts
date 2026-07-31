@@ -1,9 +1,13 @@
-import { desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, ne, or, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import {
   activeRoom,
+  auditLogs,
+  friendships,
   matchParticipants,
   matches,
+  userBlocks,
+  userRoles,
   users,
 } from "@mernmafia/db/schema";
 import type {
@@ -97,7 +101,9 @@ const getRecentMatches = async ({
     })
     .from(matches)
     .innerJoin(matchParticipants, eq(matchParticipants.matchId, matches.id))
-    .where(eq(matchParticipants.username, normalizedUsername))
+    .where(normalizedUsername.startsWith("user:")
+      ? eq(matchParticipants.userId, normalizedUsername.slice(5))
+      : eq(matchParticipants.username, normalizedUsername))
     .orderBy(desc(matches.endedAt))
     .limit(limit);
 
@@ -188,6 +194,75 @@ const setUserAdmin = async ({
     .update(users)
     .set({ isAdmin })
     .where(eq(users.id, userId));
+};
+
+const getProfile: RouterServices["getProfile"] = async (userId) => {
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!user) throw new Error("Account not found");
+  const roleRows = await db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, userId));
+  return { id: user.id, name: user.name, handle: user.handle, email: user.email, image: user.image, bio: user.bio, profileVisibility: user.profileVisibility, historyVisibility: user.historyVisibility, theme: user.theme, reducedMotion: user.reducedMotion, soundEnabled: user.soundEnabled, notificationsEnabled: user.notificationsEnabled, roles: roleRows.length ? roleRows.map((row) => row.role) : [user.isAdmin ? "administrator" : "player"] };
+};
+
+const updateProfile: RouterServices["updateProfile"] = async (userId, input) => {
+  if (input.handle) {
+    const [taken] = await db.select({ id: users.id }).from(users).where(and(eq(users.handle, input.handle), ne(users.id, userId))).limit(1);
+    if (taken) throw new Error("That handle is already taken");
+  }
+  await db.update(users).set(input).where(eq(users.id, userId));
+  return getProfile(userId);
+};
+
+const getStats: RouterServices["getStats"] = async (userId) => {
+  const rows = await db.select({ role: matchParticipants.role, won: matchParticipants.won, faction: matches.winningFaction, endedAt: matches.endedAt }).from(matchParticipants).innerJoin(matches, eq(matches.id, matchParticipants.matchId)).where(eq(matchParticipants.userId, userId)).orderBy(desc(matches.endedAt));
+  const roleMap = new Map<string, { role: string; games: number; wins: number }>();
+  const factionMap = new Map<string, { faction: string; games: number; wins: number }>();
+  let currentStreak = 0; let bestWinStreak = 0; let running = 0; let firstLossSeen = false;
+  rows.forEach((row) => {
+    const role = roleMap.get(row.role) ?? { role: row.role, games: 0, wins: 0 }; role.games++; if (row.won) role.wins++; roleMap.set(row.role, role);
+    const faction = factionMap.get(row.faction) ?? { faction: row.faction, games: 0, wins: 0 }; faction.games++; if (row.won) faction.wins++; factionMap.set(row.faction, faction);
+    if (row.won) { running++; bestWinStreak = Math.max(bestWinStreak, running); if (!firstLossSeen) currentStreak++; } else { running = 0; firstLossSeen = true; }
+  });
+  const wins = rows.filter((row) => row.won).length;
+  return { gamesPlayed: rows.length, wins, losses: rows.length - wins, winRate: rows.length ? wins / rows.length : 0, currentStreak, bestWinStreak, roles: [...roleMap.values()], factions: [...factionMap.values()] };
+};
+
+const relationshipFor = async (userId: string, otherId: string) => {
+  const [blocked] = await db.select().from(userBlocks).where(and(eq(userBlocks.blockerId, userId), eq(userBlocks.blockedId, otherId))).limit(1);
+  if (blocked) return "blocked";
+  const [relation] = await db.select().from(friendships).where(or(and(eq(friendships.requesterId, userId), eq(friendships.addresseeId, otherId)), and(eq(friendships.requesterId, otherId), eq(friendships.addresseeId, userId)))).limit(1);
+  if (!relation) return "none";
+  if (relation.status === "accepted") return "friend";
+  return relation.requesterId === userId ? "outgoing" : "incoming";
+};
+
+const searchCommunity: RouterServices["searchCommunity"] = async (userId, query) => {
+  const filter = query ? or(like(users.name, `%${query}%`), like(users.handle, `%${query}%`)) : undefined;
+  const rows = await db.select({ id: users.id, name: users.name, handle: users.handle, image: users.image }).from(users).where(filter ? and(ne(users.id, userId), filter) : ne(users.id, userId)).limit(25);
+  return Promise.all(rows.map(async (row) => ({ ...row, relationship: await relationshipFor(userId, row.id) })));
+};
+
+const listFriends: RouterServices["listFriends"] = async (userId) => {
+  const relations = await db.select().from(friendships).where(or(eq(friendships.requesterId, userId), eq(friendships.addresseeId, userId)));
+  const ids = relations.map((row) => row.requesterId === userId ? row.addresseeId : row.requesterId);
+  if (!ids.length) return [];
+  const rows = await db.select({ id: users.id, name: users.name, handle: users.handle, image: users.image }).from(users).where(inArray(users.id, ids));
+  return Promise.all(rows.map(async (row) => ({ ...row, relationship: await relationshipFor(userId, row.id) })));
+};
+
+const requestFriend: RouterServices["requestFriend"] = async (userId, addresseeId) => {
+  if (userId === addresseeId) throw new Error("You cannot add yourself");
+  await db.insert(friendships).values({ requesterId: userId, addresseeId }).onConflictDoNothing();
+};
+const removeFriend: RouterServices["removeFriend"] = async (userId, otherId) => { await db.delete(friendships).where(or(and(eq(friendships.requesterId, userId), eq(friendships.addresseeId, otherId)), and(eq(friendships.requesterId, otherId), eq(friendships.addresseeId, userId)))); };
+const respondFriend: RouterServices["respondFriend"] = async (userId, requesterId, accept) => { if (accept) await db.update(friendships).set({ status: "accepted", updatedAt: new Date() }).where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, userId))); else await db.delete(friendships).where(and(eq(friendships.requesterId, requesterId), eq(friendships.addresseeId, userId))); };
+const blockUser: RouterServices["blockUser"] = async (userId, blockedId) => { await removeFriend(userId, blockedId); await db.insert(userBlocks).values({ blockerId: userId, blockedId }).onConflictDoNothing(); };
+const setUserRoles: RouterServices["setUserRoles"] = async (actorId, userId, roles) => {
+  await db.transaction(async (tx) => {
+    await tx.delete(userRoles).where(eq(userRoles.userId, userId));
+    await tx.insert(userRoles).values(roles.map((role) => ({ userId, role })));
+    await tx.update(users).set({ isAdmin: roles.includes("administrator") }).where(eq(users.id, userId));
+    await tx.insert(auditLogs).values({ actorId, subjectId: userId, action: "roles.updated", metadata: JSON.stringify({ roles }) });
+  });
 };
 
 /**
@@ -296,6 +371,16 @@ export const trpcServices: RouterServices = {
   getRecentMatches,
   searchUsers,
   setUserAdmin,
+  getProfile,
+  updateProfile,
+  getStats,
+  searchCommunity,
+  listFriends,
+  requestFriend,
+  respondFriend,
+  removeFriend,
+  blockUser,
+  setUserRoles,
   persistMatch,
   getCurrentRoom,
   rotateActiveRoom,

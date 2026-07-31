@@ -2,6 +2,10 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { auth } from "~/server/auth";
 import { appRouter } from "~/server/trpc/router";
 import { env } from "~/env";
+import { verifyMobileToken } from "~/server/auth/mobileToken";
+import { db } from "~/server/db";
+import { userRoles } from "@mernmafia/db/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * Creates the tRPC context for each request, including authentication info.
@@ -15,6 +19,11 @@ const createContext = async ({ req }: { req: Request }) => {
   const user = session?.user;
 
   const authHeader = req.headers.get("authorization");
+  const mobileUser = authHeader?.startsWith("Bearer ") ? verifyMobileToken(authHeader.slice(7)) : null;
+  const authenticatedId = user?.id ?? mobileUser?.userId;
+  const roles = authenticatedId
+    ? (await db.select({ role: userRoles.role }).from(userRoles).where(eq(userRoles.userId, authenticatedId))).map((row) => row.role)
+    : [];
   const isBackend =
     !!env.BACKEND_SECRET &&
     authHeader === `Bearer ${env.BACKEND_SECRET}`;
@@ -25,8 +34,9 @@ const createContext = async ({ req }: { req: Request }) => {
           id: user.id,
           name: user.name,
           isAdmin: user.isAdmin,
+          roles,
         }
-      : null,
+      : mobileUser ? { id: mobileUser.userId, name: mobileUser.name, isAdmin: Boolean(mobileUser.isAdmin), roles } : null,
     isBackend,
   };
 };

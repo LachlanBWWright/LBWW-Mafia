@@ -78,6 +78,25 @@ To add a new socket backend:
 
 ## Development
 
+### One-command local web game
+
+From the repository root:
+
+```bash
+bash scripts/dev.sh
+```
+
+This installs the locked dependencies, starts the local Postgres container,
+applies the database schema, and launches the Next.js app and Socket.IO game
+server. It uses a three-player room and local-only placeholder credentials by
+default. Open `http://localhost:3000`.
+
+Stop the foreground process with `Ctrl-C`, then stop Postgres with:
+
+```bash
+pnpm run dev:down
+```
+
 ### Server
 
 ```bash

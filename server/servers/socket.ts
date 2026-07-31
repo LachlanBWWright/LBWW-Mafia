@@ -18,6 +18,7 @@ import {
   parseWhisperPayload,
   rejectJoin,
 } from "./socketValidation.js";
+import { verifyGameIdentity } from "./gameIdentity.js";
 
 /**
  * Data attached to each Socket connection.
@@ -102,9 +103,25 @@ export function addSocketListeners(
      */
     socket.on(
       ClientEvent.PlayerJoinRoom,
-      async (captchaToken, cb) => {
+      async (captchaToken, identityTokenOrCallback, optionalCallback) => {
+        const cb = typeof identityTokenOrCallback === "function" ? identityTokenOrCallback : optionalCallback;
+        const identityToken = typeof identityTokenOrCallback === "string" ? identityTokenOrCallback : undefined;
         const parsedCaptchaToken = parseJoinRoomToken(captchaToken);
         if (!parsedCaptchaToken || !isJoinRoomCallback(cb)) {
+          return;
+        }
+        if (DEBUG_MODE) {
+          console.log("Captcha bypassed in debug mode");
+          if (playRoom.current?.started || playRoom.current === undefined)
+            playRoom.current = new Room(roomSize);
+          socket.data.roomObject = playRoom.current;
+          socket.join(playRoom.current.name);
+          const result = socket.data.roomObject.addUser(
+            socket,
+            verifyGameIdentity(identityToken),
+          );
+          console.log("Join result:", result);
+          cb(result);
           return;
         }
         await ResultAsync.fromPromise(
@@ -114,14 +131,14 @@ export function addSocketListeners(
           (error) => error,
         ).match(
           (res) => {
-            if (res.data.success || DEBUG_MODE) {
+            if (res.data.success) {
               console.log("Captcha Success");
               if (playRoom.current?.started || playRoom.current === undefined)
                 playRoom.current = new Room(roomSize);
               if (playRoom.current !== undefined) {
                 socket.data.roomObject = playRoom.current;
                 socket.join(playRoom.current.name);
-                const result = socket.data.roomObject.addUser(socket);
+                const result = socket.data.roomObject.addUser(socket, verifyGameIdentity(identityToken));
                 console.log("Join result:", result);
                 cb(result);
               }

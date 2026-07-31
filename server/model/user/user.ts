@@ -10,11 +10,13 @@ export class User {
   socket: GamePlayerSocket;
   readonly socketId: string;
   readonly username: string;
+  readonly userId?: string;
 
-  constructor(socket: GamePlayerSocket, username: string) {
+  constructor(socket: GamePlayerSocket, username: string, userId?: string) {
     this.socket = socket;
     this.socketId = socket.id;
     this.username = username;
+    this.userId = userId;
   }
 }
 

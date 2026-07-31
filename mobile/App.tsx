@@ -11,6 +11,7 @@ import { AboutScreen } from "./screens/AboutScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { AdminScreen } from "./screens/AdminScreen";
+import { SignInScreen } from "./screens/SignInScreen";
 import { colors } from "./styles/colors";
 
 export type StackParamList = {
@@ -21,6 +22,7 @@ export type StackParamList = {
   History: undefined;
   Profile: undefined;
   Admin: undefined;
+  SignIn: undefined;
 };
 
 const Stack = createNativeStackNavigator<StackParamList>();
@@ -54,6 +56,7 @@ export default function App() {
           <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="Admin" component={AdminScreen} />
+          <Stack.Screen name="SignIn" component={SignInScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AppStateProvider>

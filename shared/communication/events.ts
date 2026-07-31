@@ -103,7 +103,8 @@ export type PlayerReturned = {
 export type ClientToServerEvents = {
   playerJoinRoom: (
     captchaToken: string,
-    cb: (result: JoinRoomResult) => void,
+    identityTokenOrCallback: string | ((result: JoinRoomResult) => void),
+    cb?: (result: JoinRoomResult) => void,
   ) => Promise<void>;
   disconnect: () => void;
   messageSentByUser: (message: string, phase: DayTime) => void;

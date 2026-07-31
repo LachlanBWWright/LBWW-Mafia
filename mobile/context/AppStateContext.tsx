@@ -7,6 +7,8 @@ type AppState = {
   setIsAdmin: (value: boolean) => void;
   lastRoomName: string;
   setLastRoomName: (value: string) => void;
+  authToken: string | null;
+  setAuthToken: (value: string | null) => void;
 };
 
 const AppStateContext = createContext<AppState | null>(null);
@@ -15,6 +17,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [playerName, setPlayerName] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [lastRoomName, setLastRoomName] = useState("default");
+  const [authToken, setAuthToken] = useState<string | null>(null);
 
   const value = useMemo(
     () => ({
@@ -24,8 +27,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       setIsAdmin,
       lastRoomName,
       setLastRoomName,
+      authToken,
+      setAuthToken,
     }),
-    [isAdmin, lastRoomName, playerName],
+    [authToken, isAdmin, lastRoomName, playerName],
   );
 
   return (

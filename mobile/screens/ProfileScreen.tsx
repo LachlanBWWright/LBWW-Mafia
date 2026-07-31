@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View } from "react-native";
 import { StackParamList } from "../App";
-import { fetchRecentMatches, type RecentMatchSummary } from "../lib/appQueries";
+import { fetchCurrentUserMatches, fetchRecentMatches, type RecentMatchSummary } from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
 import { Badge, Button, Card, EmptyState, LoadingCard, Screen, SectionHeader } from "../components/ui";
 
@@ -90,7 +90,7 @@ function MatchesContent({
 }
 
 export function ProfileScreen({ navigation }: ProfileScreenProps) {
-  const { playerName, isAdmin, lastRoomName } = useAppState();
+  const { playerName, isAdmin, lastRoomName, authToken } = useAppState();
   const [matches, setMatches] = useState<RecentMatchSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -102,11 +102,11 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
     }
 
     setLoading(true);
-    void fetchRecentMatches(playerName, 5)
+    void (authToken ? fetchCurrentUserMatches(5) : fetchRecentMatches(playerName, 5))
       .then((rows) => setMatches(rows))
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
-  }, [playerName]);
+  }, [authToken, playerName]);
 
   if (!playerName.trim()) {
     return (
@@ -119,7 +119,7 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
         <EmptyState
           title="Sign in to view your profile and match history."
           description="Mobile currently tracks the active player identity from the lobby join flow."
-          action={<Button onPress={() => navigation.navigate("Lobby")}>Join Lobby</Button>}
+          action={<Button onPress={() => navigation.navigate("SignIn")}>Sign in</Button>}
         />
       </Screen>
     );

@@ -63,6 +63,14 @@ export function AdminUserSearch({ initialQuery }: AdminUserSearchProps) {
     }
   };
 
+  const assignRole = async (user: UserSummary, role: "player" | "moderator" | "support") => {
+    try {
+      await trpcClient.admin.setUserRoles.mutate({ userId: user.id, roles: role === "player" ? ["player"] : ["player", role] });
+      setUsers((current) => current.map((entry) => entry.id === user.id ? { ...entry, isAdmin: false } : entry));
+      setStatus(`${user.name ?? user.email} is now ${role}.`);
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Failed to update role."); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
@@ -84,12 +92,12 @@ export function AdminUserSearch({ initialQuery }: AdminUserSearchProps) {
               <p className="font-medium">{user.name ?? "Unnamed user"}</p>
               <p className="text-muted-foreground">{user.email}</p>
             </div>
-            <Button
-              variant={user.isAdmin ? "destructive" : "secondary"}
-              onClick={() => toggleAdmin(user)}
-            >
-              {user.isAdmin ? "Revoke admin" : "Make admin"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="outline" onClick={() => assignRole(user, "player")}>Player</Button>
+              <Button size="sm" variant="outline" onClick={() => assignRole(user, "moderator")}>Moderator</Button>
+              <Button size="sm" variant="outline" onClick={() => assignRole(user, "support")}>Support</Button>
+              <Button size="sm" variant={user.isAdmin ? "destructive" : "secondary"} onClick={() => toggleAdmin(user)}>{user.isAdmin ? "Revoke admin" : "Administrator"}</Button>
+            </div>
           </div>
         ))}
       </div>
