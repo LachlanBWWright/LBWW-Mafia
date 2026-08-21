@@ -36,7 +36,7 @@ type ChatMessage = {
 };
 
 function resolveBackend(value: string | undefined): SocketBackendType {
-  if (value === "partykit" || value === "supabase") {
+  if (value === "partykit" || value === "supabase" || value === "rust") {
     return value;
   }
   return "socketio";

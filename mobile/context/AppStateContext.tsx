@@ -1,4 +1,8 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import * as SecureStore from "expo-secure-store";
+import { setAuthToken as setClientToken } from "../lib/authToken";
+
+const AUTH_TOKEN_KEY = "lbww-auth-token";
 
 type AppState = {
   playerName: string;
@@ -19,6 +23,23 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [lastRoomName, setLastRoomName] = useState("default");
   const [authToken, setAuthToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    void SecureStore.getItemAsync(AUTH_TOKEN_KEY).then((storedToken) => {
+      if (storedToken) {
+        setClientToken(storedToken);
+        setAuthToken(storedToken);
+      }
+    });
+  }, []);
+
+  const updateAuthToken = useCallback((value: string | null) => {
+    setClientToken(value);
+    setAuthToken(value);
+    void (value
+      ? SecureStore.setItemAsync(AUTH_TOKEN_KEY, value)
+      : SecureStore.deleteItemAsync(AUTH_TOKEN_KEY));
+  }, []);
+
   const value = useMemo(
     () => ({
       playerName,
@@ -28,9 +49,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       lastRoomName,
       setLastRoomName,
       authToken,
-      setAuthToken,
+      setAuthToken: updateAuthToken,
     }),
-    [authToken, isAdmin, lastRoomName, playerName],
+    [authToken, isAdmin, lastRoomName, playerName, updateAuthToken],
   );
 
   return (

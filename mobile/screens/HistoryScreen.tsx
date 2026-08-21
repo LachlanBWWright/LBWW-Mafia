@@ -17,7 +17,7 @@ function HistoryContent({
   loading: boolean;
   error: string;
   matches: RecentMatchSummary[];
-  navigation: any;
+  navigation: HistoryScreenProps["navigation"];
 }) {
   if (loading) {
     return <LoadingCard label="Loading recent matches..." />;
@@ -97,7 +97,7 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
         navigation={navigation}
         activeRoute="History"
         title="Recent Matches"
-        subtitle="Match history uses the same recentByUsername data source as the web app."
+        subtitle="Review the outcomes of your recent games."
       >
         <EmptyState
           title="No username available for history lookup."
@@ -113,7 +113,7 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
       navigation={navigation}
       activeRoute="History"
       title="Recent Matches"
-      subtitle="Match history uses the same recentByUsername data source as the web app."
+      subtitle="Review the outcomes of your recent games."
     >
       <HistoryContent loading={loading} error={error} matches={matches} navigation={navigation} />
     </Screen>

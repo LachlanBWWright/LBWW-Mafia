@@ -8,6 +8,9 @@ import {
   View,
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { colors } from "../styles/colors";
 import { useAppState } from "../context/AppStateContext";
 
@@ -48,12 +51,8 @@ type ButtonProps = {
   textClassName?: string;
 };
 
-type InputProps = {
+type InputProps = React.ComponentProps<typeof TextInput> & {
   value: string;
-  onChangeText: (value: string) => void;
-  placeholder?: string;
-  multiline?: boolean;
-  numberOfLines?: number;
   className?: string;
 };
 
@@ -101,8 +100,8 @@ type LoadingCardProps = {
   textClassName?: string;
 };
 
-function cn(...classNames: Array<string | false | null | undefined>) {
-  return classNames.filter(Boolean).join(" ");
+export function cn(...classNames: ClassValue[]) {
+  return twMerge(clsx(classNames));
 }
 
 const navItems = [
@@ -256,7 +255,7 @@ export function Screen({
   );
 
   return (
-    <View className={cn("relative flex-1 bg-background", className)}>
+    <SafeAreaView className={cn("relative flex-1 overflow-hidden bg-background", className)} edges={["top", "left", "right"]}>
       <StatusBar style="light" />
       <View pointerEvents="none" className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-primary/10" />
       <AppHeader navigation={navigation} activeRoute={activeRoute} />
@@ -275,7 +274,7 @@ export function Screen({
           {children}
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -287,23 +286,24 @@ function AppHeader({
   activeRoute: string;
 }) {
   const { playerName, isAdmin } = useAppState();
+  const showAdmin = isAdmin || process.env.EXPO_PUBLIC_VISUAL_TESTS === "true";
+  const visibleNavItems = showAdmin ? navItems : navItems.filter((item) => item.route !== "Admin");
 
   return (
-    <View className="border-b border-border bg-background/95 px-lg pb-md pt-md">
-      <View className="flex-row items-center justify-between gap-md">
-        <Pressable onPress={() => navigation.navigate("Home")} className="shrink">
-          <Text className="text-xl font-extrabold tracking-[-0.02em] text-foreground">
-            LBWW <Text className="text-primary">Mafia</Text>
-          </Text>
-        </Pressable>
-        <View className="flex-row items-center gap-sm">
-          <Badge variant="secondary">{playerName.trim() ? playerName : "Guest"}</Badge>
-          {isAdmin ? <Badge variant="destructive">Admin</Badge> : null}
-        </View>
-      </View>
+    <View className="h-14 flex-row items-center border-b border-border/80 bg-background pl-lg">
+      <Pressable onPress={() => navigation.navigate("Home")} className="mr-lg shrink-0 py-md">
+        <Text className="text-xl font-black tracking-[-0.04em] text-foreground">
+          LBWW <Text className="text-primary">Mafia</Text>
+        </Text>
+      </Pressable>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="w-full" contentContainerClassName="gap-sm pt-md pb-xs">
-        {navItems.map((item) => (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="flex-1"
+        contentContainerClassName="h-14 items-center gap-lg pr-lg"
+      >
+        {visibleNavItems.map((item) => (
           <NavChip
             key={item.route}
             label={item.label}
@@ -311,13 +311,19 @@ function AppHeader({
             onPress={() => navigation.navigate(item.route)}
           />
         ))}
+
+        <Pressable onPress={() => navigation.navigate(playerName.trim() ? "Profile" : "SignIn")} className="shrink-0 py-md">
+          <Text className="text-sm font-semibold text-muted-foreground">
+            {playerName.trim() ? playerName : "Sign in"}
+          </Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
 }
 
 export function Card({ children, className }: CardProps) {
-  return <View className={cn("gap-md rounded-xl border border-border bg-card p-lg", className)}>{children}</View>;
+  return <View className={cn("gap-md rounded-xl border border-border/90 bg-card/95 p-lg", className)}>{children}</View>;
 }
 
 export function Button({
@@ -343,6 +349,7 @@ export function Input({
   multiline,
   numberOfLines,
   className,
+  ...props
 }: InputProps) {
   return (
     <TextInput
@@ -352,9 +359,10 @@ export function Input({
       placeholderTextColor={colors.mutedForeground}
       multiline={multiline}
       numberOfLines={numberOfLines}
+      {...props}
       textAlignVertical={multiline ? "top" : "center"}
       className={cn(
-        "rounded-lg border border-border bg-input px-md py-3 text-sm text-foreground placeholder:text-muted-foreground",
+        "rounded-lg border border-border bg-input px-md py-3 text-sm text-foreground",
         multiline ? "min-h-[88px] py-md" : "h-12",
         className,
       )}
@@ -463,11 +471,11 @@ function NavChip({
     <Pressable
       onPress={onPress}
       className={cn(
-        "rounded-lg border px-md py-sm pressed:opacity-90",
-        active ? "border-primary bg-primary" : "border-border bg-secondary",
+        "h-14 shrink-0 justify-center border-b-2 px-xs pressed:opacity-70",
+        active ? "border-primary" : "border-transparent",
       )}
     >
-      <Text className={cn("text-xs font-bold", active ? "text-primary-foreground" : "text-muted-foreground")}>{label}</Text>
+      <Text className={cn("text-sm font-semibold", active ? "text-foreground" : "text-muted-foreground")}>{label}</Text>
     </Pressable>
   );
 }

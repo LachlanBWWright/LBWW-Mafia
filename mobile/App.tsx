@@ -13,6 +13,7 @@ import { ProfileScreen } from "./screens/ProfileScreen";
 import { AdminScreen } from "./screens/AdminScreen";
 import { SignInScreen } from "./screens/SignInScreen";
 import { colors } from "./styles/colors";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export type StackParamList = {
   Home: undefined;
@@ -42,8 +43,9 @@ const appTheme: Theme = {
 
 export default function App() {
   return (
-    <AppStateProvider>
-      <NavigationContainer theme={appTheme}>
+    <SafeAreaProvider>
+      <AppStateProvider>
+        <NavigationContainer theme={appTheme}>
         <Stack.Navigator
           screenOptions={{
             headerShown: false,
@@ -58,7 +60,8 @@ export default function App() {
           <Stack.Screen name="Admin" component={AdminScreen} />
           <Stack.Screen name="SignIn" component={SignInScreen} />
         </Stack.Navigator>
-      </NavigationContainer>
-    </AppStateProvider>
+        </NavigationContainer>
+      </AppStateProvider>
+    </SafeAreaProvider>
   );
 }

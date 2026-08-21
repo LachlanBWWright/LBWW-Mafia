@@ -10,6 +10,7 @@ import { Input } from "~/components/ui/input";
 
 type AdminUserSearchProps = {
   initialQuery: string;
+  initialUsers?: UserSummary[];
 };
 
 function createClient() {
@@ -23,10 +24,15 @@ function createClient() {
   });
 }
 
-export function AdminUserSearch({ initialQuery }: AdminUserSearchProps) {
+export function AdminUserSearch({
+  initialQuery,
+  initialUsers = [],
+}: AdminUserSearchProps) {
   const [query, setQuery] = useState(initialQuery);
-  const [users, setUsers] = useState<UserSummary[]>([]);
-  const [status, setStatus] = useState("Run a search to view users.");
+  const [users, setUsers] = useState<UserSummary[]>(initialUsers);
+  const [status, setStatus] = useState(
+    initialUsers.length ? "" : "Run a search to view users.",
+  );
   const [trpcClient] = useState(createClient);
 
   const searchUsers = async () => {
@@ -63,12 +69,26 @@ export function AdminUserSearch({ initialQuery }: AdminUserSearchProps) {
     }
   };
 
-  const assignRole = async (user: UserSummary, role: "player" | "moderator" | "support") => {
+  const assignRole = async (
+    user: UserSummary,
+    role: "player" | "moderator" | "support",
+  ) => {
     try {
-      await trpcClient.admin.setUserRoles.mutate({ userId: user.id, roles: role === "player" ? ["player"] : ["player", role] });
-      setUsers((current) => current.map((entry) => entry.id === user.id ? { ...entry, isAdmin: false } : entry));
+      await trpcClient.admin.setUserRoles.mutate({
+        userId: user.id,
+        roles: role === "player" ? ["player"] : ["player", role],
+      });
+      setUsers((current) =>
+        current.map((entry) =>
+          entry.id === user.id ? { ...entry, isAdmin: false } : entry,
+        ),
+      );
       setStatus(`${user.name ?? user.email} is now ${role}.`);
-    } catch (error) { setStatus(error instanceof Error ? error.message : "Failed to update role."); }
+    } catch (error) {
+      setStatus(
+        error instanceof Error ? error.message : "Failed to update role.",
+      );
+    }
   };
 
   return (
@@ -81,22 +101,48 @@ export function AdminUserSearch({ initialQuery }: AdminUserSearchProps) {
         />
         <Button onClick={searchUsers}>Search</Button>
       </div>
-      {status ? <p className="text-sm text-muted-foreground">{status}</p> : null}
+      {status ? (
+        <p className="text-muted-foreground text-sm">{status}</p>
+      ) : null}
       <div className="space-y-2">
         {users.map((user) => (
           <div
             key={user.id}
-            className="flex items-center justify-between rounded-md border border-border/70 p-3 text-sm"
+            className="border-border/70 flex items-center justify-between rounded-md border p-3 text-sm"
           >
             <div>
               <p className="font-medium">{user.name ?? "Unnamed user"}</p>
               <p className="text-muted-foreground">{user.email}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => assignRole(user, "player")}>Player</Button>
-              <Button size="sm" variant="outline" onClick={() => assignRole(user, "moderator")}>Moderator</Button>
-              <Button size="sm" variant="outline" onClick={() => assignRole(user, "support")}>Support</Button>
-              <Button size="sm" variant={user.isAdmin ? "destructive" : "secondary"} onClick={() => toggleAdmin(user)}>{user.isAdmin ? "Revoke admin" : "Administrator"}</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => assignRole(user, "player")}
+              >
+                Player
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => assignRole(user, "moderator")}
+              >
+                Moderator
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => assignRole(user, "support")}
+              >
+                Support
+              </Button>
+              <Button
+                size="sm"
+                variant={user.isAdmin ? "destructive" : "secondary"}
+                onClick={() => toggleAdmin(user)}
+              >
+                {user.isAdmin ? "Revoke admin" : "Administrator"}
+              </Button>
             </div>
           </div>
         ))}

@@ -1,0 +1,11 @@
+FROM rust:1.88-bookworm AS builder
+WORKDIR /app
+COPY rust ./rust
+RUN cargo build --locked --release --manifest-path rust/Cargo.toml -p game-server
+
+FROM gcr.io/distroless/cc-debian12:nonroot
+COPY --from=builder /app/rust/target/release/game-server /usr/local/bin/game-server
+ENV PORT=8000 RUST_LOG=game_server=info,tower_http=info
+EXPOSE 8000
+USER nonroot:nonroot
+ENTRYPOINT ["/usr/local/bin/game-server"]

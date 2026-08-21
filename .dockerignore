@@ -1,0 +1,7 @@
+.git
+**/node_modules
+**/.next
+rust/target
+*.env
+*.db
+.DS_Store

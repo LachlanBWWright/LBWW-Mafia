@@ -125,7 +125,7 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
       >
         <EmptyState
           title="You are not authorized."
-          description="The mobile app does not yet have the same authenticated session exchange as the web app."
+          description="Sign in with an administrator account to manage users."
         />
       </Screen>
     );

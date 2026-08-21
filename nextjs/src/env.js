@@ -26,7 +26,7 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    NEXT_PUBLIC_SOCKET_BACKEND: z.enum(["socketio", "partykit", "supabase"]).default("socketio"),
+    NEXT_PUBLIC_SOCKET_BACKEND: z.enum(["socketio", "partykit", "supabase", "rust"]).default("socketio"),
     NEXT_PUBLIC_SOCKET_URL: z.string().url(),
     NEXT_PUBLIC_CAPTCHA_TOKEN: z.string().optional(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),

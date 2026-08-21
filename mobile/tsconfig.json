@@ -3,6 +3,7 @@
   "compilerOptions": {
     "jsx": "react",
     "strict": true
-  }
-  
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".rnstorybook/**/*.ts", ".rnstorybook/**/*.tsx", "nativewind-env.d.ts"],
+  "exclude": ["node_modules", "android", "ios", ".expo", "storybook-static", "visual-dist"]
 }

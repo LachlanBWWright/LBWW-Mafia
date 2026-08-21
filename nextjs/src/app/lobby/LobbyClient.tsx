@@ -32,7 +32,7 @@ type PlayerRowProps = {
   onWhisper: (index: number) => void;
 };
 
-function PlayerRow({
+export function PlayerRow({
   player, index, playerName, time, isCurrentUserAlive,
   currentUserRole, visitCapability, canVote, messageDraft,
   onVote, onVisit, onWhisper,

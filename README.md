@@ -13,6 +13,9 @@ This is a monorepo containing three main components:
 - **mobile/**: React Native mobile application using Expo
 - **shared/**: Shared game logic, types, and communication abstractions
 
+The historical Create React App implementation remains under `client/` for reference, but is not
+part of the active workspace or deployment. The supported web application is `nextjs/`.
+
 ## Shared Resources
 
 - **db/**: Shared Drizzle ORM schema used by server and nextjs components
@@ -77,6 +80,8 @@ To add a new socket backend:
 3. **Config**: Add the new backend type to `SocketBackendType` in `shared/communication/clientTypes.ts`.
 
 ## Development
+
+Production deployment instructions are in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### One-command local web game
 

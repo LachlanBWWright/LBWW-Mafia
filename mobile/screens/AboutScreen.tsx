@@ -2,7 +2,7 @@ import React from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View } from "react-native";
 import { StackParamList } from "../App";
-import { Badge, Card, Screen, SectionHeader } from "../components/ui";
+import { Card, Screen, SectionHeader } from "../components/ui";
 
 type AboutScreenProps = NativeStackScreenProps<StackParamList, "About">;
 
@@ -67,8 +67,6 @@ export function AboutScreen({ navigation }: AboutScreenProps) {
             ))}
           </View>
         </Card>
-
-        <Badge variant="secondary">Same product surface, native layout</Badge>
       </View>
     </Screen>
   );

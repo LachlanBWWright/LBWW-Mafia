@@ -30,8 +30,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir server run lint
       - run: pnpm --dir server run typecheck
-      - run: pnpm --dir server run test
-      - run: cargo test --manifest-path rust/Cargo.toml --workspace
+      - run: pnpm --dir server run test:coverage
+      - run: cargo test --locked --manifest-path rust/Cargo.toml --workspace
+      - run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
+      - run: cargo clippy --locked --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: cargo install cargo-llvm-cov --version 0.6.21 --locked
+      - run: cargo llvm-cov --locked --manifest-path rust/Cargo.toml -p game-core --summary-only --fail-under-lines 85 --fail-under-functions 90
+      - run: pnpm run test:next-rust:smoke
 
   nextjs-test:
     name: Next.js — lint, typecheck, test, build

@@ -1,17 +1,18 @@
 import React from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View } from "react-native";
+import { MessageCircle, Moon, Users } from "lucide-react-native";
 import { StackParamList } from "../App";
-import { Button, Card, EmptyState, Screen } from "../components/ui";
+import { Button, Card, Screen } from "../components/ui";
 
 type LandingScreenProps = NativeStackScreenProps<StackParamList, "Home">;
 
 export function LandingScreen({ navigation }: LandingScreenProps) {
   return (
     <Screen navigation={navigation} activeRoute="Home" scroll>
-      <View className="gap-4">
-        <View className="gap-3">
-          <Text className="text-[44px] font-black leading-[46px] tracking-[-1.2px] text-foreground">
+      <View className="flex-1 gap-6 py-6">
+        <View className="gap-4">
+          <Text className="text-[52px] font-black leading-[54px] tracking-[-2px] text-foreground">
             LBWW <Text className="text-primary">Mafia</Text>
           </Text>
           <Text className="text-base leading-6 text-muted-foreground">
@@ -20,41 +21,16 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           </Text>
         </View>
 
-        <Button size="lg" onPress={() => navigation.navigate("Lobby")}>
-          Join Game
-        </Button>
+        <Button size="lg" className="self-start" onPress={() => navigation.navigate("Lobby")}>Join Game</Button>
 
         <Card>
-          <Text className="text-lg font-extrabold text-foreground">
-            Quick Start
-          </Text>
-          <View className="gap-2.5">
-            <Text className="text-sm text-muted-foreground">
-              1. Join a public room.
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              2. Watch day/night countdowns.
-            </Text>
-            <Text className="text-sm text-muted-foreground">
-              3. Chat, vote, visit, and whisper from the player panel.
-            </Text>
+          <Text className="text-lg font-extrabold text-foreground">Quick Start</Text>
+          <View className="gap-4">
+            <View className="flex-row items-center gap-3"><Users color="#5B8CFF" size={20} /><Text className="flex-1 text-sm text-muted-foreground">Join a public room.</Text></View>
+            <View className="flex-row items-center gap-3"><Moon color="#5B8CFF" size={20} /><Text className="flex-1 text-sm text-muted-foreground">Watch day and night countdowns.</Text></View>
+            <View className="flex-row items-center gap-3"><MessageCircle color="#5B8CFF" size={20} /><Text className="flex-1 text-sm text-muted-foreground">Chat, vote, visit, and whisper.</Text></View>
           </View>
         </Card>
-
-        <EmptyState
-          title="Need a reference point?"
-          description="Roles, About, History, Profile, and Admin each map to the web app's navigation model."
-          action={
-            <View className="flex-row gap-2">
-              <Button variant="secondary" size="sm" onPress={() => navigation.navigate("Roles")}>
-                Roles
-              </Button>
-              <Button variant="outline" size="sm" onPress={() => navigation.navigate("About")}>
-                About
-              </Button>
-            </View>
-          }
-        />
       </View>
     </Screen>
   );

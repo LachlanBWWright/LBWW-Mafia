@@ -17,7 +17,7 @@ function ProfileCard({
   playerName: string;
   isAdmin: boolean;
   lastRoomName: string;
-  navigation: any;
+  navigation: ProfileScreenProps["navigation"];
 }) {
   return (
     <Card>
@@ -118,7 +118,7 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
       >
         <EmptyState
           title="Sign in to view your profile and match history."
-          description="Mobile currently tracks the active player identity from the lobby join flow."
+          description="Use your LBWW Mafia account to see your identity and recent games."
           action={<Button onPress={() => navigation.navigate("SignIn")}>Sign in</Button>}
         />
       </Screen>

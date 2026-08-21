@@ -4,7 +4,7 @@ import neverthrow from "eslint-plugin-neverthrow";
 
 export default [
   {
-    ignores: ["build/**"],
+    ignores: ["build/**", "coverage/**"],
   },
   {
     files: ["**/*.ts"],

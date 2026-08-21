@@ -141,3 +141,73 @@ pub struct CallbackEnvelope {
     pub callback_id: String,
     pub args: Vec<Value>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn join_result_codes_round_trip_and_reject_unknown_values() {
+        for (code, number) in [
+            (JoinRoomResultCode::GenericError, 1),
+            (JoinRoomResultCode::CaptchaFailed, 2),
+            (JoinRoomResultCode::RoomFull, 3),
+        ] {
+            assert_eq!(serde_json::to_value(code).unwrap(), json!(number));
+            assert_eq!(
+                serde_json::from_value::<JoinRoomResultCode>(json!(number)).unwrap(),
+                code
+            );
+        }
+        assert!(serde_json::from_value::<JoinRoomResultCode>(json!(99)).is_err());
+    }
+
+    #[test]
+    fn client_envelope_uses_the_browser_wire_format() {
+        let envelope = ClientEventEnvelope {
+            message_type: PartyKitMessageType::Event,
+            event: ClientEvent::PlayerJoinRoom,
+            args: vec![json!("captcha")],
+            callback_id: Some("callback-1".into()),
+        };
+        assert_eq!(
+            serde_json::to_value(&envelope).unwrap(),
+            json!({
+                "type": "event",
+                "event": "playerJoinRoom",
+                "args": ["captcha"],
+                "callbackId": "callback-1"
+            })
+        );
+        assert_eq!(
+            serde_json::from_value::<ClientEventEnvelope>(json!({
+                "type": "event",
+                "event": "handleVisit",
+                "args": [null, "Night"]
+            }))
+            .unwrap()
+            .event,
+            ClientEvent::HandleVisit
+        );
+    }
+
+    #[test]
+    fn callback_and_server_events_serialize_with_exact_names() {
+        let callback = CallbackEnvelope {
+            message_type: PartyKitMessageType::Callback,
+            callback_id: "cb".into(),
+            args: vec![json!({ "status": "joined", "username": "Glen" })],
+        };
+        assert_eq!(serde_json::to_value(callback).unwrap()["callbackId"], "cb");
+        let event = ServerEventEnvelope {
+            message_type: PartyKitMessageType::Event,
+            event: ServerEvent::ReceiveChatMessage,
+            args: vec![json!("hello")],
+        };
+        assert_eq!(
+            serde_json::to_value(event).unwrap()["event"],
+            "receive-chat-message"
+        );
+    }
+}

@@ -9,7 +9,12 @@
     "metrics:ts": "bash scripts/ts-file-metrics.sh --top=100",
     "test:gameplay:ts": "pnpm --dir server run test",
     "test:gameplay:rust": "cargo test --manifest-path rust/Cargo.toml --workspace",
+    "test:next-rust": "bash scripts/test-next-rust.sh",
+    "test:next-rust:smoke": "bash scripts/smoke-next-rust.sh",
+    "build:game-server": "cargo build --locked --release --manifest-path rust/Cargo.toml -p game-server",
     "test:gameplay:parity": "pnpm --dir server run test shared/communication/protocol.parity.test.ts server/model/rooms/room.fixture-parity.test.ts && cargo test --manifest-path rust/Cargo.toml --workspace",
+    "test:gameplay:all": "bash scripts/test-game-logic.sh",
+    "test:coverage": "bash scripts/test-coverage.sh",
     "lint": "pnpm run lint:server && pnpm run lint:nextjs && pnpm run lint:mobile",
     "lint:server": "pnpm --dir server run lint",
     "lint:nextjs": "pnpm --dir nextjs run lint",
@@ -17,11 +22,17 @@
     "lint:fix": "pnpm run lint:fix:server && pnpm run lint:fix:nextjs && pnpm run lint:fix:mobile",
     "lint:fix:server": "pnpm --dir server run lint:fix",
     "lint:fix:nextjs": "pnpm --dir nextjs run lint:fix",
-    "lint:fix:mobile": "pnpm --dir mobile run lint:fix"
+    "lint:fix:mobile": "pnpm --dir mobile run lint:fix",
+    "storybook": "pnpm --dir nextjs run storybook",
+    "storybook:build": "pnpm --dir nextjs run storybook:build",
+    "storybook:screenshots": "pnpm --dir nextjs run storybook:screenshots",
+    "storybook:mobile": "pnpm --dir mobile run storybook",
+    "screenshots:mobile": "pnpm --dir mobile run visual:screenshots"
   },
   "description": "LBWW Mafia monorepo root",
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "wait-on": "^9.0.4"
+    "wait-on": "^9.0.4",
+    "ws": "^8.18.3"
   }
 }

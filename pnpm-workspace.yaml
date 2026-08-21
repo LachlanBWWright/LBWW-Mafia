@@ -1,5 +1,4 @@
 packages:
-  - "client"
   - "db"
   - "mobile"
   - "nextjs"

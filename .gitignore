@@ -1,8 +1,11 @@
 /build
 .env
 node_modules
+mobile/.expo
 .next
 dist
+coverage
+storybook-static
 *.db
 
 # OS metadata

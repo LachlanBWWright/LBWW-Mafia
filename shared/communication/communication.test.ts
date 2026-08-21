@@ -358,6 +358,18 @@ describe("createGameSocket", () => {
     expect(socket.connected).toBe(false);
   });
 
+  it("creates a protocol-compatible WebSocket adapter for rust", () => {
+    const socketRes = createGameSocket({
+      type: "rust",
+      url: "https://games.example.com/",
+      room: "test-room",
+      autoConnect: false,
+    });
+    expect(socketRes.isOk()).toBe(true);
+    expect(socketRes.value).toBeInstanceOf(PartykitClientAdapter);
+    expect(socketRes.value.connected).toBe(false);
+  });
+
   it("uses default room for partykit when not specified", () => {
     const socketRes = createGameSocket({
       type: "partykit",

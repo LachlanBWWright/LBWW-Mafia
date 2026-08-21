@@ -1,4 +1,17 @@
 services:
+  game-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.game-server
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      ROOM_SIZE: ${ROOM_SIZE:-13}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
+      RUST_LOG: ${RUST_LOG:-game_server=info,tower_http=info}
+    ports:
+      - "8000:8000"
+    profiles: ["rust"]
   db:
     image: postgres:16-alpine
     restart: unless-stopped

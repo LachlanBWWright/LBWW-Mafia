@@ -24,7 +24,11 @@ function createClient() {
   });
 }
 
-export function RecentMatches({ username = "", title, currentUser = false }: RecentMatchesProps) {
+export function RecentMatches({
+  username = "",
+  title,
+  currentUser = false,
+}: RecentMatchesProps) {
   const [matches, setMatches] = useState<RecentMatchSummary[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState("");
@@ -46,31 +50,64 @@ export function RecentMatches({ username = "", title, currentUser = false }: Rec
       })
       .catch((error: unknown) => {
         const message =
-          error instanceof Error ? error.message : "Failed to load match history.";
+          error instanceof Error
+            ? error.message
+            : "Failed to load match history.";
         setError(message);
         setHasLoaded(true);
       });
   }, [currentUser, trpcClient, username]);
 
   return (
+    <RecentMatchesView
+      title={title}
+      matches={matches}
+      hasLoaded={hasLoaded}
+      error={error}
+      canLoad={currentUser || !!username.trim()}
+    />
+  );
+}
+
+export function RecentMatchesView({
+  title,
+  matches = [],
+  hasLoaded = true,
+  error = "",
+  canLoad = true,
+}: {
+  title: string;
+  matches?: RecentMatchSummary[];
+  hasLoaded?: boolean;
+  error?: string;
+  canLoad?: boolean;
+}) {
+  return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {!currentUser && !username.trim() ? (
-          <p className="text-sm text-muted-foreground">
+        {!canLoad ? (
+          <p className="text-muted-foreground text-sm">
             No username available for history lookup.
           </p>
         ) : error ? (
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-muted-foreground text-sm">{error}</p>
         ) : !hasLoaded ? (
-          <p className="text-sm text-muted-foreground">Loading recent matches...</p>
+          <p className="text-muted-foreground text-sm">
+            Loading recent matches...
+          </p>
         ) : matches.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No recent matches found.</p>
+          <p className="text-muted-foreground text-sm">
+            No recent matches found.
+          </p>
         ) : null}
         {matches.map((match) => (
-          <div key={match.id} className="rounded-md border border-border/70 p-3 text-sm">
+          <div
+            key={match.id}
+            className="border-border/70 rounded-md border p-3 text-sm"
+          >
             <p className="font-medium">
               Match #{match.id} • {match.winningFaction} won
             </p>
