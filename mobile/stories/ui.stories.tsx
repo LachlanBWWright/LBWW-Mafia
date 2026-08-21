@@ -58,3 +58,58 @@ function Gallery() {
 }
 
 export const ComponentGallery: Story = { render: () => <Gallery /> };
+
+export const ButtonStory: StoryObj<typeof Button> = {
+  name: "Button Controls",
+  argTypes: {
+    variant: {
+      control: { type: "select" },
+      options: ["primary", "secondary", "outline", "destructive", "ghost"],
+    },
+    size: {
+      control: { type: "select" },
+      options: ["sm", "md", "lg"],
+    },
+    disabled: {
+      control: { type: "boolean" },
+    },
+  },
+  args: {
+    children: "Action Button",
+    variant: "primary",
+    size: "md",
+    disabled: false,
+    onPress: () => undefined,
+  },
+  render: (args) => (
+    <Card>
+      <SectionHeader title="Button Playground" subtitle="Use on-device controls to test variants" />
+      <View className="items-center py-4">
+        <Button {...args}>{args.children}</Button>
+      </View>
+    </Card>
+  ),
+};
+
+export const BadgeStory: StoryObj<typeof Badge> = {
+  name: "Badge Controls",
+  argTypes: {
+    variant: {
+      control: { type: "select" },
+      options: ["primary", "secondary", "outline", "destructive"],
+    },
+  },
+  args: {
+    children: "Player Status",
+    variant: "primary",
+  },
+  render: (args) => (
+    <Card>
+      <SectionHeader title="Badge Playground" subtitle="Test status indicators" />
+      <View className="items-center py-4">
+        <Badge {...args}>{args.children}</Badge>
+      </View>
+    </Card>
+  ),
+};
+

@@ -1,0 +1,7 @@
+{
+  "rust-analyzer.linkedProjects": [
+    "rust/Cargo.toml"
+  ],
+  "rust-analyzer.server.path": "rust-analyzer",
+  "rust-analyzer.procMacro.enable": true
+}

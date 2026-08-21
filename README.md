@@ -88,13 +88,13 @@ Production deployment instructions are in [DEPLOYMENT.md](./DEPLOYMENT.md).
 From the repository root:
 
 ```bash
-bash scripts/dev.sh
+bash dev.sh
 ```
 
 This installs the locked dependencies, starts the local Postgres container,
-applies the database schema, and launches the Next.js app and Socket.IO game
-server. It uses a three-player room and local-only placeholder credentials by
-default. Open `http://localhost:3000`.
+applies the database schema, and launches the Next.js app and Rust WebSocket
+game server. It uses a three-player room and local-only placeholder credentials
+by default. Open `http://localhost:3000`.
 
 Stop the foreground process with `Ctrl-C`, then stop Postgres with:
 

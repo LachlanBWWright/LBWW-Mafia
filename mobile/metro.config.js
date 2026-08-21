@@ -16,7 +16,12 @@ config.resolver.nodeModulesPaths = [
 
 const nativeWindConfig = withNativeWind(config, { input: "./global.css" });
 
+const isStorybookEnabled =
+  process.env.EXPO_PUBLIC_STORYBOOK_ENABLED === "true" ||
+  process.env.STORYBOOK_ENABLED === "true";
+
 module.exports = withStorybook(nativeWindConfig, {
   configPath: path.resolve(projectRoot, ".rnstorybook"),
-  enabled: process.env.STORYBOOK_ENABLED === "true",
+  enabled: isStorybookEnabled,
 });
+

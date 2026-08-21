@@ -2,9 +2,9 @@
   "name": "lbww-mafia-monorepo",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@11.22.0",
   "scripts": {
-    "dev": "docker compose up -d && wait-on tcp:5432 && concurrently --names \"next,server\" --prefix-colors \"cyan,yellow\" \"pnpm --dir nextjs run dev\" \"pnpm --dir server run start\"",
+    "dev": "bash dev.sh",
     "dev:down": "docker compose down",
     "metrics:ts": "bash scripts/ts-file-metrics.sh --top=100",
     "test:gameplay:ts": "pnpm --dir server run test",

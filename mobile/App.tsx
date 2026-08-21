@@ -41,7 +41,7 @@ const appTheme: Theme = {
   },
 };
 
-export default function App() {
+export function App() {
   return (
     <SafeAreaProvider>
       <AppStateProvider>
@@ -65,3 +65,18 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
+
+const isStorybookEnabled =
+  process.env.EXPO_PUBLIC_STORYBOOK_ENABLED === "true" ||
+  process.env.STORYBOOK_ENABLED === "true";
+
+let AppEntryPoint: React.ComponentType = App;
+
+if (isStorybookEnabled) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const StorybookUI = require("./.rnstorybook").default;
+  AppEntryPoint = StorybookUI;
+}
+
+export default AppEntryPoint;
+

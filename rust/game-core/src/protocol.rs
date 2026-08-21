@@ -148,23 +148,25 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn join_result_codes_round_trip_and_reject_unknown_values() {
+    fn join_result_codes_round_trip_and_reject_unknown_values()
+    -> Result<(), Box<dyn std::error::Error>> {
         for (code, number) in [
             (JoinRoomResultCode::GenericError, 1),
             (JoinRoomResultCode::CaptchaFailed, 2),
             (JoinRoomResultCode::RoomFull, 3),
         ] {
-            assert_eq!(serde_json::to_value(code).unwrap(), json!(number));
+            assert_eq!(serde_json::to_value(code)?, json!(number));
             assert_eq!(
-                serde_json::from_value::<JoinRoomResultCode>(json!(number)).unwrap(),
+                serde_json::from_value::<JoinRoomResultCode>(json!(number))?,
                 code
             );
         }
         assert!(serde_json::from_value::<JoinRoomResultCode>(json!(99)).is_err());
+        Ok(())
     }
 
     #[test]
-    fn client_envelope_uses_the_browser_wire_format() {
+    fn client_envelope_uses_the_browser_wire_format() -> Result<(), Box<dyn std::error::Error>> {
         let envelope = ClientEventEnvelope {
             message_type: PartyKitMessageType::Event,
             event: ClientEvent::PlayerJoinRoom,
@@ -172,7 +174,7 @@ mod tests {
             callback_id: Some("callback-1".into()),
         };
         assert_eq!(
-            serde_json::to_value(&envelope).unwrap(),
+            serde_json::to_value(&envelope)?,
             json!({
                 "type": "event",
                 "event": "playerJoinRoom",
@@ -185,29 +187,36 @@ mod tests {
                 "type": "event",
                 "event": "handleVisit",
                 "args": [null, "Night"]
-            }))
-            .unwrap()
+            }))?
             .event,
             ClientEvent::HandleVisit
         );
+        Ok(())
     }
 
     #[test]
-    fn callback_and_server_events_serialize_with_exact_names() {
+    fn callback_and_server_events_serialize_with_exact_names()
+    -> Result<(), Box<dyn std::error::Error>> {
         let callback = CallbackEnvelope {
             message_type: PartyKitMessageType::Callback,
             callback_id: "cb".into(),
             args: vec![json!({ "status": "joined", "username": "Glen" })],
         };
-        assert_eq!(serde_json::to_value(callback).unwrap()["callbackId"], "cb");
+        let callback_val = serde_json::to_value(callback)?;
+        assert_eq!(
+            callback_val.get("callbackId").and_then(Value::as_str),
+            Some("cb")
+        );
         let event = ServerEventEnvelope {
             message_type: PartyKitMessageType::Event,
             event: ServerEvent::ReceiveChatMessage,
             args: vec![json!("hello")],
         };
+        let event_val = serde_json::to_value(event)?;
         assert_eq!(
-            serde_json::to_value(event).unwrap()["event"],
-            "receive-chat-message"
+            event_val.get("event").and_then(Value::as_str),
+            Some("receive-chat-message")
         );
+        Ok(())
     }
 }

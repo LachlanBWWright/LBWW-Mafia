@@ -47,9 +47,9 @@ pub fn resolve_vote(votes: &[(usize, bool)], required: usize) -> VoteOutcome {
         .filter(|(_, (count, alive))| *alive && *count == highest)
         .map(|(index, _)| index)
         .collect::<Vec<_>>();
-    if leaders.len() == 1 {
+    if let [player] = leaders.as_slice() {
         VoteOutcome::Eliminated {
-            player: leaders[0],
+            player: *player,
             votes: highest,
         }
     } else {

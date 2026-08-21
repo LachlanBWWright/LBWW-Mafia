@@ -53,7 +53,7 @@ type Story = StoryObj<typeof meta>;
 
 export const SignIn: Story = {
   render: () => (
-    <div className="grid min-h-[720px] overflow-hidden rounded-2xl border lg:grid-cols-2">
+    <div className="grid min-h-180 overflow-hidden rounded-2xl border lg:grid-cols-2">
       <section className="bg-card flex items-center justify-center p-10">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-3">
@@ -94,7 +94,7 @@ export const SignIn: Story = {
           </div>
         </div>
       </section>
-      <section className="from-primary/25 via-background to-destructive/20 hidden items-center justify-center bg-gradient-to-br p-12 lg:flex">
+      <section className="from-primary/25 via-background to-destructive/20 hidden items-center justify-center bg-linear-to-br p-12 lg:flex">
         <div className="max-w-md">
           <Badge variant="outline" className="mb-5">
             Trust no one
@@ -305,7 +305,7 @@ export const MatchHistory: Story = {
 
 export const ConnectionRecovery: Story = {
   render: () => (
-    <div className="flex min-h-[720px] items-center justify-center">
+    <div className="flex min-h-180 items-center justify-center">
       <Card className="border-destructive/50 w-full max-w-lg text-center">
         <CardHeader className="items-center">
           <div className="bg-destructive/15 text-destructive mb-4 rounded-full p-5">

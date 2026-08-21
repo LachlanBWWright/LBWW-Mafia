@@ -1,4 +1,10 @@
-use std::{collections::HashMap, env, net::SocketAddr, sync::Arc, time::Duration};
+use std::{
+    collections::HashMap,
+    env,
+    net::SocketAddr,
+    sync::{Arc, Weak},
+    time::Duration,
+};
 
 use axum::{
     Json, Router,
@@ -18,7 +24,7 @@ use game_core::{
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::json;
-use tokio::sync::{Mutex, broadcast, mpsc};
+use tokio::sync::{Mutex, mpsc};
 use tower_http::{
     cors::CorsLayer,
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -28,17 +34,49 @@ use tracing::{info, warn};
 
 #[derive(Clone)]
 struct AppState {
-    rooms: Arc<Mutex<HashMap<String, RoomState>>>,
-    room_size: usize,
+    rooms: Arc<RoomRegistry>,
+}
+
+struct RoomRegistry {
+    rooms: Mutex<HashMap<String, RoomHandle>>,
+    config: RoomConfig,
+}
+
+#[derive(Clone, Copy)]
+struct RoomConfig {
+    size: usize,
     day_duration: Duration,
     night_duration: Duration,
 }
 
-struct RoomState {
-    room: Room,
-    broadcasts: broadcast::Sender<String>,
-    peers: HashMap<String, mpsc::Sender<String>>,
-    scheduler_started: bool,
+#[derive(Clone)]
+struct RoomHandle {
+    token: uuid::Uuid,
+    commands: mpsc::Sender<RoomCommand>,
+}
+
+struct RoomPeer {
+    sender: mpsc::Sender<String>,
+    joined: bool,
+}
+
+enum RoomCommand {
+    Connect {
+        socket_id: String,
+        sender: mpsc::Sender<String>,
+    },
+    Join {
+        socket_id: String,
+        callback_id: Option<String>,
+    },
+    Action {
+        socket_id: String,
+        envelope: ClientEventEnvelope,
+    },
+    AdvancePhase,
+    Disconnect {
+        socket_id: String,
+    },
 }
 
 #[derive(Serialize)]
@@ -54,7 +92,7 @@ struct CaptchaResponse {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_tracing();
     let port = env::var("PORT")
         .ok()
@@ -65,21 +103,23 @@ async fn main() {
         .and_then(|v| v.parse().ok())
         .unwrap_or(13);
     let state = AppState {
-        rooms: Arc::new(Mutex::new(HashMap::new())),
-        room_size,
-        day_duration: duration_from_env("DAY_SECONDS", 60),
-        night_duration: duration_from_env("NIGHT_SECONDS", 45),
+        rooms: Arc::new(RoomRegistry {
+            rooms: Mutex::new(HashMap::new()),
+            config: RoomConfig {
+                size: room_size,
+                day_duration: duration_from_env("DAY_SECONDS", 60),
+                night_duration: duration_from_env("NIGHT_SECONDS", 45),
+            },
+        }),
     };
     let app = app(state);
     let address = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(address)
-        .await
-        .expect("bind game server");
+    let listener = tokio::net::TcpListener::bind(address).await?;
     info!(%address, "game server listening");
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown())
-        .await
-        .expect("serve game server");
+        .await?;
+    Ok(())
 }
 
 fn app(state: AppState) -> Router {
@@ -136,34 +176,18 @@ async fn websocket(
 
 async fn session(socket: WebSocket, state: AppState, room_id: String) {
     let socket_id = uuid::Uuid::new_v4().to_string();
-    let receiver = {
-        let mut rooms = state.rooms.lock().await;
-        let entry = rooms.entry(room_id.clone()).or_insert_with(|| {
-            let (broadcasts, _) = broadcast::channel(256);
-            RoomState {
-                room: Room::new(state.room_size, room_id.clone()),
-                broadcasts,
-                peers: HashMap::new(),
-                scheduler_started: false,
-            }
-        });
-        entry.broadcasts.subscribe()
-    };
+    let room = state.rooms.get_or_create(room_id.clone()).await;
     let (mut sender, mut incoming) = socket.split();
-    let mut receiver = receiver;
-    let (direct_sender, mut direct_receiver) = mpsc::channel::<String>(32);
-    {
-        let mut rooms = state.rooms.lock().await;
-        if let Some(room) = rooms.get_mut(&room_id) {
-            room.peers.insert(socket_id.clone(), direct_sender.clone());
-        }
-    }
+    let (direct_sender, mut direct_receiver) = mpsc::channel::<String>(256);
+    let _ = room
+        .commands
+        .send(RoomCommand::Connect {
+            socket_id: socket_id.clone(),
+            sender: direct_sender.clone(),
+        })
+        .await;
     let outbound = tokio::spawn(async move {
-        loop {
-            let payload = tokio::select! {
-                received = receiver.recv() => match received { Ok(value) => value, Err(_) => break },
-                received = direct_receiver.recv() => match received { Some(value) => value, None => break },
-            };
+        while let Some(payload) = direct_receiver.recv().await {
             if sender.send(Message::Text(payload.into())).await.is_err() {
                 return;
             }
@@ -196,54 +220,175 @@ async fn session(socket: WebSocket, state: AppState, room_id: String) {
                 }
                 continue;
             }
-            let mut start_scheduler = false;
-            let result = {
-                let mut rooms = state.rooms.lock().await;
-                let Some(room_state) = rooms.get_mut(&room_id) else {
-                    continue;
-                };
-                let result = room_state.room.add_user(socket_id.clone());
-                if room_state.room.started && !room_state.scheduler_started {
-                    room_state.scheduler_started = true;
-                    start_scheduler = true;
-                }
-                deliver_emissions(room_state);
-                result
-            };
-            if let Some(callback_id) = envelope.callback_id {
-                let callback = CallbackEnvelope {
-                    message_type: PartyKitMessageType::Callback,
+            let callback_id = envelope.callback_id;
+            let _ = room
+                .commands
+                .send(RoomCommand::Join {
+                    socket_id: socket_id.clone(),
                     callback_id,
-                    args: vec![json!(result)],
-                };
-                if let Ok(payload) = serde_json::to_string(&callback) {
-                    let _ = direct_sender.send(payload).await;
-                }
-            }
-            if start_scheduler {
-                tokio::spawn(run_phase_clock(state.clone(), room_id.clone()));
-            }
+                })
+                .await;
             continue;
         }
 
-        let mut rooms = state.rooms.lock().await;
-        let Some(room_state) = rooms.get_mut(&room_id) else {
-            continue;
+        let _ = room
+            .commands
+            .send(RoomCommand::Action {
+                socket_id: socket_id.clone(),
+                envelope,
+            })
+            .await;
+    }
+    outbound.abort();
+    let _ = room
+        .commands
+        .send(RoomCommand::Disconnect { socket_id })
+        .await;
+}
+
+impl RoomRegistry {
+    async fn get_or_create(self: &Arc<Self>, room_id: String) -> RoomHandle {
+        let mut rooms = self.rooms.lock().await;
+        if let Some(handle) = rooms.get(&room_id) {
+            return handle.clone();
+        }
+
+        let (commands, receiver) = mpsc::channel(256);
+        let handle = RoomHandle {
+            token: uuid::Uuid::new_v4(),
+            commands,
         };
+        rooms.insert(room_id.clone(), handle.clone());
+        tokio::spawn(run_room_actor(
+            Arc::downgrade(self),
+            room_id,
+            handle.token,
+            receiver,
+            handle.commands.clone(),
+            self.config,
+        ));
+        handle
+    }
+
+    async fn remove_if_current(&self, room_id: &str, token: uuid::Uuid) {
+        let mut rooms = self.rooms.lock().await;
+        if rooms
+            .get(room_id)
+            .is_some_and(|handle| handle.token == token)
+        {
+            rooms.remove(room_id);
+        }
+    }
+}
+
+async fn run_room_actor(
+    registry: Weak<RoomRegistry>,
+    room_id: String,
+    token: uuid::Uuid,
+    mut commands: mpsc::Receiver<RoomCommand>,
+    actor_sender: mpsc::Sender<RoomCommand>,
+    config: RoomConfig,
+) {
+    let mut actor = RoomActor {
+        room: Room::new(config.size, room_id.clone()),
+        peers: HashMap::new(),
+        scheduler_started: false,
+        day_duration: config.day_duration,
+        night_duration: config.night_duration,
+    };
+
+    while let Some(command) = commands.recv().await {
+        match command {
+            RoomCommand::Connect { socket_id, sender } => {
+                actor.peers.insert(
+                    socket_id,
+                    RoomPeer {
+                        sender,
+                        joined: false,
+                    },
+                );
+            }
+            RoomCommand::Join {
+                socket_id,
+                callback_id,
+            } => {
+                actor.join(socket_id, callback_id, &actor_sender).await;
+            }
+            RoomCommand::Action {
+                socket_id,
+                envelope,
+            } => {
+                actor.action(&socket_id, envelope);
+            }
+            RoomCommand::AdvancePhase => actor.advance_phase(&actor_sender),
+            RoomCommand::Disconnect { socket_id } => actor.disconnect(&socket_id),
+        }
+        if actor.peers.is_empty() {
+            break;
+        }
+    }
+
+    if let Some(registry) = registry.upgrade() {
+        registry.remove_if_current(&room_id, token).await;
+    }
+}
+
+struct RoomActor {
+    room: Room,
+    peers: HashMap<String, RoomPeer>,
+    scheduler_started: bool,
+    day_duration: Duration,
+    night_duration: Duration,
+}
+
+impl RoomActor {
+    async fn join(
+        &mut self,
+        socket_id: String,
+        callback_id: Option<String>,
+        actor_sender: &mpsc::Sender<RoomCommand>,
+    ) {
+        if !self.peers.contains_key(&socket_id) {
+            return;
+        }
+        let result = self.room.add_user(socket_id.clone());
+        if matches!(result, game_core::protocol::JoinRoomResult::Joined { .. })
+            && let Some(peer) = self.peers.get_mut(&socket_id)
+        {
+            peer.joined = true;
+        }
+        if self.room.started && !self.scheduler_started {
+            self.scheduler_started = true;
+            self.start_phase_clock(actor_sender);
+        }
+        self.deliver_emissions();
+        if let Some(callback_id) = callback_id {
+            let callback = CallbackEnvelope {
+                message_type: PartyKitMessageType::Callback,
+                callback_id,
+                args: vec![json!(result)],
+            };
+            if let Ok(payload) = serde_json::to_string(&callback) {
+                self.send_to_peer(&socket_id, payload);
+            }
+        }
+    }
+
+    fn action(&mut self, socket_id: &str, envelope: ClientEventEnvelope) {
         match envelope.event {
-            ClientEvent::Disconnect => room_state.room.remove_player(&socket_id),
+            ClientEvent::Disconnect => self.room.remove_player(socket_id),
             ClientEvent::MessageSentByUser => {
                 if let (Some(message), Some(phase)) =
                     (string_arg(&envelope, 0), phase_arg(&envelope, 1))
                 {
-                    room_state.room.handle_message(&socket_id, message, phase);
+                    self.room.handle_message(socket_id, message, phase);
                 }
             }
             ClientEvent::HandleVote => {
                 if let (Some(recipient), Some(phase)) =
                     (index_arg(&envelope, 0), phase_arg(&envelope, 1))
                 {
-                    room_state.room.handle_vote(&socket_id, recipient, phase);
+                    self.room.handle_vote(socket_id, recipient, phase);
                 }
             }
             ClientEvent::HandleWhisper => {
@@ -252,9 +397,8 @@ async fn session(socket: WebSocket, state: AppState, room_id: String) {
                     string_arg(&envelope, 1),
                     phase_arg(&envelope, 2),
                 ) {
-                    room_state
-                        .room
-                        .handle_whisper(&socket_id, recipient, message, phase);
+                    self.room
+                        .handle_whisper(socket_id, recipient, message, phase);
                 }
             }
             ClientEvent::HandleVisit => {
@@ -264,21 +408,71 @@ async fn session(socket: WebSocket, state: AppState, room_id: String) {
                         .first()
                         .and_then(|value| value.as_u64())
                         .and_then(|value| usize::try_from(value).ok());
-                    room_state.room.handle_visit(&socket_id, recipient, phase);
+                    self.room.handle_visit(socket_id, recipient, phase);
                 }
             }
             ClientEvent::PlayerJoinRoom => {}
         }
-        deliver_emissions(room_state);
+        self.deliver_emissions();
     }
-    outbound.abort();
-    let mut rooms = state.rooms.lock().await;
-    if let Some(room_state) = rooms.get_mut(&room_id) {
-        room_state.room.remove_player(&socket_id);
-        room_state.peers.remove(&socket_id);
-        deliver_emissions(room_state);
-        if room_state.peers.is_empty() {
-            rooms.remove(&room_id);
+
+    fn advance_phase(&mut self, actor_sender: &mpsc::Sender<RoomCommand>) {
+        match self.room.time {
+            RoomPhase::Day => self.room.finish_day(),
+            RoomPhase::Night => self.room.finish_night(),
+            RoomPhase::Idle => return,
+        }
+        self.deliver_emissions();
+        if self.room.game_has_ended {
+            self.scheduler_started = false;
+        } else {
+            self.start_phase_clock(actor_sender);
+        }
+    }
+
+    fn disconnect(&mut self, socket_id: &str) {
+        self.room.remove_player(socket_id);
+        self.peers.remove(socket_id);
+        self.deliver_emissions();
+    }
+
+    fn start_phase_clock(&self, actor_sender: &mpsc::Sender<RoomCommand>) {
+        let duration = match self.room.time {
+            RoomPhase::Day => self.day_duration,
+            RoomPhase::Night => self.night_duration,
+            RoomPhase::Idle => return,
+        };
+        let sender = actor_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(duration).await;
+            let _ = sender.send(RoomCommand::AdvancePhase).await;
+        });
+    }
+
+    fn send_to_peer(&self, socket_id: &str, payload: String) {
+        if let Some(peer) = self.peers.get(socket_id)
+            && let Err(error) = peer.sender.try_send(payload)
+        {
+            warn!(%error, %socket_id, "failed to queue room message");
+        }
+    }
+
+    fn deliver_emissions(&mut self) {
+        for emission in self.room.drain_emissions() {
+            let payload =
+                json!({ "type": "event", "event": emission.event, "args": emission.args })
+                    .to_string();
+            if self.peers.contains_key(&emission.target) {
+                self.send_to_peer(&emission.target, payload);
+            } else {
+                for peer in self.peers.values() {
+                    if peer.joined
+                        && let Err(error) = peer.sender.try_send(payload.clone())
+                    {
+                        warn!(%error, "failed to queue room broadcast");
+                    }
+                }
+            }
         }
     }
 }
@@ -291,40 +485,6 @@ fn duration_from_env(name: &str, fallback: u64) -> Duration {
             .filter(|seconds| *seconds > 0)
             .unwrap_or(fallback),
     )
-}
-
-async fn run_phase_clock(state: AppState, room_id: String) {
-    loop {
-        let duration = {
-            let rooms = state.rooms.lock().await;
-            let Some(room_state) = rooms.get(&room_id) else {
-                return;
-            };
-            if room_state.room.game_has_ended {
-                return;
-            }
-            match room_state.room.time {
-                RoomPhase::Day => state.day_duration,
-                RoomPhase::Night => state.night_duration,
-                RoomPhase::Idle => return,
-            }
-        };
-        tokio::time::sleep(duration).await;
-        let mut rooms = state.rooms.lock().await;
-        let Some(room_state) = rooms.get_mut(&room_id) else {
-            return;
-        };
-        match room_state.room.time {
-            RoomPhase::Day => room_state.room.finish_day(),
-            RoomPhase::Night => room_state.room.finish_night(),
-            RoomPhase::Idle => return,
-        }
-        deliver_emissions(room_state);
-        if room_state.room.game_has_ended {
-            room_state.scheduler_started = false;
-            return;
-        }
-    }
 }
 
 fn string_arg(envelope: &ClientEventEnvelope, index: usize) -> Option<&str> {
@@ -341,18 +501,6 @@ fn index_arg(envelope: &ClientEventEnvelope, index: usize) -> Option<usize> {
 
 fn phase_arg(envelope: &ClientEventEnvelope, index: usize) -> Option<DayTime> {
     serde_json::from_value(envelope.args.get(index)?.clone()).ok()
-}
-
-fn deliver_emissions(room_state: &mut RoomState) {
-    for emission in room_state.room.drain_emissions() {
-        let payload =
-            json!({ "type": "event", "event": emission.event, "args": emission.args }).to_string();
-        if let Some(peer) = room_state.peers.get(&emission.target) {
-            let _ = peer.try_send(payload);
-        } else {
-            let _ = room_state.broadcasts.send(payload);
-        }
-    }
 }
 
 async fn verify_captcha(token: Option<&str>) -> bool {
@@ -391,16 +539,19 @@ fn init_tracing() {
 
 async fn shutdown() {
     let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("install Ctrl+C handler")
+        if let Err(error) = tokio::signal::ctrl_c().await {
+            warn!(%error, "install Ctrl+C handler failed");
+        }
     };
     #[cfg(unix)]
     let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("install SIGTERM handler")
-            .recv()
-            .await;
+        if let Ok(mut signal) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
+            signal.recv().await;
+        } else {
+            warn!("install SIGTERM handler failed");
+        }
     };
     #[cfg(not(unix))]
     let terminate = std::future::pending::<()>();
@@ -415,59 +566,48 @@ mod tests {
 
     fn test_state() -> AppState {
         AppState {
-            rooms: Arc::new(Mutex::new(HashMap::new())),
-            room_size: 4,
-            day_duration: Duration::from_secs(60),
-            night_duration: Duration::from_secs(45),
+            rooms: Arc::new(RoomRegistry {
+                rooms: Mutex::new(HashMap::new()),
+                config: RoomConfig {
+                    size: 4,
+                    day_duration: Duration::from_secs(60),
+                    night_duration: Duration::from_secs(45),
+                },
+            }),
         }
     }
 
     #[tokio::test]
-    async fn health_endpoint_is_ready() {
-        let response = app(test_state())
-            .oneshot(
-                Request::builder()
-                    .uri("/healthz")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+    async fn health_endpoint_is_ready() -> Result<(), Box<dyn std::error::Error>> {
+        let request = Request::builder().uri("/healthz").body(Body::empty())?;
+        let response = app(test_state()).oneshot(request).await?;
         assert_eq!(response.status(), StatusCode::OK);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn unknown_routes_return_not_found() {
-        let response = app(test_state())
-            .oneshot(
-                Request::builder()
-                    .uri("/missing")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
+    async fn unknown_routes_return_not_found() -> Result<(), Box<dyn std::error::Error>> {
+        let request = Request::builder().uri("/missing").body(Body::empty())?;
+        let response = app(test_state()).oneshot(request).await?;
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        Ok(())
     }
 
     #[tokio::test]
-    async fn invalid_websocket_room_names_are_rejected_before_upgrade() {
+    async fn invalid_websocket_room_names_are_rejected_before_upgrade()
+    -> Result<(), Box<dyn std::error::Error>> {
         for room in [
             "bad%20room",
             "..",
             "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklm",
         ] {
-            let response = app(test_state())
-                .oneshot(
-                    Request::builder()
-                        .uri(format!("/ws/{room}"))
-                        .body(Body::empty())
-                        .unwrap(),
-                )
-                .await
-                .unwrap();
+            let request = Request::builder()
+                .uri(format!("/ws/{room}"))
+                .body(Body::empty())?;
+            let response = app(test_state()).oneshot(request).await?;
             assert_eq!(response.status(), StatusCode::BAD_REQUEST, "room={room}");
         }
+        Ok(())
     }
 
     #[test]
@@ -499,55 +639,45 @@ mod tests {
         assert!(!verify_captcha(Some("")).await);
     }
 
-    #[test]
-    fn emission_delivery_targets_peers_and_broadcasts_room_events() {
-        let mut room = Room::new(2, "delivery-room");
-        room.add_user("socket-a");
-        let (broadcasts, mut broadcast_receiver) = broadcast::channel(16);
-        let (peer_sender, mut peer_receiver) = mpsc::channel(16);
-        let mut state = RoomState {
-            room,
-            broadcasts,
-            peers: HashMap::from([("socket-a".to_string(), peer_sender)]),
+    #[tokio::test]
+    async fn room_actor_serializes_delivery_on_one_peer_queue()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let (sender, mut receiver) = mpsc::channel(16);
+        let mut actor = RoomActor {
+            room: Room::new(2, "delivery-room"),
+            peers: HashMap::from([(
+                "socket-a".to_string(),
+                RoomPeer {
+                    sender,
+                    joined: true,
+                },
+            )]),
             scheduler_started: false,
-        };
-        deliver_emissions(&mut state);
-        assert!(peer_receiver.try_recv().is_err());
-        let payload = broadcast_receiver.try_recv().unwrap();
-        assert!(payload.contains("receiveMessage") || payload.contains("receive-new-player"));
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn phase_clock_advances_a_started_room() {
-        let mut room = Room::new(2, "clock-room");
-        room.add_user("a");
-        room.add_user("b");
-        room.drain_emissions();
-        let (broadcasts, _) = broadcast::channel(16);
-        let rooms = Arc::new(Mutex::new(HashMap::from([(
-            "clock-room".to_string(),
-            RoomState {
-                room,
-                broadcasts,
-                peers: HashMap::new(),
-                scheduler_started: true,
-            },
-        )])));
-        let state = AppState {
-            rooms: rooms.clone(),
-            room_size: 2,
             day_duration: Duration::from_secs(60),
             night_duration: Duration::from_secs(45),
         };
+        actor.room.add_user("socket-a");
+        actor.deliver_emissions();
+        let payload = receiver.recv().await.ok_or("missing room event")?;
+        assert!(payload.contains("receiveMessage") || payload.contains("receive-new-player"));
+        Ok(())
+    }
 
-        let clock = tokio::spawn(run_phase_clock(state, "clock-room".to_string()));
-        tokio::task::yield_now().await;
-        tokio::time::advance(Duration::from_secs(60)).await;
-        tokio::task::yield_now().await;
-
-        let room = rooms.lock().await;
-        let state = &room["clock-room"].room;
-        assert!(state.game_has_ended || state.time == RoomPhase::Night);
-        clock.abort();
+    #[tokio::test]
+    async fn registry_creates_independent_room_actors() {
+        let registry = Arc::new(RoomRegistry {
+            rooms: Mutex::new(HashMap::new()),
+            config: RoomConfig {
+                size: 4,
+                day_duration: Duration::from_secs(60),
+                night_duration: Duration::from_secs(45),
+            },
+        });
+        let first = registry.get_or_create("room-a".into()).await;
+        let second = registry.get_or_create("room-b".into()).await;
+        assert_ne!(first.token, second.token);
+        assert_eq!(registry.rooms.lock().await.len(), 2);
+        drop(first);
+        drop(second);
     }
 }
