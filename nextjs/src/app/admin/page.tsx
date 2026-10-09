@@ -1,3 +1,4 @@
+import { PlayerReports } from "~/components/player-reports";
 import { Header } from "~/components/header";
 import { AdminUserSearch } from "~/components/admin-user-search";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -13,7 +14,7 @@ export default async function AdminPage({
 
   if (!session?.user?.isAdmin) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="bg-background min-h-screen">
         <Header />
         <main className="mx-auto w-full max-w-4xl px-4 py-8">
           <Card>
@@ -21,7 +22,9 @@ export default async function AdminPage({
               <CardTitle>Admin</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">You are not authorized.</p>
+              <p className="text-muted-foreground text-sm">
+                You are not authorized.
+              </p>
             </CardContent>
           </Card>
         </main>
@@ -30,7 +33,7 @@ export default async function AdminPage({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <Header />
       <main className="mx-auto w-full max-w-4xl px-4 py-8">
         <Card>
@@ -41,6 +44,7 @@ export default async function AdminPage({
             <AdminUserSearch initialQuery={params.q ?? ""} />
           </CardContent>
         </Card>
+        <PlayerReports moderation />
       </main>
     </div>
   );

@@ -28,7 +28,7 @@ export interface GameSocket {
   readonly connected: boolean;
 }
 
-export type SocketBackendType = "socketio" | "partykit" | "supabase" | "rust";
+export type SocketBackendType = "socketio" | "partykit" | "supabase";
 
 export interface GameSocketConfig {
   type: SocketBackendType;
@@ -36,4 +36,5 @@ export interface GameSocketConfig {
   apiKey?: string;
   room?: string;
   autoConnect?: boolean;
+  resumeKey?: string;
 }

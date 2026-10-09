@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./mobileSession";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
 import type { AppRouter } from "../../shared/trpc/appRouter";
@@ -14,8 +15,12 @@ export const trpcClient = createTRPCProxyClient<AppRouter>({
   links: [
     httpBatchLink({
       url: trpcUrl,
+      fetch: authenticatedFetch,
       transformer: superjson,
-      headers() { const token = getAuthToken(); return token ? { Authorization: `Bearer ${token}` } : {}; },
+      headers() {
+        const token = getAuthToken();
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      },
     }),
   ],
 });

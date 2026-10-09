@@ -31,8 +31,14 @@ export const joinRoomResultSchema = z.discriminatedUnion("status", [
 
 export const joinRoomCallbackArgsSchema = z.tuple([joinRoomResultSchema]);
 export const joinRoomArgsSchema = z.tuple([z.string(), z.string().optional()]);
-export const messageSentArgsSchema = z.tuple([chatMessageSchema, clientPhaseSchema]);
-export const voteArgsSchema = z.tuple([recipientIndexSchema, clientPhaseSchema]);
+export const messageSentArgsSchema = z.tuple([
+  chatMessageSchema,
+  clientPhaseSchema,
+]);
+export const voteArgsSchema = z.tuple([
+  recipientIndexSchema,
+  clientPhaseSchema,
+]);
 export const visitArgsSchema = z.tuple([
   recipientIndexSchema.nullable(),
   clientPhaseSchema,
@@ -68,9 +74,22 @@ export const playerReturnedPayloadSchema = z.object({
 });
 
 export const updateDayTimePayloadSchema = z.object({
+  phaseVersion: z.number().int().nonnegative().optional(),
   time: clientPhaseSchema,
   dayNumber: z.number(),
   timeLeft: z.number(),
+});
+
+export const gameSnapshotSchema = z.object({
+  phaseVersion: z.number().int().nonnegative().optional(),
+  playerName: z.string(),
+  players: playerListPayloadSchema,
+  role: playerReturnedPayloadSchema.optional(),
+  time: clientPhaseSchema,
+  dayNumber: z.number(),
+  timeLeft: z.number(),
+  canTalk: z.boolean(),
+  canVote: z.boolean(),
 });
 
 export const updatePlayerRolePayloadSchema = z.object({
@@ -111,7 +130,9 @@ export const partykitClientEventEnvelopeSchema = z.object({
   type: z.literal(PartyKitMessageType.Event),
   event: z.nativeEnum(ClientEvent),
   args: z.array(z.unknown()),
-  callbackId: z.string().optional(),
+  callbackId: z.string().max(128).optional(),
+  commandId: z.string().min(1).max(128).optional(),
+  phaseVersion: z.number().int().nonnegative().optional(),
 });
 
 export const partykitServerEventEnvelopeSchema = z.object({
@@ -129,6 +150,12 @@ export const partykitCallbackEnvelopeSchema = z.object({
 export const partykitServerEnvelopeSchema = z.discriminatedUnion("type", [
   partykitServerEventEnvelopeSchema,
   partykitCallbackEnvelopeSchema,
+  z.object({
+    type: z.literal(PartyKitMessageType.CommandAck),
+    commandId: z.string(),
+    accepted: z.boolean(),
+    reason: z.string().optional(),
+  }),
 ]);
 
 export const supabaseClientEnvelopeSchema = z.object({

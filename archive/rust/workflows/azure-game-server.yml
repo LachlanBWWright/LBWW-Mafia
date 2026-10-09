@@ -1,0 +1,59 @@
+name: Deploy Rust game server to Azure Container Apps
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'rust/**'
+      - 'Dockerfile.game-server'
+      - 'infra/azure/**'
+      - '.github/workflows/azure-game-server.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-game-server-production
+  cancel-in-progress: false
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_CONTAINER_APP: ${{ vars.AZURE_CONTAINER_APP }}
+  AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+
+jobs:
+  verify:
+    name: Verify Rust server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
+      - run: cargo clippy --locked --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: cargo test --locked --manifest-path rust/Cargo.toml --workspace
+
+  deploy:
+    name: Build and deploy Container App
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Build and push image in Azure Container Registry
+        run: az acr build --registry "$AZURE_ACR_NAME" --image "game-server:${GITHUB_SHA}" --image "game-server:latest" --file Dockerfile.game-server .
+      - name: Deploy immutable image
+        run: az containerapp update --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_APP" --image "$AZURE_ACR_NAME.azurecr.io/game-server:${GITHUB_SHA}" --revision-suffix "${GITHUB_SHA::12}"
+      - name: Verify readiness
+        run: |
+          fqdn="$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" --name "$AZURE_CONTAINER_APP" --query properties.configuration.ingress.fqdn --output tsv)"
+          curl --fail --retry 12 --retry-delay 5 "https://${fqdn}/readyz"

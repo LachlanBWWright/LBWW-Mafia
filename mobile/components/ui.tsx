@@ -13,6 +13,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { colors } from "../styles/colors";
 import { useAppState } from "../context/AppStateContext";
+import { navigationItems } from "../../shared/navigation";
 
 type NavigationLike = {
   navigate: (screen: string, params?: Record<string, unknown>) => void;
@@ -103,15 +104,6 @@ type LoadingCardProps = {
 export function cn(...classNames: ClassValue[]) {
   return twMerge(clsx(classNames));
 }
-
-const navItems = [
-  { label: "Lobby", route: "Lobby" },
-  { label: "Roles", route: "Roles" },
-  { label: "About", route: "About" },
-  { label: "History", route: "History" },
-  { label: "Profile", route: "Profile" },
-  { label: "Admin", route: "Admin" },
-];
 
 function getButtonVariantClass(variant: ButtonVariant): string {
   switch (variant) {
@@ -287,36 +279,36 @@ function AppHeader({
 }) {
   const { playerName, isAdmin } = useAppState();
   const showAdmin = isAdmin || process.env.EXPO_PUBLIC_VISUAL_TESTS === "true";
-  const visibleNavItems = showAdmin ? navItems : navItems.filter((item) => item.route !== "Admin");
+  const visibleNavItems = navigationItems.filter((item) =>
+    (!("requiresAuth" in item) || Boolean(playerName.trim())) &&
+    (!("adminOnly" in item) || showAdmin),
+  );
 
   return (
-    <View className="h-14 flex-row items-center border-b border-border/80 bg-background pl-lg">
-      <Pressable onPress={() => navigation.navigate("Home")} className="mr-lg shrink-0 py-md">
-        <Text className="text-xl font-black tracking-[-0.04em] text-foreground">
-          LBWW <Text className="text-primary">Mafia</Text>
-        </Text>
-      </Pressable>
-
+    <View className="h-12 flex-row items-center border-b border-border/80 bg-background px-xs">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         className="flex-1"
-        contentContainerClassName="h-14 items-center gap-lg pr-lg"
+        contentContainerClassName="h-12 items-center gap-xs px-xs"
       >
         {visibleNavItems.map((item) => (
           <NavChip
-            key={item.route}
+            key={item.key}
             label={item.label}
-            active={item.route === activeRoute}
-            onPress={() => navigation.navigate(item.route)}
+            active={item.key === activeRoute}
+            onPress={() => navigation.navigate(item.key)}
           />
         ))}
 
-        <Pressable onPress={() => navigation.navigate(playerName.trim() ? "Profile" : "SignIn")} className="shrink-0 py-md">
-          <Text className="text-sm font-semibold text-muted-foreground">
-            {playerName.trim() ? playerName : "Sign in"}
-          </Text>
-        </Pressable>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 min-h-0 shrink-0 px-3"
+          onPress={() => navigation.navigate(playerName.trim() ? "Profile" : "SignIn")}
+        >
+          {playerName.trim() ? "Profile" : "Sign in"}
+        </Button>
       </ScrollView>
     </View>
   );
@@ -336,7 +328,7 @@ export function Button({
   textClassName,
 }: ButtonProps) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} className={buttonClassName(variant, size, disabled, className)}>
+    <Pressable accessibilityRole="button" accessibilityState={{ disabled }} onPress={onPress} disabled={disabled} className={buttonClassName(variant, size, disabled, className)}>
       <Text className={buttonTextClassName(variant, textClassName)}>{children}</Text>
     </Pressable>
   );
@@ -468,14 +460,14 @@ function NavChip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <Button
+      variant={active ? "secondary" : "ghost"}
+      size="sm"
       onPress={onPress}
-      className={cn(
-        "h-14 shrink-0 justify-center border-b-2 px-xs pressed:opacity-70",
-        active ? "border-primary" : "border-transparent",
-      )}
+      className={cn("h-9 min-h-0 shrink-0 rounded-md px-3", active && "border-primary")}
+      textClassName={active ? "text-foreground" : "text-muted-foreground"}
     >
-      <Text className={cn("text-sm font-semibold", active ? "text-foreground" : "text-muted-foreground")}>{label}</Text>
-    </Pressable>
+      {label}
+    </Button>
   );
 }

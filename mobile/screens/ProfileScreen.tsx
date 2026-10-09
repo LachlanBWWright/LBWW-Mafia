@@ -1,10 +1,23 @@
+import { PlayerInsights } from "../components/PlayerInsights";
 import React, { useEffect, useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View } from "react-native";
 import { StackParamList } from "../App";
-import { fetchCurrentUserMatches, fetchRecentMatches, type RecentMatchSummary } from "../lib/appQueries";
+import {
+  fetchCurrentUserMatches,
+  fetchRecentMatches,
+  type RecentMatchSummary,
+} from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
-import { Badge, Button, Card, EmptyState, LoadingCard, Screen, SectionHeader } from "../components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  LoadingCard,
+  Screen,
+  SectionHeader,
+} from "../components/ui";
 
 type ProfileScreenProps = NativeStackScreenProps<StackParamList, "Profile">;
 
@@ -93,6 +106,14 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
   const { playerName, isAdmin, lastRoomName, authToken } = useAppState();
   const [matches, setMatches] = useState<RecentMatchSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  useEffect(
+    () =>
+      navigation.addListener("focus", () =>
+        setRefreshVersion((value) => value + 1),
+      ),
+    [navigation],
+  );
 
   useEffect(() => {
     if (!playerName.trim()) {
@@ -102,11 +123,13 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
     }
 
     setLoading(true);
-    void (authToken ? fetchCurrentUserMatches(5) : fetchRecentMatches(playerName, 5))
+    void (
+      authToken ? fetchCurrentUserMatches(5) : fetchRecentMatches(playerName, 5)
+    )
       .then((rows) => setMatches(rows))
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
-  }, [authToken, playerName]);
+  }, [authToken, playerName, refreshVersion]);
 
   if (!playerName.trim()) {
     return (
@@ -114,12 +137,16 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
         navigation={navigation}
         activeRoute="Profile"
         title="Profile"
-        subtitle="Signed-out state, current identity, recent matches, and admin entry point."
+        subtitle="Your player statistics and recent games."
       >
         <EmptyState
           title="Sign in to view your profile and match history."
-          description="Use your LBWW Mafia account to see your identity and recent games."
-          action={<Button onPress={() => navigation.navigate("SignIn")}>Sign in</Button>}
+          description="Sign in with Google to see your profile and recent games."
+          action={
+            <Button onPress={() => navigation.navigate("SignIn")}>
+              Sign in
+            </Button>
+          }
         />
       </Screen>
     );
@@ -130,7 +157,7 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
       navigation={navigation}
       activeRoute="Profile"
       title="Profile"
-      subtitle="Signed-out state, current identity, recent matches, and admin entry point."
+      subtitle="Your player statistics and recent games."
     >
       <View className="gap-4">
         <ProfileCard
@@ -139,6 +166,7 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
           lastRoomName={lastRoomName}
           navigation={navigation}
         />
+        {authToken ? <PlayerInsights key={refreshVersion} /> : null}
         <MatchesContent loading={loading} matches={matches} />
       </View>
     </Screen>

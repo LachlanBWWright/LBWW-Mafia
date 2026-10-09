@@ -1,0 +1,146 @@
+export const storybookStories = [
+  {
+    id: "mobile-ui-kit--account-privacy",
+    exportName: "AccountPrivacyStory",
+    name: "account-privacy",
+    readyText: "Privacy",
+  },
+  {
+    id: "mobile-ui-kit--saved-presets",
+    exportName: "SavedPresetsStory",
+    name: "saved-presets",
+    readyText: "Saved presets",
+  },
+  {
+    id: "mobile-ui-kit--player-statistics",
+    exportName: "PlayerStatisticsStory",
+    name: "player-statistics",
+    readyText: "Player statistics",
+  },
+  {
+    id: "mobile-ui-kit--notifications",
+    exportName: "NotificationsStory",
+    name: "notifications",
+    readyText: "Mira invited you to lobby friday-mafia.",
+  },
+  {
+    id: "mobile-ui-kit--notifications-empty",
+    exportName: "NotificationsEmpty",
+    name: "notifications-empty",
+    readyText: "No notifications yet.",
+  },
+  {
+    id: "mobile-ui-kit--report-outcomes",
+    exportName: "ReportOutcomes",
+    name: "report-outcomes",
+    readyText: "Your reports",
+  },
+  {
+    id: "mobile-ui-kit--report-moderation",
+    exportName: "ReportModeration",
+    name: "report-moderation",
+    readyText: "Player reports",
+  },
+  {
+    id: "mobile-ui-kit--account-security",
+    exportName: "AccountSecurityStory",
+    name: "account-security",
+    readyText: "Account security",
+  },
+  {
+    id: "mobile-ui-kit--custom-lobby",
+    exportName: "CustomLobby",
+    name: "custom-lobby",
+    readyText: "Lobby rules",
+  },
+  {
+    id: "mobile-ui-kit--message-history",
+    exportName: "MessageHistory",
+    name: "message-history",
+    readyText: "Ready for the next game?",
+  },
+  {
+    id: "mobile-ui-kit--component-gallery",
+    exportName: "ComponentGallery",
+    name: "component-gallery",
+    readyText: "Native design-system states.",
+  },
+  {
+    id: "mobile-ui-kit--button-controls",
+    exportName: "ButtonStory",
+    name: "button-controls",
+    readyText: "Button Playground",
+  },
+  {
+    id: "mobile-ui-kit--button-secondary",
+    exportName: "ButtonSecondary",
+    name: "button-secondary",
+    readyText: "Secondary action",
+  },
+  {
+    id: "mobile-ui-kit--button-outline",
+    exportName: "ButtonOutline",
+    name: "button-outline",
+    readyText: "Outline action",
+  },
+  {
+    id: "mobile-ui-kit--button-destructive",
+    exportName: "ButtonDestructive",
+    name: "button-destructive",
+    readyText: "Delete game",
+  },
+  {
+    id: "mobile-ui-kit--button-ghost",
+    exportName: "ButtonGhost",
+    name: "button-ghost",
+    readyText: "More options",
+  },
+  {
+    id: "mobile-ui-kit--button-disabled",
+    exportName: "ButtonDisabled",
+    name: "button-disabled",
+    readyText: "Unavailable",
+  },
+  {
+    id: "mobile-ui-kit--button-small",
+    exportName: "ButtonSmall",
+    name: "button-small",
+    readyText: "Compact",
+  },
+  {
+    id: "mobile-ui-kit--button-large",
+    exportName: "ButtonLarge",
+    name: "button-large",
+    readyText: "Primary action",
+  },
+  {
+    id: "mobile-ui-kit--badge-controls",
+    exportName: "BadgeStory",
+    name: "badge-controls",
+    readyText: "Badge Playground",
+  },
+  {
+    id: "mobile-ui-kit--badge-secondary",
+    exportName: "BadgeSecondary",
+    name: "badge-secondary",
+    readyText: "Waiting",
+  },
+  {
+    id: "mobile-ui-kit--badge-destructive",
+    exportName: "BadgeDestructive",
+    name: "badge-destructive",
+    readyText: "Eliminated",
+  },
+  {
+    id: "mobile-ui-kit--badge-outline",
+    exportName: "BadgeOutline",
+    name: "badge-outline",
+    readyText: "Spectating",
+  },
+];
+
+export const storybookViewports = [
+  { name: "small-phone", width: 320, height: 568 },
+  { name: "phone", width: 390, height: 844 },
+  { name: "tablet", width: 768, height: 1024 },
+];

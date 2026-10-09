@@ -6,6 +6,8 @@
   "scripts": {
     "build": "next build",
     "test": "vitest run",
+    "test:e2e": "playwright test -c playwright.config.ts",
+    "test:e2e:cross-browser": "playwright test -c playwright.cross-browser.config.ts",
     "check": "eslint . && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -20,8 +22,9 @@
     "start": "next start",
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
-    "storybook:screenshots": "pnpm run storybook:build && start-server-and-test 'http-server storybook-static -p 6006 -c-1' http://127.0.0.1:6006 'playwright test -c .storybook/playwright.config.ts'",
-    "typecheck": "rm -rf .next/dev && next typegen && tsc --noEmit"
+    "storybook:screenshots": "STORYBOOK_PORT=${STORYBOOK_PORT:-6006}; export STORYBOOK_PORT STORYBOOK_BASE_URL=http://127.0.0.1:$STORYBOOK_PORT; pnpm run storybook:build && start-server-and-test \"http-server storybook-static -p $STORYBOOK_PORT -c-1\" \"http://127.0.0.1:$STORYBOOK_PORT\" \"playwright test -c .storybook/playwright.config.ts && node ../scripts/check-storybook-screenshot-coverage.mjs storybook-static/index.json .storybook/screenshots.spec.ts-snapshots small-phone phone tablet desktop small-phone-light phone-light tablet-light desktop-light phone-rtl desktop-rtl\"",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
@@ -39,11 +42,11 @@
     "drizzle-orm": "^0.45.1",
     "lucide-react": "^0.564.0",
     "neverthrow": "^8.2.0",
-    "next": "latest",
+    "next": "16.3.4",
     "next-auth": "5.0.0-beta.32",
     "postgres": "^3.4.8",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "socket.io-client": "^4.8.3",
     "superjson": "^2.2.6",
     "tailwind-merge": "^3.4.0",
@@ -51,6 +54,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/eslintrc": "^3.3.3",
     "@playwright/test": "^1.62.1",
     "@storybook/addon-a11y": "^10.5.7",
@@ -62,7 +66,7 @@
     "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.9",
     "eslint": "^9.39.2",
-    "eslint-config-next": "latest",
+    "eslint-config-next": "16.3.4",
     "eslint-plugin-drizzle": "^0.2.3",
     "eslint-plugin-neverthrow": "^1.1.4",
     "http-server": "^14.1.1",

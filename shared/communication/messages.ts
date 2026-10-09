@@ -12,6 +12,8 @@
 
 /** All keys for system-generated messages emitted via ServerEvent.ReceiveMessage. */
 export enum MessageKey {
+  ActionNotConfirmed = "action_not_confirmed",
+  ActionStale = "action_stale",
   // ── Generic ──────────────────────────────────────────────────────────────
   InvalidChoice = "invalid_choice",
   CannotSpeakAtNight = "cannot_speak_at_night",

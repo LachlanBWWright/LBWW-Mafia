@@ -9,6 +9,10 @@ import type { Translations } from "../messages";
  */
 export const en: Translations = {
   // ── Generic ────────────────────────────────────────────────────────────────
+  [MessageKey.ActionNotConfirmed]:
+    "Your action could not be confirmed. Check the game state before trying again.",
+  [MessageKey.ActionStale]:
+    "The phase changed before your action arrived. Try again in the current phase.",
   [MessageKey.InvalidChoice]: "Invalid choice.",
   [MessageKey.CannotSpeakAtNight]: "You cannot speak at night.",
   [MessageKey.SilencedCannotTalk]: "You have been silenced and cannot talk.",

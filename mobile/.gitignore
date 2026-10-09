@@ -2,4 +2,8 @@
 storybook-static/
 test-results/
 visual-dist/
+visual/storybook-dist/
 visual/screenshots/
+visual/screenshots.spec.ts-snapshots/
+visual/storybook-screenshots/
+visual/storybook-screenshots.spec.ts-snapshots/

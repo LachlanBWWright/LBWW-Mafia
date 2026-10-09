@@ -4,7 +4,14 @@ import { Text, View } from "react-native";
 import { StackParamList } from "../App";
 import { fetchRecentMatches, type RecentMatchSummary } from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
-import { Badge, Button, Card, EmptyState, LoadingCard, Screen } from "../components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  LoadingCard,
+  Screen,
+} from "../components/ui";
 
 type HistoryScreenProps = NativeStackScreenProps<StackParamList, "History">;
 
@@ -27,7 +34,11 @@ function HistoryContent({
       <EmptyState
         title="Could not load history."
         description={error}
-        action={<Button onPress={() => navigation.navigate("Lobby")}>Back to Lobby</Button>}
+        action={
+          <Button onPress={() => navigation.navigate("Lobby")}>
+            Back to Lobby
+          </Button>
+        }
       />
     );
   }
@@ -86,7 +97,9 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
         setError("");
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load match history.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load match history.",
+        );
       })
       .finally(() => setLoading(false));
   }, [playerName]);
@@ -102,7 +115,11 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
         <EmptyState
           title="No username available for history lookup."
           description="Join the lobby first so the app can use your current player identity."
-          action={<Button onPress={() => navigation.navigate("Lobby")}>Join Lobby</Button>}
+          action={
+            <Button onPress={() => navigation.navigate("Lobby")}>
+              Join Lobby
+            </Button>
+          }
         />
       </Screen>
     );
@@ -115,7 +132,12 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
       title="Recent Matches"
       subtitle="Review the outcomes of your recent games."
     >
-      <HistoryContent loading={loading} error={error} matches={matches} navigation={navigation} />
+      <HistoryContent
+        loading={loading}
+        error={error}
+        matches={matches}
+        navigation={navigation}
+      />
     </Screen>
   );
 }

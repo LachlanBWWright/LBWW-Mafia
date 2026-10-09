@@ -1,5 +1,50 @@
-import React, { useState } from "react"; import { Text, View } from "react-native"; import type { NativeStackScreenProps } from "@react-navigation/native-stack"; import type { StackParamList } from "../App"; import { Button, Card, Input, Screen, SectionHeader } from "../components/ui"; import { useAppState } from "../context/AppStateContext";
+import { saveMobileSession } from "../lib/mobileSession";
+import { signInWithGoogle } from "../lib/googleSignIn";
+import React, { useState } from "react";
+import { Text, View } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { StackParamList } from "../App";
+import { Button, Screen } from "../components/ui";
+import { useAppState } from "../context/AppStateContext";
 type Props = NativeStackScreenProps<StackParamList, "SignIn">;
-export function SignInScreen({ navigation }: Props) { const state = useAppState(); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState(""); const [submitting, setSubmitting] = useState(false); async function submit() { setError(""); setSubmitting(true); try { const base = process.env.EXPO_PUBLIC_TRPC_URL?.replace(/\/api\/trpc$/, "") ?? "http://localhost:3000"; const response = await fetch(`${base}/api/account/mobile-login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) }); if (!response.ok) { setError("Email or password is incorrect."); return; } const body = await response.json() as { token: string; user: { name: string | null; handle: string | null; isAdmin: boolean } }; state.setAuthToken(body.token); state.setPlayerName(body.user.handle ?? body.user.name ?? "Player"); state.setIsAdmin(body.user.isAdmin); navigation.replace("Profile"); } catch { setError("Could not reach the server. Try again."); } finally { setSubmitting(false); } }
-  return <Screen navigation={navigation} activeRoute="SignIn" title="Account sign in" subtitle="Use your first-party LBWW Mafia account."><Card><SectionHeader title="Sign in" /><View className="gap-3"><Input autoCapitalize="none" keyboardType="email-address" placeholder="Email" value={email} onChangeText={setEmail} /><Input secureTextEntry placeholder="Password" value={password} onChangeText={setPassword} />{error ? <Text className="text-destructive">{error}</Text> : null}<Button disabled={submitting || !email.trim() || !password} onPress={() => void submit()}>{submitting ? "Signing in…" : "Sign in"}</Button></View></Card></Screen>;
+export function SignInScreen({ navigation }: Props) {
+  const state = useAppState();
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  async function submit() {
+    if (submitting) return;
+    setError("");
+    setSubmitting(true);
+    try {
+      const session = await signInWithGoogle();
+      if (!session) return;
+      await saveMobileSession(session);
+      state.setAuthToken(session.token);
+      state.setPlayerName(session.user.handle ?? session.user.name ?? "Player");
+      state.setIsAdmin(session.user.isAdmin);
+      navigation.replace("Profile");
+    } catch (failure) {
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "Unable to sign in. Try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+  return (
+    <Screen navigation={navigation} activeRoute="SignIn" title="Sign in">
+      <View className="gap-4">
+        {error ? (
+          <Text accessibilityRole="alert" className="text-destructive">
+            {error}
+          </Text>
+        ) : null}
+        <Button disabled={submitting} onPress={() => void submit()}>
+          {submitting ? "Signing in…" : "Continue with Google"}
+        </Button>
+      </View>
+    </Screen>
+  );
 }

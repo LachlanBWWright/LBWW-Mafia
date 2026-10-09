@@ -6,6 +6,7 @@ mobile/.expo
 dist
 coverage
 storybook-static
+storybook-dist
 *.db
 
 # OS metadata

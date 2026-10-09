@@ -19,26 +19,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.28.1
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-      - uses: dtolnay/rust-toolchain@stable
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir server run lint
       - run: pnpm --dir server run typecheck
       - run: pnpm --dir server run test:coverage
-      - run: cargo test --locked --manifest-path rust/Cargo.toml --workspace
-      - run: cargo fmt --manifest-path rust/Cargo.toml --all -- --check
-      - run: cargo clippy --locked --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings
-      - run: cargo install cargo-llvm-cov --version 0.6.21 --locked
-      - run: cargo llvm-cov --locked --manifest-path rust/Cargo.toml -p game-core --summary-only --fail-under-lines 85 --fail-under-functions 90
-      - run: pnpm run test:next-rust:smoke
+      - run: pnpm --dir server run build:partykit
 
   nextjs-test:
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mernmafia
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
     name: Next.js — lint, typecheck, test, build
     runs-on: ubuntu-latest
     permissions:
@@ -47,20 +51,96 @@ jobs:
       AUTH_SECRET: ci-dummy-secret
       AUTH_GOOGLE_ID: ci-dummy
       AUTH_GOOGLE_SECRET: ci-dummy
-      DATABASE_URL: file:./dev.db
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mernmafia
+      BACKEND_SECRET: ci-dummy-backend-secret
+      NEXT_PUBLIC_SOCKET_BACKEND: partykit
+      NEXT_PUBLIC_SOCKET_URL: http://127.0.0.1:1999
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 10.28.1
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir nextjs run lint
       - run: pnpm --dir nextjs run typecheck
       - run: pnpm --dir nextjs run test
+      - run: pnpm --dir nextjs run db:migrate
+      - run: pnpm --dir nextjs run test:integration
       - run: pnpm --dir nextjs run build
+
+  web-browser-test:
+    name: Web — Storybook and Playwright
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir nextjs exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm --dir nextjs run storybook:screenshots
+      - run: node scripts/check-storybook-screenshot-coverage.mjs nextjs/storybook-static/index.json nextjs/.storybook/screenshots.spec.ts-snapshots small-phone phone tablet desktop small-phone-light phone-light tablet-light desktop-light phone-rtl desktop-rtl
+      - run: pnpm run test:e2e
+      - run: pnpm run test:e2e:cross-browser
+      - name: Report Playwright retries
+        if: always()
+        run: node scripts/report-playwright-flakes.mjs nextjs/playwright-report/results.json nextjs/playwright-report/cross-browser.json nextjs/test-results/storybook.json
+      - name: Upload browser test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-browser-test-artifacts
+          path: |
+            nextjs/test-results/
+            nextjs/playwright-report/
+            nextjs/storybook-screenshots/
+          if-no-files-found: ignore
+
+  mobile-browser-test:
+    name: Mobile — typecheck, tests, visual screens
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir mobile exec playwright install --with-deps chromium
+      - run: pnpm --dir mobile run lint
+      - run: pnpm --dir mobile run typecheck
+      - run: pnpm --dir mobile run test
+      - run: pnpm --dir mobile run visual:screenshots
+      - run: pnpm --dir mobile run storybook:screenshots
+      - name: Report mobile Playwright retries
+        if: always()
+        run: node scripts/report-playwright-flakes.mjs mobile/test-results/mobile-visual.json mobile/test-results/storybook.json
+      - name: Upload mobile visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-visual-test-artifacts
+          path: |
+            mobile/test-results/
+            mobile/visual/screenshots/
+            mobile/visual/storybook-screenshots/
+            mobile/visual/screenshots/index.html
+          if-no-files-found: ignore

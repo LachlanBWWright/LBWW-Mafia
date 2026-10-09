@@ -19,6 +19,14 @@ export default function HomePage() {
             <Button size="lg" className="text-base" asChild>
               <Link href="/lobby">Join Game</Link>
             </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="ml-2 text-base"
+              asChild
+            >
+              <Link href="/lobby/create">Create Lobby</Link>
+            </Button>
           </div>
           <div className="border-border bg-card/70 rounded-xl border p-5">
             <h2 className="mb-2 text-lg font-semibold">Quick Start</h2>

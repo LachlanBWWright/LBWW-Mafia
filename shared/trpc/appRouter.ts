@@ -1,3 +1,10 @@
+import {
+  featurePreferencesSchema,
+  savePresetSchema,
+  createReportSchema,
+  reviewReportSchema,
+  type AccountFeatureServices,
+} from "./accountFeatures";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { z } from "zod";
@@ -7,25 +14,77 @@ import { MatchHistoryEventSchema } from "./validators";
 export type SessionUser = {
   id: string;
   name?: string | null;
+  handle?: string | null;
   isAdmin: boolean;
   roles?: string[];
 };
 
+export const RelationshipSchema = z.enum([
+  "none",
+  "outgoing",
+  "incoming",
+  "friend",
+  "blocked",
+]);
+export type Relationship = z.infer<typeof RelationshipSchema>;
+
 export type AccountProfile = {
-  id: string; name: string | null; handle: string | null; email: string;
-  image: string | null; bio: string | null; profileVisibility: string;
-  historyVisibility: string; theme: string; reducedMotion: boolean;
-  soundEnabled: boolean; notificationsEnabled: boolean; roles: string[];
+  id: string;
+  name: string | null;
+  handle: string | null;
+  email: string;
+  image: string | null;
+  avatarPreset?: string | null;
+  bio: string | null;
+  profileVisibility: string;
+  historyVisibility: string;
+  theme: string;
+  reducedMotion: boolean;
+  soundEnabled: boolean;
+  notificationsEnabled: boolean;
+  roles: string[];
 };
 
 export type PlayerStats = {
-  gamesPlayed: number; wins: number; losses: number; winRate: number;
-  currentStreak: number; bestWinStreak: number;
+  recentResults?: boolean[];
+  recentWinRate?: number;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  currentStreak: number;
+  bestWinStreak: number;
   roles: { role: string; games: number; wins: number }[];
   factions: { faction: string; games: number; wins: number }[];
 };
 
-export type SocialUser = { id: string; name: string | null; handle: string | null; image: string | null; relationship: string };
+export type SocialUser = {
+  id: string;
+  name: string | null;
+  handle: string | null;
+  image: string | null;
+  avatarPreset?: string | null;
+  relationship: Relationship;
+  isOnline?: boolean;
+  lastSeenAt?: Date | null;
+};
+
+export type DirectMessage = {
+  id: number;
+  conversationId: number;
+  senderId: string;
+  senderName: string | null;
+  body: string;
+  createdAt: Date;
+};
+
+export type DirectConversationSummary = {
+  id: number;
+  otherUser: SocialUser;
+  lastMessage: DirectMessage | null;
+  unread: boolean;
+  updatedAt: Date;
+};
 
 export type MatchParticipantSummary = {
   username: string;
@@ -59,6 +118,7 @@ export type MatchHistoryParticipant = {
 };
 
 export type PersistMatchInput = {
+  gameId?: string;
   roomName: string;
   startedAt: string;
   endedAt: string;
@@ -70,22 +130,71 @@ export type PersistMatchInput = {
 };
 
 export type RouterServices = {
+  features?: AccountFeatureServices;
   getRecentMatches: (input: {
     username: string;
     limit: number;
+    viewerId?: string;
   }) => Promise<RecentMatchSummary[]>;
-  searchUsers: (input: { query: string; limit: number }) => Promise<UserSummary[]>;
+  searchUsers: (input: {
+    query: string;
+    limit: number;
+  }) => Promise<UserSummary[]>;
   setUserAdmin: (input: { userId: string; isAdmin: boolean }) => Promise<void>;
   getProfile: (userId: string) => Promise<AccountProfile>;
-  updateProfile: (userId: string, input: Omit<Partial<AccountProfile>, "id" | "email" | "roles">) => Promise<AccountProfile>;
+  listDeviceSessions?: (
+    userId: string,
+  ) => Promise<{ id: string; deviceName: string; createdAt: Date }[]>;
+  revokeDeviceSession?: (userId: string, sessionId: string) => Promise<void>;
+  changePassword?: (
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
+  updateProfile: (
+    userId: string,
+    input: Omit<Partial<AccountProfile>, "id" | "email" | "roles">,
+  ) => Promise<AccountProfile>;
   getStats: (userId: string) => Promise<PlayerStats>;
   searchCommunity: (userId: string, query: string) => Promise<SocialUser[]>;
   listFriends: (userId: string) => Promise<SocialUser[]>;
   requestFriend: (userId: string, addresseeId: string) => Promise<void>;
-  respondFriend: (userId: string, requesterId: string, accept: boolean) => Promise<void>;
+  respondFriend: (
+    userId: string,
+    requesterId: string,
+    accept: boolean,
+  ) => Promise<void>;
   removeFriend: (userId: string, otherId: string) => Promise<void>;
   blockUser: (userId: string, blockedId: string) => Promise<void>;
-  setUserRoles: (actorId: string, userId: string, roles: string[]) => Promise<void>;
+  listDirectConversations: (
+    userId: string,
+  ) => Promise<DirectConversationSummary[]>;
+  getDirectThread: (
+    userId: string,
+    otherUserId: string,
+    limit: number,
+    before?: number,
+  ) => Promise<{
+    conversationId: number | null;
+    otherUser: SocialUser | null;
+    messages: DirectMessage[];
+  }>;
+  sendDirectMessage: (
+    userId: string,
+    recipientId: string,
+    body: string,
+    commandId?: string,
+  ) => Promise<DirectMessage>;
+  markDirectConversationRead: (
+    userId: string,
+    conversationId: number,
+  ) => Promise<void>;
+  markPresence: (userId: string) => Promise<void>;
+  setUserRoles: (
+    actorId: string,
+    userId: string,
+    roles: string[],
+  ) => Promise<void>;
   persistMatch: (input: PersistMatchInput) => Promise<{ id: number }>;
   getCurrentRoom: () => Promise<{ roomId: string }>;
   rotateActiveRoom: () => Promise<{ roomId: string }>;
@@ -94,17 +203,32 @@ export type RouterServices = {
 export type AppRouterContext = {
   sessionUser: SessionUser | null;
   isBackend: boolean;
+  limitRequest?: (path: string, mutation: boolean) => Promise<boolean>;
 };
+
+function featureServices(services: RouterServices) {
+  if (!services.features) throw new TRPCError({ code: "NOT_IMPLEMENTED" });
+  return services.features;
+}
 
 const t = initTRPC.context<AppRouterContext>().create({
   transformer: superjson,
+});
+
+const limitedProcedure = t.procedure.use(async ({ ctx, path, type, next }) => {
+  if (ctx.limitRequest && !(await ctx.limitRequest(path, type === "mutation")))
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: "Too many requests. Try again shortly.",
+    });
+  return next();
 });
 
 /**
  * Middleware that ensures a user is authenticated.
  * Returns an error result if no session user is present.
  */
-const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+const protectedProcedure = limitedProcedure.use(({ ctx, next }) => {
   if (!ctx.sessionUser) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
@@ -123,7 +247,7 @@ const protectedProcedure = t.procedure.use(({ ctx, next }) => {
  * Middleware that ensures the request has the backend secret.
  * Returns an error result if the bearer token does not match the backend secret.
  */
-const backendProcedure = t.procedure.use(({ ctx, next }) => {
+const backendProcedure = limitedProcedure.use(({ ctx, next }) => {
   if (!ctx.isBackend) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
@@ -138,7 +262,10 @@ const backendProcedure = t.procedure.use(({ ctx, next }) => {
  * Returns an error result if the user is not an admin.
  */
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (!ctx.sessionUser.isAdmin && !ctx.sessionUser.roles?.includes("administrator")) {
+  if (
+    !ctx.sessionUser.isAdmin &&
+    !ctx.sessionUser.roles?.includes("administrator")
+  ) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Admin access required.",
@@ -160,7 +287,8 @@ export function createAppRouter(services: RouterServices) {
       persist: backendProcedure
         .input(
           z.object({
-            roomName: z.string(),
+            gameId: z.string().min(1).max(128).optional(),
+            roomName: z.string().min(1).max(64),
             startedAt: z.string(),
             endedAt: z.string(),
             winningFaction: z.string(),
@@ -177,51 +305,270 @@ export function createAppRouter(services: RouterServices) {
             actionHistory: z.array(MatchHistoryEventSchema),
           }),
         )
-        .mutation(({ input }) =>
-          services.persistMatch(input),
-        ),
-      recentByUsername: t.procedure
+        .mutation(({ input }) => services.persistMatch(input)),
+      recentByUsername: limitedProcedure
         .input(
           z.object({
             username: z.string().min(1),
             limit: z.number().int().min(1).max(50).default(10),
           }),
         )
-        .query(({ input }) => services.getRecentMatches(input)),
+        .query(({ input, ctx }) =>
+          services.getRecentMatches({
+            ...input,
+            viewerId: ctx.sessionUser?.id,
+          }),
+        ),
       recentForCurrentUser: protectedProcedure
         .input(
           z.object({
             limit: z.number().int().min(1).max(50).default(10),
           }),
         )
-        .query(({ ctx, input }) => services.getRecentMatches({ username: `user:${ctx.sessionUser.id}`, limit: input.limit })),
+        .query(({ ctx, input }) =>
+          services.getRecentMatches({
+            username: `user:${ctx.sessionUser.id}`,
+            viewerId: ctx.sessionUser.id,
+            limit: input.limit,
+          }),
+        ),
     }),
     account: t.router({
-      profile: protectedProcedure.query(({ ctx }) => services.getProfile(ctx.sessionUser.id)),
-      updateProfile: protectedProcedure.input(z.object({
-        name: z.string().trim().min(2).max(255).optional(),
-        handle: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,24}$/).optional(),
-        image: z.string().url().max(255).nullable().optional(), bio: z.string().max(280).nullable().optional(),
-        profileVisibility: z.enum(["public", "friends", "private"]).optional(),
-        historyVisibility: z.enum(["public", "friends", "private"]).optional(),
-        theme: z.enum(["dark", "light", "system"]).optional(), reducedMotion: z.boolean().optional(),
-        soundEnabled: z.boolean().optional(), notificationsEnabled: z.boolean().optional(),
-      })).mutation(({ ctx, input }) => services.updateProfile(ctx.sessionUser.id, input)),
-      stats: protectedProcedure.query(({ ctx }) => services.getStats(ctx.sessionUser.id)),
+      profile: protectedProcedure.query(({ ctx }) =>
+        services.getProfile(ctx.sessionUser.id),
+      ),
+      updateProfile: protectedProcedure
+        .input(
+          z.object({
+            name: z.string().trim().min(2).max(255).optional(),
+            handle: z
+              .string()
+              .trim()
+              .toLowerCase()
+              .regex(/^[a-z0-9_]{3,24}$/)
+              .optional(),
+            image: z.string().url().max(255).nullable().optional(),
+            bio: z.string().max(280).nullable().optional(),
+            profileVisibility: z
+              .enum(["public", "friends", "private"])
+              .optional(),
+            historyVisibility: z
+              .enum(["public", "friends", "private"])
+              .optional(),
+            theme: z.enum(["dark", "light", "system"]).optional(),
+            reducedMotion: z.boolean().optional(),
+            soundEnabled: z.boolean().optional(),
+            notificationsEnabled: z.boolean().optional(),
+          }),
+        )
+        .mutation(({ ctx, input }) =>
+          services.updateProfile(ctx.sessionUser.id, input),
+        ),
+      deviceSessions: protectedProcedure.query(
+        ({ ctx }) => services.listDeviceSessions?.(ctx.sessionUser.id) ?? [],
+      ),
+      revokeDeviceSession: protectedProcedure
+        .input(z.object({ sessionId: z.string().min(1).max(64) }))
+        .mutation(async ({ ctx, input }) => {
+          await services.revokeDeviceSession?.(
+            ctx.sessionUser.id,
+            input.sessionId,
+          );
+          return { success: true };
+        }),
+      stats: protectedProcedure.query(({ ctx }) =>
+        services.getStats(ctx.sessionUser.id),
+      ),
+    }),
+    features: t.router({
+      inbox: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).inbox(ctx.sessionUser.id),
+      ),
+      markRead: protectedProcedure
+        .input(z.object({ id: z.number().int().positive().optional() }))
+        .mutation(({ ctx, input }) =>
+          featureServices(services).markRead(ctx.sessionUser.id, input.id),
+        ),
+      preferences: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).preferences(ctx.sessionUser.id),
+      ),
+      updatePreferences: protectedProcedure
+        .input(featurePreferencesSchema)
+        .mutation(({ ctx, input }) =>
+          featureServices(services).updatePreferences(
+            ctx.sessionUser.id,
+            input,
+          ),
+        ),
+      invitations: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).invitations(ctx.sessionUser.id),
+      ),
+      invite: protectedProcedure
+        .input(
+          z.object({
+            recipientId: z.string().min(1).max(255),
+            roomId: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/),
+          }),
+        )
+        .mutation(({ ctx, input }) =>
+          featureServices(services).invite(ctx.sessionUser.id, input),
+        ),
+      respondInvitation: protectedProcedure
+        .input(
+          z.object({ id: z.number().int().positive(), accept: z.boolean() }),
+        )
+        .mutation(({ ctx, input }) =>
+          featureServices(services).respondInvitation(
+            ctx.sessionUser.id,
+            input,
+          ),
+        ),
+      hostedLobbies: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).hostedLobbies(ctx.sessionUser.id),
+      ),
+      presets: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).presets(ctx.sessionUser.id),
+      ),
+      savePreset: protectedProcedure
+        .input(savePresetSchema)
+        .mutation(({ ctx, input }) =>
+          featureServices(services).savePreset(ctx.sessionUser.id, input),
+        ),
+      deletePreset: protectedProcedure
+        .input(z.object({ id: z.number().int().positive() }))
+        .mutation(({ ctx, input }) =>
+          featureServices(services).deletePreset(ctx.sessionUser.id, input.id),
+        ),
+      blocked: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).blocked(ctx.sessionUser.id),
+      ),
+      unblock: protectedProcedure
+        .input(z.object({ userId: z.string().min(1).max(255) }))
+        .mutation(({ ctx, input }) =>
+          featureServices(services).unblock(ctx.sessionUser.id, input.userId),
+        ),
+      achievements: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).achievements(ctx.sessionUser.id),
+      ),
+      report: protectedProcedure
+        .input(createReportSchema)
+        .mutation(({ ctx, input }) =>
+          featureServices(services).report(ctx.sessionUser.id, input),
+        ),
+      reports: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).reports(
+          ctx.sessionUser.id,
+          ctx.sessionUser.isAdmin || Boolean(ctx.sessionUser.roles?.includes("administrator")),
+        ),
+      ),
+      reviewReport: adminProcedure
+        .input(reviewReportSchema)
+        .mutation(({ ctx, input }) =>
+          featureServices(services).reviewReport(ctx.sessionUser.id, input),
+        ),
+      exportData: protectedProcedure.query(({ ctx }) =>
+        featureServices(services).exportData(ctx.sessionUser.id),
+      ),
+      deleteAccount: protectedProcedure
+        .input(z.object({ confirmation: z.literal("DELETE") }))
+        .mutation(({ ctx, input }) =>
+          featureServices(services).deleteAccount(
+            ctx.sessionUser.id,
+            input.confirmation,
+          ),
+        ),
     }),
     social: t.router({
-      search: protectedProcedure.input(z.object({ query: z.string().trim().max(64) })).query(({ ctx, input }) => services.searchCommunity(ctx.sessionUser.id, input.query)),
-      friends: protectedProcedure.query(({ ctx }) => services.listFriends(ctx.sessionUser.id)),
-      request: protectedProcedure.input(z.object({ userId: z.string().min(1) })).mutation(async ({ ctx, input }) => { await services.requestFriend(ctx.sessionUser.id, input.userId); return { success: true }; }),
-      respond: protectedProcedure.input(z.object({ userId: z.string().min(1), accept: z.boolean() })).mutation(async ({ ctx, input }) => { await services.respondFriend(ctx.sessionUser.id, input.userId, input.accept); return { success: true }; }),
-      remove: protectedProcedure.input(z.object({ userId: z.string().min(1) })).mutation(async ({ ctx, input }) => { await services.removeFriend(ctx.sessionUser.id, input.userId); return { success: true }; }),
-      block: protectedProcedure.input(z.object({ userId: z.string().min(1) })).mutation(async ({ ctx, input }) => { await services.blockUser(ctx.sessionUser.id, input.userId); return { success: true }; }),
+      search: protectedProcedure
+        .input(z.object({ query: z.string().trim().max(64) }))
+        .query(({ ctx, input }) =>
+          services.searchCommunity(ctx.sessionUser.id, input.query),
+        ),
+      friends: protectedProcedure.query(({ ctx }) =>
+        services.listFriends(ctx.sessionUser.id),
+      ),
+      request: protectedProcedure
+        .input(z.object({ userId: z.string().min(1) }))
+        .mutation(async ({ ctx, input }) => {
+          await services.requestFriend(ctx.sessionUser.id, input.userId);
+          return { success: true };
+        }),
+      respond: protectedProcedure
+        .input(z.object({ userId: z.string().min(1), accept: z.boolean() }))
+        .mutation(async ({ ctx, input }) => {
+          await services.respondFriend(
+            ctx.sessionUser.id,
+            input.userId,
+            input.accept,
+          );
+          return { success: true };
+        }),
+      remove: protectedProcedure
+        .input(z.object({ userId: z.string().min(1) }))
+        .mutation(async ({ ctx, input }) => {
+          await services.removeFriend(ctx.sessionUser.id, input.userId);
+          return { success: true };
+        }),
+      block: protectedProcedure
+        .input(z.object({ userId: z.string().min(1) }))
+        .mutation(async ({ ctx, input }) => {
+          await services.blockUser(ctx.sessionUser.id, input.userId);
+          return { success: true };
+        }),
+    }),
+    messages: t.router({
+      conversations: protectedProcedure.query(({ ctx }) =>
+        services.listDirectConversations(ctx.sessionUser.id),
+      ),
+      thread: protectedProcedure
+        .input(
+          z.object({
+            otherUserId: z.string().min(1),
+            limit: z.number().int().min(1).max(100).default(50),
+            before: z.number().int().positive().optional(),
+          }),
+        )
+        .query(({ ctx, input }) =>
+          services.getDirectThread(
+            ctx.sessionUser.id,
+            input.otherUserId,
+            input.limit,
+            input.before,
+          ),
+        ),
+      send: protectedProcedure
+        .input(
+          z.object({
+            commandId: z.string().min(1).max(128).optional(),
+            recipientId: z.string().min(1),
+            body: z.string().trim().min(1).max(2000),
+          }),
+        )
+        .mutation(({ ctx, input }) =>
+          services.sendDirectMessage(
+            ctx.sessionUser.id,
+            input.recipientId,
+            input.body,
+            input.commandId,
+          ),
+        ),
+      read: protectedProcedure
+        .input(z.object({ conversationId: z.number().int().positive() }))
+        .mutation(({ ctx, input }) =>
+          services.markDirectConversationRead(
+            ctx.sessionUser.id,
+            input.conversationId,
+          ),
+        ),
+    }),
+    presence: t.router({
+      heartbeat: protectedProcedure.mutation(({ ctx }) =>
+        services.markPresence(ctx.sessionUser.id),
+      ),
     }),
     room: t.router({
-      current: t.procedure
-        .query(() => services.getCurrentRoom()),
-      rotate: backendProcedure
-        .mutation(() => services.rotateActiveRoom()),
+      current: limitedProcedure.query(() => services.getCurrentRoom()),
+      rotate: backendProcedure.mutation(() => services.rotateActiveRoom()),
     }),
     admin: t.router({
       searchUsers: adminProcedure
@@ -243,10 +590,25 @@ export function createAppRouter(services: RouterServices) {
           await services.setUserAdmin(input);
           return { success: true };
         }),
-      setUserRoles: adminProcedure.input(z.object({ userId: z.string().min(1), roles: z.array(z.enum(["player", "moderator", "administrator", "support"])).min(1) })).mutation(async ({ ctx, input }) => {
-        await services.setUserRoles(ctx.sessionUser.id, input.userId, input.roles);
-        return { success: true };
-      }),
+      setUserRoles: adminProcedure
+        .input(
+          z.object({
+            userId: z.string().min(1),
+            roles: z
+              .array(
+                z.enum(["player", "moderator", "administrator", "support"]),
+              )
+              .min(1),
+          }),
+        )
+        .mutation(async ({ ctx, input }) => {
+          await services.setUserRoles(
+            ctx.sessionUser.id,
+            input.userId,
+            input.roles,
+          );
+          return { success: true };
+        }),
     }),
   });
 }

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Plus } from "lucide-react";
+import { expect, userEvent, within } from "storybook/test";
 
 import { Button } from "./button";
 
@@ -41,5 +42,21 @@ export const WithIcon: Story = {
         <Plus /> Create game
       </>
     ),
+  },
+};
+
+export const LongLabel: Story = {
+  args: { children: "Send invitation to the entire lobby" },
+};
+
+export const Busy: Story = {
+  args: { children: "Saving…", disabled: true, "aria-busy": true },
+};
+
+export const Focused: Story = {
+  play: async ({ canvasElement }) => {
+    const button = within(canvasElement).getByRole("button");
+    await userEvent.click(button);
+    await expect(button).toHaveFocus();
   },
 };

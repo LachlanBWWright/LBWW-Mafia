@@ -10,6 +10,7 @@ module.exports = [
       "ios/**",
       ".expo/**",
       "storybook-static/**",
+      "storybook-dist/**",
       "visual-dist/**",
       ".rnstorybook/storybook.requires.ts",
     ],

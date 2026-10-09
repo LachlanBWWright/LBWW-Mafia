@@ -38,11 +38,15 @@ export function AboutScreen({ navigation }: AboutScreenProps) {
           <SectionHeader title="The Project" />
           <View className="gap-2.5">
             <Text className="text-sm leading-5 text-muted-foreground">
-              LBWW Mafia is an online multiplayer implementation of the classic Mafia social deduction game.
-              Built with modern web technologies, it allows players from around the world to connect and play together in real-time.
+              LBWW Mafia is an online multiplayer implementation of the classic
+              Mafia social deduction game. Built with modern web technologies,
+              it allows players from around the world to connect and play
+              together in real-time.
             </Text>
             <Text className="text-sm leading-5 text-muted-foreground">
-              The game features multiple roles with unique abilities, day/night cycles, and strategic gameplay that tests your deduction skills and ability to read others.
+              The game features multiple roles with unique abilities, day/night
+              cycles, and strategic gameplay that tests your deduction skills
+              and ability to read others.
             </Text>
           </View>
         </Card>

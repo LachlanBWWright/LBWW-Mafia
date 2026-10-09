@@ -5,14 +5,18 @@
   "packageManager": "pnpm@11.22.0",
   "scripts": {
     "dev": "bash dev.sh",
+    "dev:local": "bash scripts/dev-local.sh",
+    "test:manual": "pnpm run dev",
     "dev:down": "docker compose down",
     "metrics:ts": "bash scripts/ts-file-metrics.sh --top=100",
     "test:gameplay:ts": "pnpm --dir server run test",
-    "test:gameplay:rust": "cargo test --manifest-path rust/Cargo.toml --workspace",
-    "test:next-rust": "bash scripts/test-next-rust.sh",
-    "test:next-rust:smoke": "bash scripts/smoke-next-rust.sh",
-    "build:game-server": "cargo build --locked --release --manifest-path rust/Cargo.toml -p game-server",
-    "test:gameplay:parity": "pnpm --dir server run test shared/communication/protocol.parity.test.ts server/model/rooms/room.fixture-parity.test.ts && cargo test --manifest-path rust/Cargo.toml --workspace",
+    "dev:partykit": "pnpm --dir server run start:partykit",
+    "test:e2e": "pnpm --dir nextjs run test:e2e",
+    "test:e2e:ui": "bash scripts/playwright-ui.sh",
+    "test:e2e:cross-browser": "pnpm --dir nextjs run test:e2e:cross-browser",
+    "test:all": "bash scripts/test-all.sh",
+    "build:game-server": "pnpm --dir server run build:partykit",
+    "test:gameplay:parity": "pnpm --dir server run test shared/communication/protocol.parity.test.ts server/model/rooms/room.fixture-parity.test.ts",
     "test:gameplay:all": "bash scripts/test-game-logic.sh",
     "test:coverage": "bash scripts/test-coverage.sh",
     "lint": "pnpm run lint:server && pnpm run lint:nextjs && pnpm run lint:mobile",
@@ -25,14 +29,20 @@
     "lint:fix:mobile": "pnpm --dir mobile run lint:fix",
     "storybook": "pnpm --dir nextjs run storybook",
     "storybook:build": "pnpm --dir nextjs run storybook:build",
-    "storybook:screenshots": "pnpm --dir nextjs run storybook:screenshots",
+    "storybook:screenshots": "pnpm run storybook:screenshots:web && pnpm run storybook:screenshots:mobile",
+    "storybook:screenshots:web": "pnpm --dir nextjs run storybook:screenshots",
+    "storybook:screenshots:mobile": "pnpm --dir mobile run storybook:screenshots",
     "storybook:mobile": "pnpm --dir mobile run storybook",
-    "screenshots:mobile": "pnpm --dir mobile run visual:screenshots"
+    "screenshots:mobile": "pnpm --dir mobile run visual:screenshots",
+    "test:integration": "pnpm --dir nextjs run test:integration"
   },
   "description": "LBWW Mafia monorepo root",
   "devDependencies": {
     "concurrently": "^9.2.1",
     "wait-on": "^9.0.4",
     "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

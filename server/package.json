@@ -9,6 +9,7 @@
     "start:socketio": "tsx server.ts",
     "start:supabase": "SOCKET_BACKEND=supabase tsx server.ts",
     "start:partykit": "pnpm exec partykit dev servers/partykit/partykitServer.ts",
+    "build:partykit": "pnpm run typecheck",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -24,7 +25,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@libsql/client": "^0.17.0",
     "@supabase/supabase-js": "^2.108.2",
     "axios": "^1.19.0",
     "cors": "^2.8.6",

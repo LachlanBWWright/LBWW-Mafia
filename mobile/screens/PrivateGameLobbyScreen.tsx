@@ -1,12 +1,25 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { Text } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { StackParamList } from "../App";
+import { Button, Screen } from "../components/ui";
 
-export function PrivateGameLobbyScreen() {
+export function PrivateGameLobbyScreen({
+  navigation,
+}: NativeStackScreenProps<StackParamList, "Lobby">) {
   return (
-    <View className="flex-1 items-center justify-center bg-background p-lg">
-      <Text className="text-center text-sm text-muted-foreground">
-        Private games are folded into the main lobby flow.
+    <Screen
+      navigation={navigation}
+      activeRoute="Lobby"
+      title="Private lobby"
+      subtitle="Private rooms use the same live lobby and game surface."
+    >
+      <Text className="text-sm text-muted-foreground">
+        Enter a room from Create Lobby or use the shared lobby link.
       </Text>
-    </View>
+      <Button onPress={() => navigation.navigate("CreateLobby")}>
+        Create private lobby
+      </Button>
+    </Screen>
   );
 }

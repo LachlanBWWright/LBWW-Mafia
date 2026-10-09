@@ -8,9 +8,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 export AUTH_SECRET="${AUTH_SECRET:-local-build-secret}"
 export AUTH_GOOGLE_ID="${AUTH_GOOGLE_ID:-local-build-google-id}"
 export AUTH_GOOGLE_SECRET="${AUTH_GOOGLE_SECRET:-local-build-google-secret}"
-export DATABASE_URL="${DATABASE_URL:-file:./dev.db}"
+export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/mernmafia}"
 export BACKEND_SECRET="${BACKEND_SECRET:-local-build-backend-secret}"
-export NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL:-http://localhost:8000}"
+export NEXT_PUBLIC_SOCKET_BACKEND=partykit
+export NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL:-http://localhost:1999}"
 
 section "Type-checking the server production build"
 pnpm --dir server run build
@@ -22,4 +23,3 @@ section "Type-checking the mobile production build"
 pnpm --dir mobile run build
 
 section "Production builds passed"
-

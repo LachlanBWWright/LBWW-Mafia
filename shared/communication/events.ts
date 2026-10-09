@@ -52,10 +52,12 @@ export enum ActionKind {
 export enum PartyKitMessageType {
   Event = "event",
   Callback = "callback",
+  CommandAck = "command-ack",
 }
 
 /** Enum of all server → client socket event names. */
 export enum ServerEvent {
+  GameSnapshot = "game-snapshot",
   ReceiveMessage = "receiveMessage",
   BlockMessages = "blockMessages",
   ReceiveNewPlayer = "receive-new-player",
@@ -113,7 +115,20 @@ export type ClientToServerEvents = {
   handleWhisper: (recipient: number, message: string, phase: DayTime) => void;
 };
 
+export type GameSnapshot = {
+  phaseVersion?: number;
+  playerName: string;
+  players: PlayerList[];
+  role?: PlayerReturned;
+  time: DayTime;
+  dayNumber: number;
+  timeLeft: number;
+  canTalk: boolean;
+  canVote: boolean;
+};
+
 export type ServerToClientEvents = {
+  "game-snapshot": (snapshot: GameSnapshot) => void;
   receiveMessage: (message: GameMessage) => void;
   blockMessages: () => void;
   "receive-new-player": (player: { name: string }) => void;
@@ -122,6 +137,7 @@ export type ServerToClientEvents = {
   "receive-chat-message": (message: string) => void;
   "receive-whisper-message": (message: string) => void;
   "update-day-time": (data: {
+    phaseVersion?: number;
     time: DayTime;
     dayNumber: number;
     timeLeft: number;

@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { createAppRouter } from "./appRouter";
 
 let setUserAdminCalls = 0;
+let presenceCalls = 0;
 const mockServices = {
   getRecentMatches: async () => [
     {
@@ -22,6 +23,24 @@ const mockServices = {
   setUserAdmin: async () => {
     setUserAdminCalls += 1;
   },
+  listDirectConversations: async () => [],
+  getDirectThread: async () => ({
+    conversationId: null,
+    otherUser: null,
+    messages: [],
+  }),
+  sendDirectMessage: async () => ({
+    id: 1,
+    conversationId: 1,
+    senderId: "1",
+    senderName: "Admin",
+    body: "hello",
+    createdAt: new Date(),
+  }),
+  markDirectConversationRead: async () => undefined,
+  markPresence: async () => {
+    presenceCalls += 1;
+  },
 };
 
 const appRouter = createAppRouter(mockServices);
@@ -29,7 +48,10 @@ const appRouter = createAppRouter(mockServices);
 describe("appRouter", () => {
   it("recentByUsername returns match list", async () => {
     const caller = appRouter.createCaller({ sessionUser: null });
-    const result = await caller.match.recentByUsername({ username: "alex", limit: 5 });
+    const result = await caller.match.recentByUsername({
+      username: "alex",
+      limit: 5,
+    });
     expect(result.length).toBe(1);
     expect(result[0]?.roomName).toBe("room-alpha");
     expect(result[0]?.winningFaction).toBe("town");
@@ -37,13 +59,30 @@ describe("appRouter", () => {
 
   it("recentByUsername rejects invalid input", async () => {
     const caller = appRouter.createCaller({ sessionUser: null });
-    await expect(caller.match.recentByUsername({ username: "", limit: 5 })).rejects.toBeInstanceOf(TRPCError);
+    await expect(
+      caller.match.recentByUsername({ username: "", limit: 5 }),
+    ).rejects.toBeInstanceOf(TRPCError);
   });
 
   it("recentForCurrentUser rejects unauthenticated calls", async () => {
     const caller = appRouter.createCaller({ sessionUser: null });
-    await expect(caller.match.recentForCurrentUser({ limit: 2 })).rejects.toSatisfy(
-      (error: unknown) => error instanceof TRPCError && error.code === "UNAUTHORIZED",
+    await expect(
+      caller.match.recentForCurrentUser({ limit: 2 }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "UNAUTHORIZED",
+    );
+  });
+
+  it("messages and presence reject unauthenticated calls", async () => {
+    const caller = appRouter.createCaller({ sessionUser: null });
+    await expect(caller.messages.conversations()).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "UNAUTHORIZED",
+    );
+    await expect(caller.presence.heartbeat()).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "UNAUTHORIZED",
     );
   });
 
@@ -51,8 +90,11 @@ describe("appRouter", () => {
     const caller = appRouter.createCaller({
       sessionUser: { id: "2", name: "user", isAdmin: false },
     });
-    await expect(caller.admin.searchUsers({ query: "", limit: 10 })).rejects.toSatisfy(
-      (error: unknown) => error instanceof TRPCError && error.code === "FORBIDDEN",
+    await expect(
+      caller.admin.searchUsers({ query: "", limit: 10 }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "FORBIDDEN",
     );
   });
 
@@ -69,8 +111,21 @@ describe("appRouter", () => {
     const caller = appRouter.createCaller({
       sessionUser: { id: "1", name: "Admin", isAdmin: true },
     });
-    const result = await caller.admin.setUserAdmin({ userId: "2", isAdmin: true });
+    const result = await caller.admin.setUserAdmin({
+      userId: "2",
+      isAdmin: true,
+    });
     expect(result.success).toBe(true);
     expect(setUserAdminCalls).toBe(1);
+  });
+
+  it("authenticated messaging and presence procedures reach their services", async () => {
+    presenceCalls = 0;
+    const caller = appRouter.createCaller({
+      sessionUser: { id: "1", name: "Admin", isAdmin: true },
+    });
+    expect(await caller.messages.conversations()).toEqual([]);
+    await caller.presence.heartbeat();
+    expect(presenceCalls).toBe(1);
   });
 });

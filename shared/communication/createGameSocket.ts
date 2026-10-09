@@ -34,17 +34,9 @@ export function createGameSocket(
       const wsUrl = config.url.replace(/^http(s?)/, "ws$1");
       const room = config.room ?? "default";
       return ok(new PartykitClientAdapter(
-        `${wsUrl}/party/${room}`,
+        `${wsUrl.replace(/\/$/, "")}/parties/main/${encodeURIComponent(room)}`,
         config.autoConnect ?? true,
-      ));
-    }
-
-    case "rust": {
-      const room = encodeURIComponent(config.room ?? "default");
-      const wsUrl = config.url.replace(/^http(s?)/, "ws$1").replace(/\/$/, "");
-      return ok(new PartykitClientAdapter(
-        `${wsUrl}/ws/${room}`,
-        config.autoConnect ?? true,
+        config.resumeKey,
       ));
     }
 

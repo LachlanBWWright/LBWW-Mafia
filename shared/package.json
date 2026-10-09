@@ -10,5 +10,8 @@
     "neverthrow": "*",
     "superjson": "*",
     "zod": "*"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.14"
   }
 }

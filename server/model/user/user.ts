@@ -8,7 +8,7 @@ import type { Room } from "../rooms/room.js";
  */
 export class User {
   socket: GamePlayerSocket;
-  readonly socketId: string;
+  socketId: string;
   readonly username: string;
   readonly userId?: string;
 

@@ -1,4 +1,7 @@
-import type { RecentMatchSummary, UserSummary } from "../../shared/trpc/appRouter";
+import type {
+  RecentMatchSummary,
+  UserSummary,
+} from "../../shared/trpc/appRouter";
 import { trpcClient } from "./trpc";
 
 export async function fetchRecentMatches(username: string, limit = 10) {

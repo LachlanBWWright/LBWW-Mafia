@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import { cache } from "react";
 
 import { authConfig } from "./config";
+import { activeSession } from "./activeSession";
 
 /**
  * NextAuth.js authentication instance with React caching.
@@ -10,6 +11,6 @@ import { authConfig } from "./config";
  */
 const { auth: uncachedAuth, handlers, signIn, signOut } = NextAuth(authConfig);
 
-const auth = cache(uncachedAuth);
+const auth = cache(async () => activeSession(await uncachedAuth()));
 
 export { auth, handlers, signIn, signOut };

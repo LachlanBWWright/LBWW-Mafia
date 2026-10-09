@@ -1,10 +1,19 @@
+import { PlayerReports } from "../components/PlayerReports";
 import React, { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text, View } from "react-native";
 import { StackParamList } from "../App";
 import { searchUsers, setUserAdmin, type UserSummary } from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
-import { Badge, Button, Card, EmptyState, Input, Screen, SectionHeader } from "../components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Input,
+  Screen,
+  SectionHeader,
+} from "../components/ui";
 
 type AdminScreenProps = NativeStackScreenProps<StackParamList, "Admin">;
 
@@ -72,9 +81,7 @@ function SearchCard({
           {searching ? "Searching..." : "Search"}
         </Button>
         {status ? (
-          <Text className="text-xs text-muted-foreground">
-            {status}
-          </Text>
+          <Text className="text-xs text-muted-foreground">{status}</Text>
         ) : null}
       </View>
     </Card>
@@ -96,7 +103,9 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
       setUsers(result);
       setStatus(result.length === 0 ? "No users found." : "");
     } catch (error: unknown) {
-      setStatus(error instanceof Error ? error.message : "Failed to search users.");
+      setStatus(
+        error instanceof Error ? error.message : "Failed to search users.",
+      );
     } finally {
       setSearching(false);
     }
@@ -111,7 +120,9 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
         ),
       );
     } catch (error: unknown) {
-      setStatus(error instanceof Error ? error.message : "Failed to update admin role.");
+      setStatus(
+        error instanceof Error ? error.message : "Failed to update admin role.",
+      );
     }
   };
 
@@ -147,6 +158,7 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
           status={status}
         />
         <AdminContent users={users} toggleAdmin={toggleAdmin} />
+        <PlayerReports moderation />
       </View>
     </Screen>
   );

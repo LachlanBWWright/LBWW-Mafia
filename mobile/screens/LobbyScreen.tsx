@@ -16,7 +16,16 @@ import {
 } from "../../shared/game/playerActionRules";
 import { StackParamList } from "../App";
 import { useAppState } from "../context/AppStateContext";
-import { Button, Badge, Card, EmptyState, Input, ListRow, Screen, SectionHeader } from "../components/ui";
+import {
+  Button,
+  Badge,
+  Card,
+  EmptyState,
+  Input,
+  ListRow,
+  Screen,
+  SectionHeader,
+} from "../components/ui";
 import { useGameLobby } from "../lib/useGameLobby";
 
 type Player = {
@@ -106,35 +115,44 @@ function PlayerRow({
 }: PlayerRowProps) {
   const isSelf = player.name === lobby.playerName;
   const targetAlive = player.isAlive !== false;
-  const canVote = canVoteTarget({
-    time: lobby.time,
-    actorAlive: isCurrentUserAlive,
-    targetAlive,
-    isSelf,
-    canVote: lobby.canVote,
-  }) && dayOnlyActions;
+  const canVote =
+    canVoteTarget({
+      time: lobby.time,
+      actorAlive: isCurrentUserAlive,
+      targetAlive,
+      isSelf,
+      canVote: lobby.canVote,
+    }) && dayOnlyActions;
   const canWhisper = canWhisperTarget({
     time: lobby.time,
     targetAlive,
     isSelf,
     hasMessage: Boolean(lobby.messageDraft.trim()),
   });
-  const canVisit = showVisit && canPerformVisit({
-    time: lobby.time,
-    isSelf,
-    targetAlive,
-    actorAlive: isCurrentUserAlive,
-    actorRole: lobby.currentUserRole,
-    targetRole: player.role,
-    capability: lobby.visitCapability,
-  });
+  const canVisit =
+    showVisit &&
+    canPerformVisit({
+      time: lobby.time,
+      isSelf,
+      targetAlive,
+      actorAlive: isCurrentUserAlive,
+      actorRole: lobby.currentUserRole,
+      targetRole: player.role,
+      capability: lobby.visitCapability,
+    });
 
   return (
     <ListRow
       key={player.name}
       title={`${player.name}${isSelf ? " (You)" : ""}`}
       subtitle={player.role ? `Role: ${player.role}` : "Role hidden"}
-      tone={player.isAlive === false ? "danger" : player.isAlive ? "success" : "muted"}
+      tone={
+        player.isAlive === false
+          ? "danger"
+          : player.isAlive
+            ? "success"
+            : "muted"
+      }
       trailing={
         <PlayerActionButtons
           player={player}
@@ -161,7 +179,11 @@ function ChatTab({ lobby }: ChatTabProps) {
     <Card className="flex-1">
       <SectionHeader
         title="Chat"
-        subtitle={lobby.canTalk ? "Send a public message or whisper from the player list." : "You cannot talk right now."}
+        subtitle={
+          lobby.canTalk
+            ? "Send a public message or whisper from the player list."
+            : "You cannot talk right now."
+        }
       />
       <ScrollView
         className="flex-1"
@@ -174,7 +196,10 @@ function ChatTab({ lobby }: ChatTabProps) {
           </Text>
         ) : (
           lobby.messages.map((message) => (
-            <Text key={message.id} className="text-sm leading-5 text-foreground">
+            <Text
+              key={message.id}
+              className="text-sm leading-5 text-foreground"
+            >
               {message.text}
             </Text>
           ))
@@ -184,7 +209,9 @@ function ChatTab({ lobby }: ChatTabProps) {
         <Input
           value={lobby.messageDraft}
           onChangeText={lobby.setMessageDraft}
-          placeholder={lobby.canTalk ? "Send a message..." : "You cannot talk right now"}
+          placeholder={
+            lobby.canTalk ? "Send a message..." : "You cannot talk right now"
+          }
           multiline
           numberOfLines={3}
         />
@@ -276,7 +303,10 @@ function LobbyContent({
             </Badge>
           </View>
           <Text className="text-sm leading-[18px] text-muted-foreground">
-            You joined as <Text className="font-bold text-foreground">{lobby.playerName}</Text>
+            You joined as{" "}
+            <Text className="font-bold text-foreground">
+              {lobby.playerName}
+            </Text>
             {lobby.currentUserRole ? (
               <>
                 {" "}
@@ -346,19 +376,21 @@ function LobbyConnectingState({
   );
 }
 
-export function LobbyScreen({ navigation }: LobbyScreenProps) {
+export function LobbyScreen({ navigation, route }: LobbyScreenProps) {
   const { setPlayerName, setLastRoomName } = useAppState();
-  const lobby = useGameLobby(ROOM_ID);
+  const lobby = useGameLobby(route.params?.roomId ?? ROOM_ID);
   const [activeTab, setActiveTab] = useState<"chat" | "players">("chat");
 
   useEffect(() => {
     if (lobby.playerName.trim()) {
       setPlayerName(lobby.playerName);
-      setLastRoomName(ROOM_ID);
+      setLastRoomName(route.params?.roomId ?? ROOM_ID);
     }
-  }, [ROOM_ID, lobby.playerName, setLastRoomName, setPlayerName]);
+  }, [lobby.playerName, route.params?.roomId, setLastRoomName, setPlayerName]);
 
-  const currentPlayer = lobby.players.find((entry) => entry.name === lobby.playerName);
+  const currentPlayer = lobby.players.find(
+    (entry) => entry.name === lobby.playerName,
+  );
   const isCurrentUserAlive = currentPlayer?.isAlive !== false;
   const showVisit = shouldShowVisitAction(lobby.time, lobby.visitCapability);
   const dayOnlyActions = shouldShowDayOnlyActions(lobby.time);

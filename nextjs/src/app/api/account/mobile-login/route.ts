@@ -1,2 +1,7 @@
-import { eq } from "drizzle-orm"; import { NextResponse } from "next/server"; import { z } from "zod"; import { users } from "@mernmafia/db/schema"; import { db } from "~/server/db"; import { verifyPassword } from "~/server/auth/password"; import { createMobileToken } from "~/server/auth/mobileToken";
-export async function POST(request: Request) { const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ error: "Invalid credentials" }, { status: 400 }); const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1); if (!user?.passwordHash || !(await verifyPassword(parsed.data.password, user.passwordHash))) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 }); return NextResponse.json({ token: createMobileToken(user), user: { id: user.id, name: user.name, handle: user.handle, isAdmin: user.isAdmin } }); }
+import { NextResponse } from "next/server";
+export function POST() {
+  return NextResponse.json(
+    { error: "Use Google to sign in." },
+    { status: 410 },
+  );
+}

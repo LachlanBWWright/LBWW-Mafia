@@ -1,37 +1,17 @@
+import { fixtureFeaturePreferences } from "@mernmafia/shared/testing/accountFixtures";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { AccountSettings } from "./account-settings";
+import {
+  fixtureProfile,
+  fixtureStats,
+} from "@mernmafia/shared/testing/fixtures";
 
-const profile = {
-  id: "u1",
-  name: "Night Owl",
-  handle: "nightowl",
-  email: "owl@example.com",
-  image: null,
-  bio: "Town investigator.",
-  profileVisibility: "public",
-  historyVisibility: "friends",
-  theme: "dark",
-  reducedMotion: false,
-  soundEnabled: true,
-  notificationsEnabled: true,
-  roles: ["player"],
-};
-const stats = {
-  gamesPlayed: 128,
-  wins: 82,
-  losses: 46,
-  winRate: 0.64,
-  currentStreak: 3,
-  bestWinStreak: 9,
-  roles: [],
-  factions: [],
-};
 const meta = {
   title: "Features/Account Settings",
   component: AccountSettings,
-  parameters: { layout: "fullscreen" },
+  parameters: { layout: "fullscreen", nextjs: { appDirectory: true } },
   decorators: [
     (Story) => (
       <div className="p-8">
@@ -44,7 +24,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Loaded: Story = {
-  args: { initialProfile: profile, initialStats: stats },
+  args: {
+    initialProfile: fixtureProfile,
+    initialStats: fixtureStats,
+    initialPreferences: fixtureFeaturePreferences,
+  },
   play: async ({ canvasElement }) => {
     const input = within(canvasElement).getByLabelText("Display name");
     await userEvent.clear(input);

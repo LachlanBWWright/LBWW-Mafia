@@ -1,4 +1,8 @@
 "use client";
+import type { FeaturePreferences } from "@mernmafia/shared/trpc/accountFeatures";
+import { signOut } from "next-auth/react";
+import { AccountPreferences } from "./account-preferences";
+import { AccountSecurity } from "./account-security";
 import { useEffect, useState } from "react";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
 import superjson from "superjson";
@@ -19,11 +23,13 @@ const makeClient = () =>
 type AccountSettingsProps = {
   initialProfile?: AccountProfile;
   initialStats?: PlayerStats;
+  initialPreferences?: FeaturePreferences;
 };
 
 export function AccountSettings({
   initialProfile,
   initialStats,
+  initialPreferences,
 }: AccountSettingsProps) {
   const [client] = useState(makeClient);
   const [profile, setProfile] = useState<AccountProfile | undefined>(
@@ -160,6 +166,11 @@ export function AccountSettings({
           </CardContent>
         </Card>
       ) : null}
+      <AccountSecurity initialSessions={initialProfile ? [] : undefined} />
+      <AccountPreferences
+        initialPreferences={initialPreferences}
+        onDeleted={() => void signOut({ callbackUrl: "/signin" })}
+      />
     </div>
   );
 }

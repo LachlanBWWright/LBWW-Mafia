@@ -1,19 +1,27 @@
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { type DefaultSession, type NextAuthConfig } from "next-auth";
+import type { DefaultSession, NextAuthConfig } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
 import { db } from "~/server/db";
 import {
   accounts,
-  sessions,
   users,
   verificationTokens,
   userRoles,
 } from "@mernmafia/db/schema";
-import { verifyPassword } from "./password";
+import { getActiveIdentity } from "./identity";
+
+function invalidateWebToken(token: JWT) {
+  token.sub = undefined;
+  token.name = undefined;
+  token.email = undefined;
+  token.picture = undefined;
+  token.isAdmin = false;
+  token.handle = null;
+  return token;
+}
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -46,63 +54,63 @@ export const authConfig = {
     GoogleProvider({
       clientId: process.env.AUTH_GOOGLE_ID ?? "",
       clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
+      checks: ["pkce", "state", "nonce"],
+      allowDangerousEmailAccountLinking: false,
     }),
-    CredentialsProvider({
-      name: "Email and password",
-      credentials: { email: {}, password: {} },
-      async authorize(credentials) {
-        const parsed = z.object({ email: z.string().email(), password: z.string().min(1) })
-          .safeParse(credentials);
-        if (!parsed.success) return null;
-        const [user] = await db.select().from(users)
-          .where(eq(users.email, parsed.data.email.trim().toLowerCase())).limit(1);
-        if (!user?.passwordHash || user.deletedAt || user.accountStatus !== "active") return null;
-        if (!(await verifyPassword(parsed.data.password, user.passwordHash))) return null;
-        return { id: user.id, name: user.name, email: user.email, image: user.image, isAdmin: user.isAdmin, handle: user.handle };
-      },
-    }),
-    /**
-     * ...add more providers here.
-     *
-     * Most other providers require a bit more work than the Discord provider. For example, the
-     * GitHub provider requires you to add the `refresh_token_expires_in` field to the Account
-     * model. Refer to the NextAuth.js docs for the provider you want to use. Example:
-     *
-     * @see https://next-auth.js.org/providers/github
-     */
   ],
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
-    sessionsTable: sessions,
     verificationTokensTable: verificationTokens,
   }),
   session: { strategy: "jwt" },
   callbacks: {
-    jwt: async ({ token, user }) => {
+    signIn: ({ account, profile }) =>
+      account?.provider === "google" && profile?.email_verified === true,
+    jwt: async ({ token, user, account: providerAccount }) => {
+      if (providerAccount) token.provider = providerAccount.provider;
+      if (token.provider !== "google") {
+        return invalidateWebToken(token);
+      }
       const userId = user?.id ?? token.sub;
-      if (!userId) return token;
-      const [record] = await db.select({ isAdmin: users.isAdmin, handle: users.handle })
-        .from(users).where(eq(users.id, userId)).limit(1);
-      token.isAdmin = record?.isAdmin ?? false;
-      token.handle = record?.handle ?? null;
+      if (!userId) return invalidateWebToken(token);
+      const [account] = await db
+        .select({ authVersion: users.authVersion })
+        .from(users)
+        .where(eq(users.id, userId));
+      if (user) token.authVersion = account?.authVersion;
+      if (!account || token.authVersion !== account.authVersion) {
+        return invalidateWebToken(token);
+      }
+      const identity = await getActiveIdentity(userId);
+      token.kind = "web";
+      token.isAdmin = identity?.isAdmin ?? false;
+      token.handle = identity?.handle ?? null;
+      if (!identity) return invalidateWebToken(token);
       return token;
     },
     session: ({ session, token }) => {
       return {
         ...session,
         user: {
-          ...session.user,
+          ...(token.sub
+            ? session.user
+            : { name: null, email: null, image: null }),
           id: token.sub ?? "",
-          isAdmin: Boolean(token.isAdmin),
-          handle: typeof token.handle === "string" ? token.handle : null,
+          isAdmin: Boolean(token.sub && token.isAdmin),
+          handle:
+            token.sub && typeof token.handle === "string" ? token.handle : null,
         },
       };
     },
   },
   events: {
     createUser: async ({ user }) => {
-      if (user.id) await db.insert(userRoles).values({ userId: user.id, role: "player" }).onConflictDoNothing();
+      if (user.id)
+        await db
+          .insert(userRoles)
+          .values({ userId: user.id, role: "player" })
+          .onConflictDoNothing();
     },
   },
 } satisfies NextAuthConfig;

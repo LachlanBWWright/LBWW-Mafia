@@ -1,3 +1,4 @@
+import type { LobbyConfig } from "@mernmafia/shared/game/lobbyConfig";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { User } from "../user/user.js";
 import { Player } from "../player/player.js";
@@ -12,7 +13,8 @@ import {
   type JoinRoomResult,
 } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
-import { io } from "../../servers/emitter.js";
+import { io, setGameEmitter } from "../../servers/emitter.js";
+import type { GameEmitter } from "@mernmafia/shared/communication/serverTypes";
 import type { GameFaction } from "../factions/factionContracts.js";
 import { RoleGroup } from "../roles/roleGroup.js";
 import { CombatLevel } from "../roles/combatLevel.js";
@@ -21,15 +23,13 @@ import { names } from "../player/names/namesList.js";
 import { GameSystems } from "./systems/gameSystems.js";
 import { RoomMessenger } from "./roomMessenger.js";
 import { PhaseScheduler } from "./systems/phaseScheduler.js";
-import {
-  resolveDayVote,
-  type DayVoteOutcome,
-} from "./systems/voteSystem.js";
+import { resolveDayVote, type DayVoteOutcome } from "./systems/voteSystem.js";
 import { determineWinningFaction } from "./systems/victoryResolution.js";
 import {
   persistMatchHistory,
   rotateActiveRoom,
   type MatchHistoryEvent,
+  type BackendContext,
 } from "../../data/matchHistory.js";
 
 const DEFAULT_END_DAY_COUNT = 3;
@@ -56,7 +56,9 @@ export class Room {
   readonly name: string;
   readonly size: number;
   readonly messenger: RoomMessenger;
+  phaseVersion = 0;
   private randomSource: () => number = Math.random;
+  private readonly roomEmitter?: GameEmitter;
   private readonly phaseScheduler = new PhaseScheduler(() => this.gameHasEnded);
 
   /** Users connected in the lobby (before the game starts). */
@@ -74,15 +76,29 @@ export class Room {
   endDay = DEFAULT_END_DAY_COUNT;
   confesserVotedOut = false;
 
+  private dayNumber = 0;
+  private phaseEndsAt = 0;
   startedAt = new Date();
   conversationHistory: MatchHistoryEvent[] = [];
   actionHistory: MatchHistoryEvent[] = [];
 
-  constructor(size: number, name?: string) {
+  constructor(
+    size: number,
+    name?: string,
+    emitter?: GameEmitter,
+    readonly lobbyConfig?: LobbyConfig,
+    private readonly backend?: BackendContext,
+  ) {
     this.name = name ?? createRoomName();
     this.size = size;
+    this.roomEmitter = emitter;
     this.sessionLength = this.size * SESSION_LENGTH_PER_PLAYER_MS;
     this.messenger = new RoomMessenger(this.name);
+  }
+
+  /** Selects this room's transport before game logic emits any events. */
+  private activateEmitter(): void {
+    if (this.roomEmitter) setGameEmitter(this.roomEmitter);
   }
 
   /**
@@ -119,6 +135,8 @@ export class Room {
     target?: string,
     type: MatchHistoryEvent["type"] = "chat",
   ) {
+    if (this.conversationHistory.length >= 1000)
+      this.conversationHistory.shift();
     this.conversationHistory.push({
       time: Date.now(),
       type,
@@ -129,6 +147,7 @@ export class Room {
   }
 
   private recordAction(content: ActionKind, actor?: string, target?: string) {
+    if (this.actionHistory.length >= 1000) this.actionHistory.shift();
     this.actionHistory.push({
       time: Date.now(),
       type: "action",
@@ -169,22 +188,28 @@ export class Room {
    * Adds a connected client to the lobby.
    * Returns an error code on failure or the assigned username on success.
    */
-  addUser(playerSocket: GamePlayerSocket, identity?: { userId: string; handle?: string }): JoinRoomResult {
+  addUser(
+    playerSocket: GamePlayerSocket,
+    identity?: { userId: string; handle?: string },
+  ): JoinRoomResult {
+    this.activateEmitter();
     const socketId = playerSocket.id;
     if (this.userList.some((u) => u.socketId === socketId))
       return { status: "rejected", code: JoinRoomResultCode.GenericError };
     if (this.userList.length >= this.size) {
-      void rotateActiveRoom().catch((error) => {
-        console.error("Failed to rotate active room", error);
-      });
+      if (!this.lobbyConfig)
+        void rotateActiveRoom(this.backend).catch((error) => {
+          console.error("Failed to rotate active room", error);
+        });
       return { status: "rejected", code: JoinRoomResultCode.RoomFull };
     }
 
     const takenNames = this.userList.map((u) => u.username);
     const preferredName = identity?.handle?.trim().slice(0, 24);
-    const username = preferredName && !takenNames.includes(preferredName)
-      ? preferredName
-      : names.find((n) => !takenNames.includes(n));
+    const username =
+      preferredName && !takenNames.includes(preferredName)
+        ? preferredName
+        : names.find((n) => !takenNames.includes(n));
     if (!username) {
       return { status: "rejected", code: JoinRoomResultCode.GenericError };
     }
@@ -206,18 +231,91 @@ export class Room {
       io.to(this.name).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.RoomFullStartingGame,
       });
-      this.emitUserList(this.name);
-      void rotateActiveRoom().catch((error) => {
-        console.error("Failed to rotate active room", error);
-      });
+      if (!this.lobbyConfig)
+        void rotateActiveRoom(this.backend).catch((error) => {
+          console.error("Failed to rotate active room", error);
+        });
       this.startGame();
     }
 
     return { status: "joined", username };
   }
 
+  /** Rebinds a reserved seat, retaining its role, votes, and phase actions. */
+  resumeUser(
+    previousSocketId: string,
+    socket: GamePlayerSocket,
+  ): JoinRoomResult {
+    const index = this.userList.findIndex(
+      (user) => user.socketId === previousSocketId,
+    );
+    if (index < 0 || this.gameHasEnded)
+      return { status: "rejected", code: JoinRoomResultCode.GenericError };
+    const user = this.userList[index];
+    user.socket = socket;
+    user.socketId = socket.id;
+    socket.data.position = index;
+    socket.data.roomObject = this;
+    socket.join(this.name);
+    return { status: "joined", username: user.username };
+  }
+
+  sendSnapshot(socketId: string): void {
+    this.activateEmitter();
+    const user = this.userList.find((entry) => entry.socketId === socketId);
+    if (!user) return;
+    const player = this.playerList.find((entry) => entry.user === user);
+    const role = player?.role;
+    const faction = this.factionList.find((entry) =>
+      entry.memberList.includes(player!),
+    );
+    io.to(socketId).emit(ServerEvent.GameSnapshot, {
+      phaseVersion: this.phaseVersion,
+      playerName: user.username,
+      players: this.userList.map((entry) => {
+        const other = this.playerList.find(
+          (candidate) => candidate.user === entry,
+        );
+        return {
+          name: entry.username,
+          isAlive: this.started ? other?.isAlive : undefined,
+          role:
+            other &&
+            (!other.isAlive ||
+              other === player ||
+              faction?.memberList.includes(other))
+              ? other.role.name
+              : undefined,
+        };
+      }),
+      role: role
+        ? {
+            name: user.username,
+            role: role.name,
+            dayVisitSelf: role.dayVisitSelf,
+            dayVisitOthers: role.dayVisitOthers,
+            dayVisitFaction: role.dayVisitFaction,
+            nightVisitSelf: role.nightVisitSelf,
+            nightVisitOthers: role.nightVisitOthers,
+            nightVisitFaction: role.nightVisitFaction,
+            nightVote: role.nightVote,
+          }
+        : undefined,
+      time: this.time === GamePhase.Night ? DayTime.Night : DayTime.Day,
+      dayNumber: this.dayNumber,
+      timeLeft: Math.max(0, Math.ceil((this.phaseEndsAt - Date.now()) / 1000)),
+      canTalk:
+        !this.gameHasEnded && (!player || (player.isAlive && !role?.silenced)),
+      canVote:
+        !this.gameHasEnded &&
+        !this.confesserVotedOut &&
+        (!player || player.isAlive),
+    });
+  }
+
   /** Handles a connected user leaving (pre-game removal or in-game death by abandonment). */
   removePlayer(socketId: string) {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
 
     if (!this.started) {
@@ -249,6 +347,7 @@ export class Room {
   }
 
   emitUserList(target: string) {
+    this.activateEmitter();
     const list = this.userList.map((u) => {
       const player = this.playerList.find((p) => p.user === u);
       return {
@@ -268,6 +367,7 @@ export class Room {
     message: string,
     phase: DayTime,
   ) {
+    this.activateEmitter();
     if (!this.started) {
       this.handleLobbyMessage(playerSocket, message);
       return;
@@ -313,6 +413,7 @@ export class Room {
     recipient: number,
     phase: DayTime,
   ) {
+    this.activateEmitter();
     if (!this.started || this.isActionInWrongPhase(phase)) return;
 
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
@@ -359,7 +460,11 @@ export class Room {
       return;
     }
 
-    this.recordAction(ActionKind.Vote, foundPlayer.username, foundRecipient.username);
+    this.recordAction(
+      ActionKind.Vote,
+      foundPlayer.username,
+      foundRecipient.username,
+    );
     foundPlayer.hasVoted = true;
     foundRecipient.votesReceived++;
     const voteMsg =
@@ -388,6 +493,7 @@ export class Room {
     message: string,
     phase: DayTime,
   ) {
+    this.activateEmitter();
     if (!this.started || this.isActionInWrongPhase(phase)) return;
 
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
@@ -491,10 +597,12 @@ export class Room {
     recipient: number | null,
     phase: DayTime,
   ) {
+    this.activateEmitter();
     if (!this.started || this.isActionInWrongPhase(phase)) return;
 
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
-    const foundRecipient = recipient !== null ? this.getPlayerAt(recipient) : null;
+    const foundRecipient =
+      recipient !== null ? this.getPlayerAt(recipient) : null;
     if (!foundPlayer) return;
 
     if (this.time === GamePhase.Day) {
@@ -544,14 +652,13 @@ export class Room {
   }
 
   async startGame() {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
 
-    const roleHandler = new RoleHandler(
-      this.userList.length,
-      [],
-      () => this.random(),
+    const roleHandler = new RoleHandler(this.userList.length, [], () =>
+      this.random(),
     );
-    this.roleList.push(...roleHandler.assignGame());
+    this.roleList.push(...roleHandler.assignGame(this.lobbyConfig));
 
     let currentIndex = this.roleList.length;
     while (currentIndex !== 0) {
@@ -593,27 +700,37 @@ export class Room {
       });
     }
 
-    this.factionList.push(...roleHandler.assignFactionsFromPlayerList(this.playerList, this));
+    this.factionList.push(
+      ...roleHandler.assignFactionsFromPlayerList(this.playerList, this),
+    );
     for (const faction of this.factionList)
       faction.findMembers(this.playerList);
     for (const player of this.playerList) player.role.initRole();
     this.systems = new GameSystems(this);
 
     this.startFirstDaySession(this.sessionLength);
+    this.emitUserList(this.name);
+    for (const user of this.userList) this.sendSnapshot(user.socketId);
   }
 
   startFirstDaySession(sessionLength: number) {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
+    this.phaseVersion++;
     this.time = GamePhase.Day;
+    this.dayNumber = 1;
+    this.phaseEndsAt = Date.now() + DAY_START_DELAY_MS;
     io.to(this.name).emit(ServerEvent.ReceiveMessage, {
       key: MessageKey.Day1Started,
     });
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
+      phaseVersion: this.phaseVersion,
       time: DayTime.Day,
       dayNumber: 1,
       timeLeft: DAY_START_TIME_LEFT_SECONDS,
     });
     this.phaseScheduler.schedule(DAY_START_DELAY_MS, () => {
+      this.activateEmitter();
       if (this.gameHasEnded) return;
       for (const player of this.playerList) {
         if (player.isAlive) player.role.dayVisit();
@@ -626,8 +743,13 @@ export class Room {
   }
 
   startDaySession(dayNumber: number, sessionLength: number) {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
+    this.phaseVersion++;
     this.time = GamePhase.Day;
+    this.dayNumber = dayNumber;
+    this.phaseEndsAt =
+      Date.now() + sessionLength + DAY_END_EXTRA_SECONDS * 1000;
 
     if (this.shouldEndGameForNoDeath(dayNumber)) {
       this.endGameNobodyDied();
@@ -641,6 +763,7 @@ export class Room {
     }
 
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
+      phaseVersion: this.phaseVersion,
       time: DayTime.Day,
       dayNumber,
       timeLeft: Math.floor(sessionLength / 1000 + DAY_END_EXTRA_SECONDS),
@@ -661,7 +784,13 @@ export class Room {
 
     this.phaseScheduler.schedule(
       sessionLength + DAY_END_EXTRA_SECONDS * 1000,
-      () => this.processDayEnd(dayNumber, sessionLength, livingPlayerList, votesRequired),
+      () =>
+        this.processDayEnd(
+          dayNumber,
+          sessionLength,
+          livingPlayerList,
+          votesRequired,
+        ),
     );
   }
 
@@ -696,6 +825,7 @@ export class Room {
     livingPlayerList: Player[],
     votesRequired: number,
   ): void {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
 
     this.applyDayVoteOutcome(
@@ -730,7 +860,10 @@ export class Room {
     return resolveDayVote(livingPlayerList, votesRequired);
   }
 
-  private applyDayVoteOutcome(dayNumber: number, outcome: DayVoteOutcome | void): void {
+  private applyDayVoteOutcome(
+    dayNumber: number,
+    outcome: DayVoteOutcome | void,
+  ): void {
     if (!outcome || outcome.kind !== "eliminated") {
       return;
     }
@@ -742,11 +875,9 @@ export class Room {
   private handlePlayerVotedOut(player: Player): void {
     this.systems?.victory.handlePlayerVotedOut(player);
 
-    this.messenger.emitToPlayer(
-      player,
-      ServerEvent.ReceiveMessage,
-      { key: MessageKey.YouHaveBeenVotedOut },
-    );
+    this.messenger.emitToPlayer(player, ServerEvent.ReceiveMessage, {
+      key: MessageKey.YouHaveBeenVotedOut,
+    });
     this.messenger.emitToPlayer(player, ServerEvent.BlockMessages);
     player.isAlive = false;
     this.messenger.emitToRoom(ServerEvent.UpdatePlayerRole, {
@@ -770,15 +901,21 @@ export class Room {
   }
 
   startNightSession(nightNumber: number, sessionLength: number) {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
+    this.phaseVersion++;
     this.time = GamePhase.Night;
+    this.dayNumber = nightNumber;
+    this.phaseEndsAt = Date.now() + NIGHT_START_DELAY_MS;
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
+      phaseVersion: this.phaseVersion,
       time: DayTime.Night,
       dayNumber: nightNumber,
       timeLeft: NIGHT_TIME_LEFT_SECONDS,
     });
 
     this.phaseScheduler.schedule(NIGHT_START_DELAY_MS, () => {
+      this.activateEmitter();
       if (this.gameHasEnded) return;
       this.processNightActions(nightNumber);
       this.checkForWinningFaction(nightNumber, sessionLength);
@@ -787,6 +924,7 @@ export class Room {
 
   private processNightActions(nightNumber: number): void {
     if (this.gameHasEnded) return;
+    this.phaseVersion++;
     this.time = GamePhase.Processing;
     this.systems?.factions.resolveNight();
     this.systems?.visits.resolveNight();
@@ -814,12 +952,15 @@ export class Room {
   }
 
   endGame(result: GameEndResult) {
+    this.activateEmitter();
     if (this.gameHasEnded) return;
 
     this.gameHasEnded = true;
     this.phaseScheduler.cancelAll();
     const winningFactionName =
-      result.outcome === GameOutcome.Faction ? result.factionName : GameOutcome.Draw;
+      result.outcome === GameOutcome.Faction
+        ? result.factionName
+        : GameOutcome.Draw;
 
     const winningRoles = this.playerList
       .filter((player) => {
@@ -830,26 +971,30 @@ export class Room {
       })
       .map((player) => player.role.name);
 
-    void persistMatchHistory({
-      roomName: this.name,
-      startedAt: this.startedAt,
-      endedAt: new Date(),
-      winningFaction: winningFactionName,
-      winningRoles,
-      participants: this.playerList.map((player) => ({
-        userId: player.user.userId,
-        username: player.username,
-        role: player.role.name,
-        won:
-          result.outcome === GameOutcome.Draw
-            ? false
-            : winningFactionName === RoleGroup.Neutral
-              ? player.role.group === RoleGroup.Neutral
-              : player.role.group === winningFactionName,
-      })),
-      conversationHistory: this.conversationHistory,
-      actionHistory: this.actionHistory,
-    }).catch((error) => {
+    void persistMatchHistory(
+      {
+        gameId: `${this.name}:${this.startedAt.toISOString()}`,
+        roomName: this.name,
+        startedAt: this.startedAt,
+        endedAt: new Date(),
+        winningFaction: winningFactionName,
+        winningRoles,
+        participants: this.playerList.map((player) => ({
+          userId: player.user.userId,
+          username: player.username,
+          role: player.role.name,
+          won:
+            result.outcome === GameOutcome.Draw
+              ? false
+              : winningFactionName === RoleGroup.Neutral
+                ? player.role.group === RoleGroup.Neutral
+                : player.role.group === winningFactionName,
+        })),
+        conversationHistory: this.conversationHistory,
+        actionHistory: this.actionHistory,
+      },
+      this.backend,
+    ).catch((error) => {
       console.error("Failed to persist match history", error);
     });
 

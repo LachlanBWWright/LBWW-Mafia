@@ -1,3 +1,4 @@
+import { selectLobbyRoles, type LobbyConfig } from "@mernmafia/shared/game/lobbyConfig";
 import type { Player } from "../../player/player.js";
 import type { Room } from "../room.js";
 import type { RoleDefinition } from "../../roles/composition/roleDefinition.js";
@@ -39,7 +40,14 @@ export class RoleHandler {
     this.randomSource = randomSource;
   }
 
-  assignGame(): RoleSelectionEntry[] {
+  assignGame(config?: LobbyConfig): RoleSelectionEntry[] {
+    if (config) {
+      return selectLobbyRoles(config, this.randomSource).map((id) => {
+        const definition = builtInRoleDefinitions.find((entry) => entry.id === id);
+        if (!definition) throw new Error(`Unknown role: ${id}`);
+        return definition;
+      });
+    }
     const roleList: RoleSelectionEntry[] = [];
     let comparativePower = 0;
 

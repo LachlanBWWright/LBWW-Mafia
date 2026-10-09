@@ -35,7 +35,9 @@ function RoleSection({
                   {role.category}
                 </Text>
               </View>
-              <Text className="text-sm leading-[19px] text-muted-foreground">{role.summary}</Text>
+              <Text className="text-sm leading-[19px] text-muted-foreground">
+                {role.summary}
+              </Text>
             </View>
           </Card>
         ))}

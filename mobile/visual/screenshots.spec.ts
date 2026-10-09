@@ -33,22 +33,9 @@ const screens: ScreenCase[] = [
     readyText: "No username available for history lookup.",
   },
   {
-    name: "profile-signed-out",
-    navigate: (page) => clickLink(page, "Profile"),
-    readyText: "Sign in to view your profile and match history.",
-  },
-  {
     name: "sign-in",
-    navigate: async (page) => {
-      await clickLink(page, "Profile");
-      await page.getByText("Sign in", { exact: true }).last().click();
-    },
-    readyText: "Account sign in",
-  },
-  {
-    name: "admin-unauthorized",
-    navigate: (page) => clickLink(page, "Admin"),
-    readyText: "You are not authorized.",
+    navigate: (page) => clickLink(page, "Sign in"),
+    readyText: "Continue with Google",
   },
 ];
 
@@ -67,6 +54,13 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
     animations: "disabled",
     caret: "hide",
   });
+  await expect(page).toHaveScreenshot(
+    [testInfo.project.name, `${name}.png`],
+    {
+      animations: "disabled",
+      caret: "hide",
+    },
+  );
 }
 
 async function scrollApp(page: Page, amount: number) {

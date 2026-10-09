@@ -1,12 +1,25 @@
 import React from "react";
-import { Text, View } from "react-native";
+import { Text } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { StackParamList } from "../App";
+import { Button, Screen } from "../components/ui";
 
-export function PublicGameLobbyScreen() {
+export function PublicGameLobbyScreen({
+  navigation,
+}: NativeStackScreenProps<StackParamList, "Lobby">) {
   return (
-    <View className="flex-1 items-center justify-center bg-background p-lg">
-      <Text className="text-center text-sm text-muted-foreground">
-        Public lobby is now the main Lobby screen.
+    <Screen
+      navigation={navigation}
+      activeRoute="Lobby"
+      title="Public lobby"
+      subtitle="Join the live public room with chat, votes, visits, and whispers."
+    >
+      <Text className="text-sm text-muted-foreground">
+        The public game is available from the shared Lobby destination.
       </Text>
-    </View>
+      <Button onPress={() => navigation.navigate("Lobby")}>
+        Join public lobby
+      </Button>
+    </Screen>
   );
 }

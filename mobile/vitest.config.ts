@@ -8,6 +8,8 @@ export default defineConfig({
       "communication/**/*.test.ts",
       "game/**/*.test.ts",
       "trpc/**/*.test.ts",
+      "*.parity.test.ts",
+      "../mobile/lib/**/*.test.ts",
     ],
     exclude: ["**/node_modules/**"],
   },

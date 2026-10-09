@@ -13,7 +13,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
       <View className="flex-1 gap-6 py-6">
         <View className="gap-4">
           <Text className="text-[52px] font-black leading-[54px] tracking-[-2px] text-foreground">
-            LBWW <Text className="text-primary">Mafia</Text>
+            <Text className="text-primary">Mafia</Text>
           </Text>
           <Text className="text-base leading-6 text-muted-foreground">
             Enter a live game instantly, coordinate through chat, and make your
@@ -21,14 +21,47 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
           </Text>
         </View>
 
-        <Button size="lg" className="self-start" onPress={() => navigation.navigate("Lobby")}>Join Game</Button>
+        <View className="flex-row flex-wrap gap-2">
+          <Button
+            size="lg"
+            className="self-start"
+            onPress={() => navigation.navigate("Lobby")}
+          >
+            Join Game
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="self-start"
+            onPress={() => navigation.navigate("CreateLobby")}
+          >
+            Create Lobby
+          </Button>
+        </View>
 
         <Card>
-          <Text className="text-lg font-extrabold text-foreground">Quick Start</Text>
+          <Text className="text-lg font-extrabold text-foreground">
+            Quick Start
+          </Text>
           <View className="gap-4">
-            <View className="flex-row items-center gap-3"><Users color="#5B8CFF" size={20} /><Text className="flex-1 text-sm text-muted-foreground">Join a public room.</Text></View>
-            <View className="flex-row items-center gap-3"><Moon color="#5B8CFF" size={20} /><Text className="flex-1 text-sm text-muted-foreground">Watch day and night countdowns.</Text></View>
-            <View className="flex-row items-center gap-3"><MessageCircle color="#5B8CFF" size={20} /><Text className="flex-1 text-sm text-muted-foreground">Chat, vote, visit, and whisper.</Text></View>
+            <View className="flex-row items-center gap-3">
+              <Users color="#5B8CFF" size={20} />
+              <Text className="flex-1 text-sm text-muted-foreground">
+                Join a public room.
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-3">
+              <Moon color="#5B8CFF" size={20} />
+              <Text className="flex-1 text-sm text-muted-foreground">
+                Watch day and night countdowns.
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-3">
+              <MessageCircle color="#5B8CFF" size={20} />
+              <Text className="flex-1 text-sm text-muted-foreground">
+                Chat, vote, visit, and whisper.
+              </Text>
+            </View>
           </View>
         </Card>
       </View>

@@ -9,6 +9,7 @@ export default defineConfig({
       provider: "v8",
       include: [
         "model/**/*.ts",
+        "servers/partykit/**/*.ts",
         "../shared/game/**/*.ts",
       ],
       exclude: [

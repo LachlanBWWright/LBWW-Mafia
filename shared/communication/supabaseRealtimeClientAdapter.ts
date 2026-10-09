@@ -8,6 +8,7 @@ import type {
 import { PartyKitMessageType, ServerEvent } from "./events";
 import {
   gameMessagePayloadSchema,
+  gameSnapshotSchema,
   joinRoomCallbackArgsSchema,
   partykitServerEnvelopeSchema,
   playerListPayloadSchema,
@@ -78,11 +79,14 @@ export function createSupabaseRealtimeClient(
 
 export class SupabaseRealtimeClientAdapter implements GameSocket {
   private readonly listeners = {
+    "game-snapshot": new Set<ServerToClientEvents["game-snapshot"]>(),
     receiveMessage: new Set<ServerToClientEvents["receiveMessage"]>(),
     blockMessages: new Set<ServerToClientEvents["blockMessages"]>(),
     "receive-new-player": new Set<ServerToClientEvents["receive-new-player"]>(),
     "remove-player": new Set<ServerToClientEvents["remove-player"]>(),
-    "receive-player-list": new Set<ServerToClientEvents["receive-player-list"]>(),
+    "receive-player-list": new Set<
+      ServerToClientEvents["receive-player-list"]
+    >(),
     "receive-chat-message": new Set<
       ServerToClientEvents["receive-chat-message"]
     >(),
@@ -97,7 +101,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
       ServerToClientEvents["update-faction-role"]
     >(),
     "receive-role": new Set<ServerToClientEvents["receive-role"]>(),
-    "update-player-visit": new Set<ServerToClientEvents["update-player-visit"]>(),
+    "update-player-visit": new Set<
+      ServerToClientEvents["update-player-visit"]
+    >(),
   };
   private readonly pendingCallbacks = new Map<string, AckCallback>();
   private readonly socketId: string;
@@ -130,6 +136,10 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
   ): void;
   on(event: keyof ServerToClientEvents, handler: unknown): void {
     switch (event) {
+      case ServerEvent.GameSnapshot:
+        if (isTypedHandler<ServerToClientEvents["game-snapshot"]>(handler))
+          this.listeners["game-snapshot"].add(handler);
+        break;
       case ServerEvent.ReceiveMessage:
         if (isTypedHandler<ServerToClientEvents["receiveMessage"]>(handler)) {
           this.listeners.receiveMessage.add(handler);
@@ -141,7 +151,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.ReceiveNewPlayer:
-        if (isTypedHandler<ServerToClientEvents["receive-new-player"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["receive-new-player"]>(handler)
+        ) {
           this.listeners["receive-new-player"].add(handler);
         }
         break;
@@ -151,18 +163,24 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.ReceivePlayerList:
-        if (isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)
+        ) {
           this.listeners["receive-player-list"].add(handler);
         }
         break;
       case ServerEvent.ReceiveChatMessage:
-        if (isTypedHandler<ServerToClientEvents["receive-chat-message"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["receive-chat-message"]>(handler)
+        ) {
           this.listeners["receive-chat-message"].add(handler);
         }
         break;
       case ServerEvent.ReceiveWhisperMessage:
         if (
-          isTypedHandler<ServerToClientEvents["receive-whisper-message"]>(handler)
+          isTypedHandler<ServerToClientEvents["receive-whisper-message"]>(
+            handler,
+          )
         ) {
           this.listeners["receive-whisper-message"].add(handler);
         }
@@ -178,12 +196,16 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.UpdatePlayerRole:
-        if (isTypedHandler<ServerToClientEvents["update-player-role"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["update-player-role"]>(handler)
+        ) {
           this.listeners["update-player-role"].add(handler);
         }
         break;
       case ServerEvent.AssignPlayerRole:
-        if (isTypedHandler<ServerToClientEvents["assign-player-role"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["assign-player-role"]>(handler)
+        ) {
           this.listeners["assign-player-role"].add(handler);
         }
         break;
@@ -200,7 +222,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.UpdatePlayerVisit:
-        if (isTypedHandler<ServerToClientEvents["update-player-visit"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["update-player-visit"]>(handler)
+        ) {
           this.listeners["update-player-visit"].add(handler);
         }
         break;
@@ -214,6 +238,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
   off(event: keyof ServerToClientEvents, handler?: unknown): void {
     if (!handler) {
       switch (event) {
+        case ServerEvent.GameSnapshot:
+          this.listeners["game-snapshot"].clear();
+          break;
         case ServerEvent.ReceiveMessage:
           this.listeners.receiveMessage.clear();
           break;
@@ -261,6 +288,10 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
     }
 
     switch (event) {
+      case ServerEvent.GameSnapshot:
+        if (isTypedHandler<ServerToClientEvents["game-snapshot"]>(handler))
+          this.listeners["game-snapshot"].delete(handler);
+        break;
       case ServerEvent.ReceiveMessage:
         if (isTypedHandler<ServerToClientEvents["receiveMessage"]>(handler)) {
           this.listeners.receiveMessage.delete(handler);
@@ -272,7 +303,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.ReceiveNewPlayer:
-        if (isTypedHandler<ServerToClientEvents["receive-new-player"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["receive-new-player"]>(handler)
+        ) {
           this.listeners["receive-new-player"].delete(handler);
         }
         break;
@@ -282,18 +315,24 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.ReceivePlayerList:
-        if (isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)
+        ) {
           this.listeners["receive-player-list"].delete(handler);
         }
         break;
       case ServerEvent.ReceiveChatMessage:
-        if (isTypedHandler<ServerToClientEvents["receive-chat-message"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["receive-chat-message"]>(handler)
+        ) {
           this.listeners["receive-chat-message"].delete(handler);
         }
         break;
       case ServerEvent.ReceiveWhisperMessage:
         if (
-          isTypedHandler<ServerToClientEvents["receive-whisper-message"]>(handler)
+          isTypedHandler<ServerToClientEvents["receive-whisper-message"]>(
+            handler,
+          )
         ) {
           this.listeners["receive-whisper-message"].delete(handler);
         }
@@ -309,12 +348,16 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.UpdatePlayerRole:
-        if (isTypedHandler<ServerToClientEvents["update-player-role"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["update-player-role"]>(handler)
+        ) {
           this.listeners["update-player-role"].delete(handler);
         }
         break;
       case ServerEvent.AssignPlayerRole:
-        if (isTypedHandler<ServerToClientEvents["assign-player-role"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["assign-player-role"]>(handler)
+        ) {
           this.listeners["assign-player-role"].delete(handler);
         }
         break;
@@ -331,7 +374,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       case ServerEvent.UpdatePlayerVisit:
-        if (isTypedHandler<ServerToClientEvents["update-player-visit"]>(handler)) {
+        if (
+          isTypedHandler<ServerToClientEvents["update-player-visit"]>(handler)
+        ) {
           this.listeners["update-player-visit"].delete(handler);
         }
         break;
@@ -464,7 +509,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
     }
 
     if (parsed.data.type === PartyKitMessageType.Callback) {
-      const callbackArgs = joinRoomCallbackArgsSchema.safeParse(parsed.data.args);
+      const callbackArgs = joinRoomCallbackArgsSchema.safeParse(
+        parsed.data.args,
+      );
       const callback = this.pendingCallbacks.get(parsed.data.callbackId);
       this.pendingCallbacks.delete(parsed.data.callbackId);
       if (callback && callbackArgs.success) {
@@ -473,11 +520,19 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
       return;
     }
 
-    this.dispatchEvent(parsed.data.event, parsed.data.args);
+    if (parsed.data.type === PartyKitMessageType.Event)
+      this.dispatchEvent(parsed.data.event, parsed.data.args);
   }
 
   private dispatchEvent(event: string, args: unknown[]): void {
     switch (event) {
+      case ServerEvent.GameSnapshot: {
+        const parsed = gameSnapshotSchema.safeParse(args[0]);
+        if (parsed.success)
+          for (const handler of this.listeners["game-snapshot"])
+            handler(parsed.data);
+        break;
+      }
       case ServerEvent.ReceiveMessage: {
         const parsed = gameMessagePayloadSchema.safeParse(args[0]);
         if (parsed.success) {
