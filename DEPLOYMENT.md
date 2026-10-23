@@ -125,6 +125,8 @@ Add these dedicated deployment secrets directly in [GitHub's Production environm
 - `CLOUDFLARE_API_TOKEN`: create an account-restricted token in [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens) with **Workers Scripts: Edit** and **Account Settings: Read** for the account above. The current Worker uses no KV, zone routes, or custom domains. If these are added later, grant their corresponding permissions explicitly.
 - `VERCEL_TOKEN`: create a token in [Vercel Tokens](https://vercel.com/account/tokens), scoped to `lachlanbwwrights-projects` (and the `lbww-mafia` project if supported). Set an expiry that matches the team's rotation schedule.
 
+The workflow targets Vercel with `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`. Keep the `--scope` flag off its pull, build, and deploy commands: explicit scope resolution performs a user lookup that returns HTTP 404 for the project's token, even though project access is authorized.
+
 Local CLI OAuth sessions are not CI credentials. Vercel rejects token creation through the current CLI app login, and Cloudflare's Wrangler OAuth scope cannot create API tokens. Never commit deployment tokens or production env files. `.vercel/` is ignored; the deployment job removes downloaded credentials even after a failed release.
 
 After the workflow and release source are merged into `master` and the secrets are configured, pushes deploy automatically. To rerun all checks and release the current `master` manually:
