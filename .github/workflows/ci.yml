@@ -105,7 +105,16 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir nextjs exec playwright install --with-deps chromium firefox webkit
-      - run: pnpm --dir nextjs run storybook:screenshots
+      - name: Build and test web Storybook with isolated configuration
+        env:
+          AUTH_SECRET: ci-storybook-secret
+          AUTH_GOOGLE_ID: ci-storybook-google-id
+          AUTH_GOOGLE_SECRET: ci-storybook-google-secret
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mernmafia
+          BACKEND_SECRET: ci-storybook-backend-secret
+          NEXT_PUBLIC_SOCKET_BACKEND: partyserver
+          NEXT_PUBLIC_SOCKET_URL: http://127.0.0.1:1999
+        run: pnpm --dir nextjs run storybook:screenshots
       - run: node scripts/check-storybook-screenshot-coverage.mjs nextjs/storybook-static/index.json nextjs/.storybook/screenshots.spec.ts-snapshots small-phone phone tablet desktop small-phone-light phone-light tablet-light desktop-light phone-rtl desktop-rtl
       - run: pnpm run test:e2e
       - run: pnpm run test:e2e:cross-browser
