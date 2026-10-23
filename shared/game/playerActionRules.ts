@@ -8,6 +8,7 @@ export enum DayTime {
 }
 
 export type VisitCapability = {
+  nightVote?: boolean;
   dayVisitSelf: boolean;
   dayVisitOthers: boolean;
   dayVisitFaction: boolean;
@@ -137,8 +138,9 @@ export const canVoteTarget = (input: {
   targetAlive: boolean;
   isSelf: boolean;
   canVote: boolean;
+  nightVote?: boolean;
 }) => {
-  if (!shouldShowDayOnlyActions(input.time)) {
+  if (!shouldShowDayOnlyActions(input.time) && !input.nightVote) {
     return false;
   }
   return (

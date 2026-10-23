@@ -17,7 +17,7 @@ module.exports = {
         card: "#0F1528",
         popover: "#0F1528",
         primary: "#5B8CFF",
-        "primary-foreground": "#F2F6FF",
+        "primary-foreground": "#06102B",
         secondary: "#19213A",
         "secondary-foreground": "#DCE5FF",
         muted: "#19213A",

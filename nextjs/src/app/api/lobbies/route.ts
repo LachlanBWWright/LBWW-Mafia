@@ -10,7 +10,7 @@ import { getActiveIdentity } from "~/server/auth/identity";
 
 export const dynamic = "force-dynamic";
 
-/** Creates a PartyKit room with a declarative role-selection configuration. */
+/** Creates a PartyServer room with a declarative role-selection configuration. */
 export async function POST(request: Request) {
   const limited = await guardRequest(request, "lobby-create", 20);
   if (limited) return limited;
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
         .values({ roomId, ownerId, config: JSON.stringify(parsed.data) });
     });
   } catch (error) {
-    console.error("Unable to register PartyKit lobby", { roomId, error });
+    console.error("Unable to register PartyServer lobby", { roomId, error });
     return NextResponse.json(
       { error: "Unable to create lobby." },
       { status: 500 },

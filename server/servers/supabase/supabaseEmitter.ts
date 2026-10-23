@@ -3,7 +3,7 @@ import type {
   EmitTarget,
   GameEmitter,
 } from "@mernmafia/shared/communication/serverTypes";
-import { PartyKitMessageType } from "@mernmafia/shared/communication/events";
+import { PartyServerMessageType } from "@mernmafia/shared/communication/events";
 import {
   createSupabaseRoomChannelName,
   createSupabaseSocketChannelName,
@@ -37,7 +37,7 @@ export class SupabaseEmitter implements GameEmitter {
       createSupabaseSocketChannelName(socketId),
       SUPABASE_DELIVERY_EVENT,
       {
-        type: PartyKitMessageType.Callback,
+        type: PartyServerMessageType.Callback,
         callbackId,
         args,
       },
@@ -48,7 +48,7 @@ export class SupabaseEmitter implements GameEmitter {
     return {
       emit: (event: string, ...args: unknown[]) => {
         this.publish(this.resolveTargetChannel(target), SUPABASE_DELIVERY_EVENT, {
-          type: PartyKitMessageType.Event,
+          type: PartyServerMessageType.Event,
           event,
           args,
         });

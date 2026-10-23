@@ -1,4 +1,16 @@
 import {
+  type PartyServices,
+  partyInviteInputSchema,
+  partyRespondInputSchema,
+  partyUserInputSchema,
+  partyMoveInputSchema,
+} from "./parties";
+import {
+  type MatchAnalysisServices,
+  replayInputSchema,
+  balanceInputSchema,
+} from "./matchAnalysis";
+import {
   featurePreferencesSchema,
   savePresetSchema,
   createReportSchema,
@@ -130,6 +142,8 @@ export type PersistMatchInput = {
 };
 
 export type RouterServices = {
+  parties?: PartyServices;
+  analysis?: MatchAnalysisServices;
   features?: AccountFeatureServices;
   getRecentMatches: (input: {
     username: string;
@@ -206,6 +220,14 @@ export type AppRouterContext = {
   limitRequest?: (path: string, mutation: boolean) => Promise<boolean>;
 };
 
+function partyServices(services: RouterServices) {
+  if (!services.parties) throw new TRPCError({ code: "NOT_IMPLEMENTED" });
+  return services.parties;
+}
+function analysisServices(services: RouterServices) {
+  if (!services.analysis) throw new TRPCError({ code: "NOT_IMPLEMENTED" });
+  return services.analysis;
+}
 function featureServices(services: RouterServices) {
   if (!services.features) throw new TRPCError({ code: "NOT_IMPLEMENTED" });
   return services.features;
@@ -283,7 +305,60 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
  */
 export function createAppRouter(services: RouterServices) {
   return t.router({
+    party: t.router({
+      current: protectedProcedure.query(({ ctx }) =>
+        partyServices(services).current(ctx.sessionUser.id),
+      ),
+      invitations: protectedProcedure.query(({ ctx }) =>
+        partyServices(services).invitations(ctx.sessionUser.id),
+      ),
+      create: protectedProcedure.mutation(({ ctx }) =>
+        partyServices(services).create(ctx.sessionUser.id),
+      ),
+      invite: protectedProcedure
+        .input(partyInviteInputSchema)
+        .mutation(({ ctx, input }) =>
+          partyServices(services).invite(ctx.sessionUser.id, input),
+        ),
+      respond: protectedProcedure
+        .input(partyRespondInputSchema)
+        .mutation(({ ctx, input }) =>
+          partyServices(services).respond(ctx.sessionUser.id, input),
+        ),
+      leave: protectedProcedure.mutation(({ ctx }) =>
+        partyServices(services).leave(ctx.sessionUser.id),
+      ),
+      kick: protectedProcedure
+        .input(partyUserInputSchema)
+        .mutation(({ ctx, input }) =>
+          partyServices(services).kick(ctx.sessionUser.id, input),
+        ),
+      transfer: protectedProcedure
+        .input(partyUserInputSchema)
+        .mutation(({ ctx, input }) =>
+          partyServices(services).transfer(ctx.sessionUser.id, input),
+        ),
+      move: protectedProcedure
+        .input(partyMoveInputSchema)
+        .mutation(({ ctx, input }) =>
+          partyServices(services).move(ctx.sessionUser.id, input),
+        ),
+    }),
     match: t.router({
+      replay: protectedProcedure
+        .input(replayInputSchema)
+        .query(({ ctx, input }) =>
+          analysisServices(services).getReplay({
+            ...input,
+            viewerId: ctx.sessionUser.id,
+            isAdmin:
+              ctx.sessionUser.isAdmin ||
+              Boolean(ctx.sessionUser.roles?.includes("administrator")),
+          }),
+        ),
+      balance: protectedProcedure
+        .input(balanceInputSchema)
+        .query(({ input }) => analysisServices(services).getBalance(input)),
       persist: backendProcedure
         .input(
           z.object({
@@ -458,7 +533,8 @@ export function createAppRouter(services: RouterServices) {
       reports: protectedProcedure.query(({ ctx }) =>
         featureServices(services).reports(
           ctx.sessionUser.id,
-          ctx.sessionUser.isAdmin || Boolean(ctx.sessionUser.roles?.includes("administrator")),
+          ctx.sessionUser.isAdmin ||
+            Boolean(ctx.sessionUser.roles?.includes("administrator")),
         ),
       ),
       reviewReport: adminProcedure

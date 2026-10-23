@@ -1,6 +1,7 @@
 import React from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -12,8 +13,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { colors } from "../styles/colors";
+import { buttonWebAccessibility } from "./buttonAccessibility";
 import { useAppState } from "../context/AppStateContext";
-import { navigationItems } from "../../shared/navigation";
+import { getVisibleNavigationItems } from "../../shared/navigation";
 
 type NavigationLike = {
   navigate: (screen: string, params?: Record<string, unknown>) => void;
@@ -43,6 +45,8 @@ type CardProps = {
 };
 
 type ButtonProps = {
+  accessibilityLabel?: string;
+  accessibilityState?: React.ComponentProps<typeof Pressable>["accessibilityState"];
   children: React.ReactNode;
   onPress: () => void;
   disabled?: boolean;
@@ -117,10 +121,10 @@ function getButtonVariantClass(variant: ButtonVariant): string {
 
 function getButtonSizeClass(size: ButtonSize): string {
   switch (size) {
-    case "sm": return "min-h-8 px-md py-xs";
+    case "sm": return "min-h-11 px-md py-xs";
     case "lg": return "min-h-12 px-xl py-md";
-    case "icon": return "min-h-8 w-8 px-0 py-0";
-    default: return "min-h-10 px-lg py-sm";
+    case "icon": return "min-h-11 w-11 px-0 py-0";
+    default: return "min-h-11 px-lg py-sm";
   }
 }
 
@@ -277,11 +281,11 @@ function AppHeader({
   navigation: NavigationLike;
   activeRoute: string;
 }) {
-  const { playerName, isAdmin } = useAppState();
+  const { isAdmin, authToken } = useAppState();
   const showAdmin = isAdmin || process.env.EXPO_PUBLIC_VISUAL_TESTS === "true";
-  const visibleNavItems = navigationItems.filter((item) =>
-    (!("requiresAuth" in item) || Boolean(playerName.trim())) &&
-    (!("adminOnly" in item) || showAdmin),
+  const visibleNavItems = getVisibleNavigationItems(
+    Boolean(authToken),
+    showAdmin,
   );
 
   return (
@@ -305,9 +309,9 @@ function AppHeader({
           variant="ghost"
           size="sm"
           className="h-9 min-h-0 shrink-0 px-3"
-          onPress={() => navigation.navigate(playerName.trim() ? "Profile" : "SignIn")}
+          onPress={() => navigation.navigate(authToken ? "Profile" : "SignIn")}
         >
-          {playerName.trim() ? "Profile" : "Sign in"}
+          {authToken ? "Profile" : "Sign in"}
         </Button>
       </ScrollView>
     </View>
@@ -319,6 +323,8 @@ export function Card({ children, className }: CardProps) {
 }
 
 export function Button({
+  accessibilityLabel,
+  accessibilityState,
   children,
   onPress,
   disabled = false,
@@ -328,8 +334,16 @@ export function Button({
   textClassName,
 }: ButtonProps) {
   return (
-    <Pressable accessibilityRole="button" accessibilityState={{ disabled }} onPress={onPress} disabled={disabled} className={buttonClassName(variant, size, disabled, className)}>
-      <Text className={buttonTextClassName(variant, textClassName)}>{children}</Text>
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      accessibilityState={{ ...accessibilityState, disabled }}
+      {...(Platform.OS === "web" ? buttonWebAccessibility(accessibilityState, disabled) : {})}
+      onPress={onPress}
+      disabled={disabled}
+      className={buttonClassName(variant, size, disabled, className)}
+    >
+      {React.isValidElement(children) ? children : <Text className={buttonTextClassName(variant, textClassName)}>{children}</Text>}
     </Pressable>
   );
 }

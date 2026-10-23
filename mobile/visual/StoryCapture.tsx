@@ -1,8 +1,89 @@
+import landingMeta from "../stories/landing.stories";
+import aiMeta, * as aiStories from "../stories/ai-characters.stories";
 import React from "react";
-import { ScrollView } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import spectatorMeta, * as spectatorStories from "../stories/spectators.stories";
+import partyMeta, * as partyStories from "../stories/party.stories";
+import { ScrollView, View } from "react-native";
 import * as uiStories from "../stories/ui.stories";
+import privateNotesMeta, * as privateNotesStories from "../stories/private-notes.stories";
+import matchAnalysisMeta, * as matchAnalysisStories from "../stories/match-analysis.stories";
 
 const stories = {
+  "screens-home--landing": { render: landingMeta.component, args: landingMeta.args },
+  "features-ai-characters--plan-disabled": {
+    render: aiMeta.component,
+    args: { ...aiMeta.args, ...aiStories.PlanDisabled.args },
+  },
+  "features-ai-characters--setup": {
+    render: aiMeta.component,
+    args: aiMeta.args,
+  },
+  "features-ai-characters--waiting-room-control": aiStories.WaitingRoomControl,
+  "features-ai-characters--open": aiStories.Open,
+  "features-ai-characters--connected": {
+    render: aiMeta.component,
+    args: { ...aiMeta.args, ...aiStories.Connected.args },
+  },
+  "features-ai-characters--usage-limit": {
+    render: aiMeta.component,
+    args: { ...aiMeta.args, ...aiStories.UsageLimit.args },
+  },
+  "features-spectators--watching": {
+    render: spectatorMeta.component,
+    args: { ...spectatorMeta.args, ...spectatorStories.Watching.args },
+  },
+  "features-spectators--eliminated": {
+    render: spectatorMeta.component,
+    args: { ...spectatorMeta.args, ...spectatorStories.Eliminated.args },
+  },
+  "features-party--leader": {
+    render: partyMeta.component,
+    args: { ...partyMeta.args, ...partyStories.Leader.args },
+  },
+  "features-party--member": {
+    render: partyMeta.component,
+    args: { ...partyMeta.args, ...partyStories.Member.args },
+  },
+  "features-party--invitation": {
+    render: partyMeta.component,
+    args: { ...partyMeta.args, ...partyStories.Invitation.args },
+  },
+  "features-party--empty": {
+    render: partyMeta.component,
+    args: { ...partyMeta.args, ...partyStories.Empty.args },
+  },
+  "features-party--connection-error": {
+    render: partyMeta.component,
+    args: { ...partyMeta.args, ...partyStories.ConnectionError.args },
+  },
+  "features-match-analysis--replay": {
+    render: matchAnalysisMeta.component,
+    args: { ...matchAnalysisMeta.args, ...matchAnalysisStories.Replay.args },
+  },
+  "features-match-analysis--empty-replay": {
+    render: matchAnalysisMeta.component,
+    args: {
+      ...matchAnalysisMeta.args,
+      ...matchAnalysisStories.EmptyReplay.args,
+    },
+  },
+  "features-match-analysis--balance": matchAnalysisStories.Balance,
+  "features-match-analysis--empty-balance": matchAnalysisStories.EmptyBalance,
+  "features-private-notes--match": {
+    render: privateNotesMeta.component,
+    args: { ...privateNotesMeta.args, ...privateNotesStories.Match.args },
+  },
+  "features-private-notes--waiting": {
+    render: privateNotesMeta.component,
+    args: { ...privateNotesMeta.args, ...privateNotesStories.Waiting.args },
+  },
+  "mobile-ui-kit--match-practice": uiStories.MatchPractice,
+  "mobile-ui-kit--match-night": uiStories.MatchNight,
+  "mobile-ui-kit--match-voting": uiStories.MatchVoting,
+  "mobile-ui-kit--match-hidden-votes": uiStories.MatchHiddenVotes,
+  "mobile-ui-kit--match-recap": uiStories.MatchRecap,
+  "mobile-ui-kit--match-reconnecting": uiStories.MatchReconnecting,
   "mobile-ui-kit--account-privacy": uiStories.AccountPrivacyStory,
   "mobile-ui-kit--saved-presets": uiStories.SavedPresetsStory,
   "mobile-ui-kit--player-statistics": uiStories.PlayerStatisticsStory,
@@ -39,11 +120,17 @@ export function StoryCapture({ storyId }: { storyId: string }) {
   if (!Render) return null;
 
   return (
-    <ScrollView
-      className="flex-1 bg-background"
-      contentContainerStyle={{ padding: 16 }}
-    >
-      <Render {...((story.args ?? {}) as Record<string, unknown>)} />
-    </ScrollView>
+    <SafeAreaProvider>
+      {storyId.startsWith("mobile-ui-kit--match-") ? (
+        <View className="flex-1 bg-background p-4">
+          <Render {...((story.args ?? {}) as Record<string, unknown>)} />
+        </View>
+      ) : <ScrollView
+        className="flex-1 bg-background"
+        contentContainerStyle={{ padding: 16 }}
+      >
+        <Render {...((story.args ?? {}) as Record<string, unknown>)} />
+      </ScrollView>}
+    </SafeAreaProvider>
   );
 }

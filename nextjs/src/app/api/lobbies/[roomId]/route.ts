@@ -11,7 +11,7 @@ import { getActiveIdentity } from "~/server/auth/identity";
 
 export const dynamic = "force-dynamic";
 
-/** Deletes the ownership record for a PartyKit lobby when requested by its owner. */
+/** Deletes the ownership record for a PartyServer lobby when requested by its owner. */
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ roomId: string }> },
@@ -66,7 +66,7 @@ export async function DELETE(
         );
     });
   } catch (error) {
-    console.error("PartyKit lobby ownership record could not be removed", {
+    console.error("PartyServer lobby ownership record could not be removed", {
       roomId,
       error,
     });

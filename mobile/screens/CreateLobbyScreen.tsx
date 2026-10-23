@@ -25,6 +25,9 @@ export function CreateLobbyForm({
   onCreate: (config: LobbyConfig) => Promise<void>;
   initialPresets?: LobbyPreset[];
 }) {
+  const [voteVisibility, setVoteVisibility] = useState<"public" | "hidden">(
+    "public",
+  );
   const [size, setSize] = useState("8");
   const [algorithm, setAlgorithm] = useState<string>("weighted-random");
   const [roles, setRoles] = useState(initialRoleForms);
@@ -46,7 +49,7 @@ export function CreateLobbyForm({
     setSubmitting(true);
     setError("");
     try {
-      await onCreate(parsed.data);
+      await onCreate({ ...parsed.data, voteVisibility });
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Unable to create lobby.",
@@ -65,9 +68,10 @@ export function CreateLobbyForm({
             throw new Error(
               parsed.error.issues[0]?.message ?? "Invalid lobby rules.",
             );
-          return parsed.data;
+          return { ...parsed.data, voteVisibility };
         }}
         onApply={(config) => {
+          setVoteVisibility(config.voteVisibility ?? "public");
           const form = lobbyPresetForm(config);
           setSize(form.size);
           setAlgorithm(form.algorithm);
@@ -85,6 +89,21 @@ export function CreateLobbyForm({
           onChangeText={setSize}
           keyboardType="number-pad"
         />
+      </View>
+      <View className="gap-2">
+        <Text className="text-sm font-bold text-foreground">Votes</Text>
+        <View className="flex-row gap-2">
+          {(["public", "hidden"] as const).map((value) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={voteVisibility === value ? "primary" : "outline"}
+              onPress={() => setVoteVisibility(value)}
+            >
+              {value === "public" ? "Public votes" : "Hidden votes"}
+            </Button>
+          ))}
+        </View>
       </View>
       <View className="gap-2">
         <Text className="text-sm font-bold text-foreground">

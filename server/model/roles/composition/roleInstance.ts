@@ -3,9 +3,7 @@ import type { Player } from "../../player/player.js";
 import { Role } from "../abstractRole.js";
 import type { RoleCapabilities, RoleDefinition } from "./roleDefinition.js";
 import { RoleTrait } from "./roleTraits.js";
-import {
-  type RoleHandlerBuckets,
-} from "./handlers/types.js";
+import { type RoleHandlerBuckets } from "./handlers/types.js";
 import { actorNotice, dispatchNotice } from "./handlers/notices.js";
 import { handled, isTerminalCommandResult } from "./handlers/results.js";
 
@@ -60,7 +58,7 @@ export class RoleInstance extends Role {
     super.handleMessage(message);
   }
 
-  override handleDayAction(recipient: Player): void {
+  override handleDayAction(recipient: Player): boolean {
     for (const handler of this.handlers.onDayCommand) {
       const result = handler({
         role: this,
@@ -69,13 +67,14 @@ export class RoleInstance extends Role {
         phase: this.room.time,
       });
       if (isTerminalCommandResult(result)) {
-        return;
+        return result?.outcome === "accepted";
       }
     }
     dispatchNotice(this, actorNotice({ key: MessageKey.NoDayAction }));
+    return false;
   }
 
-  override handleNightAction(recipient: Player): void {
+  override handleNightAction(recipient: Player): boolean {
     for (const handler of this.handlers.onNightCommand) {
       const result = handler({
         role: this,
@@ -84,10 +83,11 @@ export class RoleInstance extends Role {
         phase: this.room.time,
       });
       if (isTerminalCommandResult(result)) {
-        return;
+        return result?.outcome === "accepted";
       }
     }
     dispatchNotice(this, actorNotice({ key: MessageKey.NoNightAction }));
+    return false;
   }
 
   override handleNightVote(recipient: Player): void {

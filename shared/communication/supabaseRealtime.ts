@@ -1,4 +1,4 @@
-import { PartyKitMessageType, type ClientEvent } from "./events";
+import { PartyServerMessageType, type ClientEvent } from "./events";
 
 export const SUPABASE_CONTROL_CHANNEL = "mafia:control";
 export const SUPABASE_CONTROL_EVENT = "client-event";
@@ -17,7 +17,7 @@ export type SupabaseClientEventEnvelope = {
   roomId: string;
   socketId: string;
   message: {
-    type: PartyKitMessageType.Event;
+    type: PartyServerMessageType.Event;
     event: ClientEvent;
     args: unknown[];
     callbackId?: string;

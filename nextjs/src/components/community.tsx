@@ -1,4 +1,6 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { LobbyGroupPanel } from "./lobby-group";
 import { avatarOptions } from "@mernmafia/shared/trpc/accountFeatures";
 
 import { useCallback, useEffect, useState } from "react";
@@ -130,6 +132,7 @@ export function CommunityView({
 }
 
 export function Community() {
+  const router = useRouter();
   const [client] = useState(makeClient);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
@@ -255,6 +258,11 @@ export function Community() {
           {status}
         </p>
       ) : null}
+      <LobbyGroupPanel
+        onFollowRoom={(roomId) =>
+          router.push(`/lobby?room=${encodeURIComponent(roomId)}`)
+        }
+      />
       <PlayerReports />
     </>
   );

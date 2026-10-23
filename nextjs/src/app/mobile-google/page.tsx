@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { isGoogleSignInConfigured } from "~/server/auth/googleConfiguration";
 import { auth, signIn } from "~/server/auth";
 import {
   bindMobileBrowser,
@@ -20,10 +21,18 @@ export default async function MobileGooglePage({
         Sign-in expired. Return to the app and try again.
       </main>
     );
+  if (!isGoogleSignInConfigured())
+    return (
+      <main className="p-8">
+        Google sign-in is unavailable right now. Return to the app and try again
+        later.
+      </main>
+    );
   const session = await auth();
   const displayedUserId = session?.user.id;
   async function begin() {
     "use server";
+    if (!isGoogleSignInConfigured()) redirect("/signin");
     const secret = randomBytes(32).toString("base64url");
     if (!(await bindMobileBrowser(state!, secret)))
       redirect("/mobile-google?error=expired");

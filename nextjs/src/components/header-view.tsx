@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
-import { navigationItems } from "@mernmafia/shared/navigation";
+import { getVisibleNavigationItems } from "@mernmafia/shared/navigation";
 
 export type HeaderUser = {
   name?: string | null;
@@ -38,7 +38,7 @@ export function HeaderView({
           aria-label="Main navigation"
           className="flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-0.5 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden"
         >
-          {navigationItems
+          {getVisibleNavigationItems(Boolean(user), Boolean(user?.isAdmin))
             .filter((item) =>
               [
                 "Roles",

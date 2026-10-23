@@ -11,6 +11,7 @@ import {
 describe("socketValidation", () => {
   it("parses valid chat and phase payloads", () => {
     expect(parseJoinRoomToken("token-value")).toBe("token-value");
+    expect(parseJoinRoomToken("")).toBe("");
     expect(parseMessageSentPayload("hello", DayTime.Day)).toEqual({
       message: "hello",
       phase: DayTime.Day,
@@ -34,7 +35,8 @@ describe("socketValidation", () => {
     expect(parseJoinRoomToken(12)).toBeNull();
     expect(parseMessageSentPayload("", DayTime.Day)).toBeNull();
     expect(parseMessageSentPayload("hello", "day")).toBeNull();
-    expect(parseVotePayload(null, DayTime.Day)).toBeNull();
+    expect(parseVotePayload(null, DayTime.Day)).toEqual({ recipient: null, phase: DayTime.Day });
+    expect(parseVotePayload(-1, DayTime.Day)).toBeNull();
     expect(parseVisitPayload(-1, DayTime.Night)).toBeNull();
     expect(parseWhisperPayload(2, "", DayTime.Day)).toBeNull();
   });

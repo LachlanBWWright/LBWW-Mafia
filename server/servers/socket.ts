@@ -1,6 +1,4 @@
 import { Server, Socket } from "socket.io";
-import axios from "axios";
-import { ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
 import type {
@@ -8,7 +6,9 @@ import type {
   ServerToClientEvents,
   InterServerEvents,
 } from "../../shared/communication/events.js";
-import { ClientEvent, JoinRoomResultCode } from "../../shared/communication/events.js";
+import {
+  ClientEvent,
+} from "../../shared/communication/events.js";
 import {
   isJoinRoomCallback,
   parseJoinRoomToken,
@@ -16,7 +16,6 @@ import {
   parseVisitPayload,
   parseVotePayload,
   parseWhisperPayload,
-  rejectJoin,
 } from "./socketValidation.js";
 import { verifyGameIdentity } from "./gameIdentity.js";
 
@@ -66,16 +65,6 @@ export function createSocketIoServer() {
 }
 
 /**
- * Whether to run in debug mode, disabling CAPTCHA verification.
- * Set via DEBUG or debug environment variables.
- *
- * @type {boolean}
- */
-const DEBUG_MODE =
-  process.env.DEBUG?.toLowerCase() === "true" ||
-  process.env.debug?.toLowerCase() === "true";
-
-/**
  * Adds event listeners to the Socket.IO server for all game events.
  * Manages player connections, disconnections, and all game actions.
  *
@@ -97,60 +86,50 @@ export function addSocketListeners(
   socketIoServer.on("connection", (socket: PlayerSocket) => {
     console.log("New Connection");
     /**
-     * Handles player join requests with CAPTCHA verification.
+     * Handles player and spectator join requests.
      * Creates a new room if the current room is full or not started,
      * then adds the player to the room.
      */
-    socket.on(
+    for (const joinEvent of [
       ClientEvent.PlayerJoinRoom,
-      async (captchaToken, identityTokenOrCallback, optionalCallback) => {
-        const cb = typeof identityTokenOrCallback === "function" ? identityTokenOrCallback : optionalCallback;
-        const identityToken = typeof identityTokenOrCallback === "string" ? identityTokenOrCallback : undefined;
-        const parsedCaptchaToken = parseJoinRoomToken(captchaToken);
-        if (!parsedCaptchaToken || !isJoinRoomCallback(cb)) {
-          return;
-        }
-        if (DEBUG_MODE) {
-          console.log("Captcha bypassed in debug mode");
-          if (playRoom.current?.started || playRoom.current === undefined)
+      ClientEvent.SpectatorJoinRoom,
+    ] as const)
+      socket.on(
+        joinEvent,
+        async (captchaToken, identityTokenOrCallback, optionalCallback) => {
+          const cb =
+            typeof identityTokenOrCallback === "function"
+              ? identityTokenOrCallback
+              : optionalCallback;
+          const identityToken =
+            typeof identityTokenOrCallback === "string"
+              ? identityTokenOrCallback
+              : undefined;
+          const parsedCaptchaToken = parseJoinRoomToken(captchaToken);
+          if (parsedCaptchaToken === null || !isJoinRoomCallback(cb)) {
+            return;
+          }
+          if (
+            (joinEvent === ClientEvent.PlayerJoinRoom &&
+              playRoom.current?.started) ||
+            playRoom.current === undefined
+          )
             playRoom.current = new Room(roomSize);
           socket.data.roomObject = playRoom.current;
           socket.join(playRoom.current.name);
-          const result = socket.data.roomObject.addUser(
-            socket,
-            verifyGameIdentity(identityToken),
-          );
-          console.log("Join result:", result);
+          const result =
+            joinEvent === ClientEvent.SpectatorJoinRoom
+              ? socket.data.roomObject.addSpectator(
+                  socket,
+                  verifyGameIdentity(identityToken),
+                )
+              : socket.data.roomObject.addUser(
+                  socket,
+                  verifyGameIdentity(identityToken),
+                );
           cb(result);
-          return;
-        }
-        await ResultAsync.fromPromise(
-          axios.post(
-            `https://www.google.com/recaptcha/api/siteverify?response=${parsedCaptchaToken}&secret=${process.env.CAPTCHA_KEY}`,
-          ),
-          (error) => error,
-        ).match(
-          (res) => {
-            if (res.data.success) {
-              console.log("Captcha Success");
-              if (playRoom.current?.started || playRoom.current === undefined)
-                playRoom.current = new Room(roomSize);
-              if (playRoom.current !== undefined) {
-                socket.data.roomObject = playRoom.current;
-                socket.join(playRoom.current.name);
-                const result = socket.data.roomObject.addUser(socket, verifyGameIdentity(identityToken));
-                console.log("Join result:", result);
-                cb(result);
-              }
-            } else cb(rejectJoin(JoinRoomResultCode.CaptchaFailed));
-          },
-          (error) => {
-            console.error(`Captcha verification failed: ${String(error)}`);
-            cb(rejectJoin(JoinRoomResultCode.CaptchaFailed));
-          },
-        );
-      },
-    );
+        },
+      );
 
     /**
      * Handles player disconnections.
@@ -182,6 +161,9 @@ export function addSocketListeners(
      * Handles voting actions during day/night phases.
      * Validates that recipient is a valid player index before processing.
      */
+    socket.on(ClientEvent.ReadyForRematch, () =>
+      socket.data.roomObject?.readyForRematch(socket),
+    );
     socket.on(ClientEvent.HandleVote, (recipient, phase) => {
       const parsed = parseVotePayload(recipient, phase);
       if (!parsed || socket.data.roomObject === undefined) {
@@ -199,7 +181,11 @@ export function addSocketListeners(
       if (!parsed || socket.data.roomObject === undefined) {
         return;
       }
-      socket.data.roomObject.handleVisit(socket, parsed.recipient, parsed.phase);
+      socket.data.roomObject.handleVisit(
+        socket,
+        parsed.recipient,
+        parsed.phase,
+      );
     });
 
     /**

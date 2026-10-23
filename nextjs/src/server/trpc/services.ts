@@ -1,3 +1,5 @@
+import { partyServices } from "./parties";
+import { matchAnalysisServices } from "./matchAnalysis";
 import { anonymizeHistory } from "@mernmafia/shared/game/accountAnonymization";
 import {
   accountFeatureServices,
@@ -879,13 +881,13 @@ const persistMatch = async (
 };
 
 /**
- * Returns the active PartyKit room ID, creating it if this is the first lobby request.
- * This is matchmaking state only; live game state remains inside PartyKit.
+ * Returns the active PartyServer room ID, creating it if this is the first lobby request.
+ * This is matchmaking state only; live game state remains inside PartyServer.
  *
  * @returns The current room ID clients should connect to
  */
 const getCurrentRoom = async (): Promise<{ roomId: string }> => {
-  // Browser tests can exercise the real lobby and PartyKit transport without
+  // Browser tests can exercise the real lobby and PartyServer transport without
   // requiring a local PostgreSQL installation. Persistence is intentionally
   // bypassed only for the explicitly opt-in Playwright server process.
   if (process.env.PLAYWRIGHT_NO_DB === "true") {
@@ -934,6 +936,8 @@ const rotateActiveRoom = async (): Promise<{ roomId: string }> => {
 };
 
 export const trpcServices: RouterServices = {
+  parties: partyServices,
+  analysis: matchAnalysisServices,
   features: accountFeatureServices,
   getRecentMatches,
   searchUsers: accountServices.searchUsers,

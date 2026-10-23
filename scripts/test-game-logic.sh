@@ -11,7 +11,10 @@ pnpm --dir server run test \
   shared/communication/protocol.parity.test.ts \
   server/model/rooms/room.fixture-parity.test.ts
 
-section "Building the PartyKit game host"
-pnpm --dir server run build:partykit
+section "Building the PartyServer game host"
+pnpm --dir server run build:partyserver
+
+section "Testing the local Cloudflare Worker runtime"
+pnpm run test:worker
 
 section "All game-logic suites passed"

@@ -1,4 +1,4 @@
-import { ClientEvent, PartyKitMessageType, ServerEvent } from "@mernmafia/shared/communication/events";
+import { ClientEvent, PartyServerMessageType, ServerEvent } from "@mernmafia/shared/communication/events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSupabaseRealtimeServer } from "./supabaseServer.js";
 import {
@@ -74,7 +74,7 @@ describe("Supabase realtime server", () => {
       roomId: "room-1",
       socketId: "sb_alpha",
       message: {
-        type: PartyKitMessageType.Event,
+        type: PartyServerMessageType.Event,
         event: ClientEvent.PlayerJoinRoom,
         args: ["captcha-token"],
         callbackId: "cb_1",
@@ -89,7 +89,7 @@ describe("Supabase realtime server", () => {
           message.payload !== null &&
           "type" in message.payload &&
           (message.payload as { type?: string }).type ===
-            PartyKitMessageType.Callback &&
+            PartyServerMessageType.Callback &&
           "callbackId" in message.payload &&
           (message.payload as { callbackId?: string }).callbackId === "cb_1",
       ),
@@ -99,7 +99,7 @@ describe("Supabase realtime server", () => {
       roomId: "room-1",
       socketId: "sb_beta",
       message: {
-        type: PartyKitMessageType.Event,
+        type: PartyServerMessageType.Event,
         event: ClientEvent.PlayerJoinRoom,
         args: ["captcha-token"],
         callbackId: "cb_2",
@@ -142,7 +142,7 @@ describe("Supabase realtime server", () => {
       roomId: "room-2",
       socketId: "sb_gamma",
       message: {
-        type: PartyKitMessageType.Event,
+        type: PartyServerMessageType.Event,
         event: ClientEvent.PlayerJoinRoom,
         args: ["captcha-token"],
         callbackId: "cb_1",
@@ -152,7 +152,7 @@ describe("Supabase realtime server", () => {
       roomId: "room-2",
       socketId: "sb_gamma",
       message: {
-        type: PartyKitMessageType.Event,
+        type: PartyServerMessageType.Event,
         event: ClientEvent.Disconnect,
         args: [],
       },

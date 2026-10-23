@@ -43,6 +43,13 @@
       "when": 1791332608905,
       "tag": "0005_spicy_eddie_brock",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791859957525,
+      "tag": "0006_fast_doorman",
+      "breakpoints": true
     }
   ]
 }

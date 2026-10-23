@@ -1,0 +1,66 @@
+{
+  "personalities": [
+    {
+      "id": "cautious",
+      "name": "Cautious",
+      "instruction": "Ask for evidence, weigh uncertainty, and avoid rushing accusations. Keep this manner throughout the match.",
+      "aggressionMultiplier": 0.8,
+      "bluffMultiplier": 1
+    },
+    {
+      "id": "argumentative",
+      "name": "Argumentative",
+      "instruction": "Challenge weak claims and defend your position with short, pointed questions. Stay civil and keep this manner throughout the match.",
+      "aggressionMultiplier": 1.2,
+      "bluffMultiplier": 1
+    },
+    {
+      "id": "deceptive",
+      "name": "Deceptive",
+      "instruction": "Use misdirection and strategic bluffing when your role benefits from it. Never expose another character's private information. Keep this manner throughout the match.",
+      "aggressionMultiplier": 1,
+      "bluffMultiplier": 2
+    }
+  ],
+  "difficulties": [
+    {
+      "id": "casual",
+      "name": "Casual",
+      "instruction": "Play simply, explain your reasoning, and avoid elaborate deception or advanced deductions.",
+      "policy": {
+        "evidenceWindow": 12,
+        "minimumConfidence": 0.45,
+        "minimumEvidence": 1,
+        "aggressionRate": 0.4,
+        "bluffRate": 0.05
+      },
+      "summary": "Requires 1 visible evidence source and 45% confidence for deductions; 40% accusation/vote allowance and 5% bluff allowance."
+    },
+    {
+      "id": "standard",
+      "name": "Standard",
+      "instruction": "Use the available evidence and role objectives to make balanced decisions.",
+      "policy": {
+        "evidenceWindow": 40,
+        "minimumConfidence": 0.6,
+        "minimumEvidence": 1,
+        "aggressionRate": 0.65,
+        "bluffRate": 0.2
+      },
+      "summary": "Requires 1 visible evidence source and 60% confidence for deductions; 65% accusation/vote allowance and 20% bluff allowance."
+    },
+    {
+      "id": "challenging",
+      "name": "Challenging",
+      "instruction": "Track contradictory claims, compare voting patterns, and plan actions carefully using only the information available to this character.",
+      "policy": {
+        "evidenceWindow": 80,
+        "minimumConfidence": 0.75,
+        "minimumEvidence": 2,
+        "aggressionRate": 0.9,
+        "bluffRate": 0.4
+      },
+      "summary": "Requires 2 visible evidence sources and 75% confidence for deductions; 90% accusation/vote allowance and 40% bluff allowance."
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { LobbyGroupPanel } from "../components/LobbyGroupPanel";
 import { avatarOptions } from "../../shared/trpc/accountFeatures";
 import React, { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
@@ -204,6 +205,9 @@ export function CommunityScreen({ navigation }: Props) {
           </View>
         ) : null}
       </Card>
+      <LobbyGroupPanel
+        onFollowRoom={(roomId) => navigation.navigate("Lobby", { roomId })}
+      />
       <PlayerReports />
     </Screen>
   );

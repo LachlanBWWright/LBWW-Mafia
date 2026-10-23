@@ -2,7 +2,7 @@
 
 ## Circular Dependencies
 
-**Problem**: esbuild (used by PartyKit/miniflare) handles ES module circular dependencies differently from Node.js.
+**Problem**: esbuild (used by Wrangler/Miniflare) handles ES module circular dependencies differently from Node.js.
 
 Node.js resolves circular deps at runtime via lazy evaluation — a class imported before its module finishes loading gets `undefined` initially but resolves by the time it's used at runtime. esbuild performs static bundling: if module A imports B and B imports A, one of them will see `undefined` for the other at class definition time, causing:
 
@@ -18,7 +18,7 @@ TypeError: Class extends value undefined is not a constructor or null
 abstractRole.ts → import Jailor → jailor.ts → import Role → abstractRole.ts (circular!)
 ```
 
-This worked fine under Node.js (Socket.IO server) but crashed esbuild bundles (PartyKit).
+This worked fine under Node.js (Socket.IO server) but crashed esbuild bundles (PartyServer).
 
 ### Fix applied
 
@@ -32,6 +32,6 @@ Removed the downward dependency from `abstractRole.ts` to `Jailor` by:
 
 ## Other esbuild Considerations
 
-- esbuild targets Cloudflare Workers (no Node.js APIs): `fs`, `path`, `net`, `crypto` (Node built-ins) are not available unless polyfilled via `compatibility_flags` in `partykit.json`.
+- Wrangler bundles for the Cloudflare Workers runtime. `nodejs_compat` in `wrangler.jsonc` enables supported Node.js compatibility APIs; it does not make Workers a full Node.js process. Validate runtime behavior with the local Worker tests.
 - Top-level `await` is supported in Workers but can cause issues if a module with it is imported before the worker's `fetch` handler is registered.
 - Avoid dynamic `require()` — esbuild cannot statically analyse it; use `import()` instead.

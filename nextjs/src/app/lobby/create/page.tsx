@@ -19,6 +19,9 @@ import {
 
 export default function CreateLobbyPage() {
   const router = useRouter();
+  const [voteVisibility, setVoteVisibility] = useState<"public" | "hidden">(
+    "public",
+  );
   const [size, setSize] = useState("8");
   const [algorithm, setAlgorithm] = useState("weighted-random");
   const [roleStates, setRoleStates] = useState(initialRoleForms);
@@ -49,7 +52,7 @@ export default function CreateLobbyPage() {
       setSubmitting(false);
       return;
     }
-    const body = parsed.data;
+    const body = { ...parsed.data, voteVisibility };
     try {
       const response = await fetch("/api/lobbies", {
         method: "POST",
@@ -91,9 +94,10 @@ export default function CreateLobbyPage() {
             throw new Error(
               parsed.error.issues[0]?.message ?? "Invalid lobby rules.",
             );
-          return parsed.data;
+          return { ...parsed.data, voteVisibility };
         }}
         onApply={(config) => {
+          setVoteVisibility(config.voteVisibility ?? "public");
           const form = lobbyPresetForm(config);
           setSize(form.size);
           setAlgorithm(form.algorithm);
@@ -118,6 +122,20 @@ export default function CreateLobbyPage() {
                 value={size}
                 onChange={(event) => setSize(event.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="vote-visibility">Votes</Label>
+              <select
+                id="vote-visibility"
+                className="bg-background h-9 w-full rounded-md border px-2 text-sm"
+                value={voteVisibility}
+                onChange={(event) =>
+                  setVoteVisibility(event.target.value as "public" | "hidden")
+                }
+              >
+                <option value="public">Public votes</option>
+                <option value="hidden">Hidden votes</option>
+              </select>
             </div>
             <div className="space-y-2">
               <Label>Selection algorithm</Label>

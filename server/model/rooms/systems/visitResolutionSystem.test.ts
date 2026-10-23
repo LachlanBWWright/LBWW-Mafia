@@ -1,4 +1,7 @@
-import { ServerEvent } from "@mernmafia/shared/communication/events";
+import {
+  ServerEvent,
+  type GameSnapshot,
+} from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -11,7 +14,11 @@ import {
 } from "../../testUtils/gameTestUtils.js";
 import { CombatLevel } from "../../roles/combatLevel.js";
 import { mafiaDefinition } from "../../roles/definitions/mafia.js";
-import { doctorDefinition, roleblockerDefinition } from "../../roles/definitions/town.js";
+import {
+  doctorDefinition,
+  investigatorDefinition,
+  roleblockerDefinition,
+} from "../../roles/definitions/town.js";
 import { VisitResolutionSystem } from "./visitResolutionSystem.js";
 
 let emittedCalls: EmittedCall[];
@@ -21,6 +28,17 @@ beforeEach(() => {
 });
 
 describe("VisitResolutionSystem", () => {
+  function latestAction(socketId: string) {
+    return (
+      emittedCalls
+        .filter(
+          (call) =>
+            call.target === socketId && call.event === ServerEvent.GameSnapshot,
+        )
+        .at(-1)?.args[0] as GameSnapshot | undefined
+    )?.action;
+  }
+
   it("roleblocks a target before that target can resolve its visit", () => {
     const { room, players } = createRoomWithPlayers("visit-roleblock", [
       "blocker",
@@ -43,7 +61,8 @@ describe("VisitResolutionSystem", () => {
         (call) =>
           call.target === players[1]!.user.socketId &&
           call.event === ServerEvent.ReceiveMessage &&
-          (call.args[0] as { key?: MessageKey }).key === MessageKey.YouWereRoleblocked,
+          (call.args[0] as { key?: MessageKey }).key ===
+            MessageKey.YouWereRoleblocked,
       ),
     ).toBe(true);
   });
@@ -84,5 +103,80 @@ describe("VisitResolutionSystem", () => {
 
     expect(victim.damage).toBe(CombatLevel.None);
     expect(victim.attackers).toEqual([]);
+  });
+
+  it("does not let a blocked roleblocker act during the early resolution stage", () => {
+    const { room, players } = createRoomWithPlayers("visit-blocked-blocker", [
+      "blocker",
+      "doctor",
+    ]);
+    const blocker = assignRole(room, players[0]!, roleblockerDefinition);
+    const doctor = assignRole(room, players[1]!, doctorDefinition);
+    blocker.handleNightAction(players[1]!);
+    blocker.roleblocked = true;
+
+    new VisitResolutionSystem(room).resolveNight();
+
+    expect(doctor.roleblocking).toBeNull();
+    expect(latestAction(players[0]!.user.socketId)?.outcome).toBe("blocked");
+  });
+
+  it("gives the same silent feedback whether a probabilistic block took effect or failed", () => {
+    const { room, players } = createRoomWithPlayers("visit-private-block", [
+      "blocker",
+      "mafia",
+    ]);
+    const blocker = assignRole(room, players[0]!, roleblockerDefinition);
+    const mafia = assignRole(room, players[1]!, mafiaDefinition);
+    blocker.handleNightAction(players[1]!);
+    setDeterministicRandom(room, [0]);
+    new VisitResolutionSystem(room).resolveNight();
+    const failed = latestAction(players[0]!.user.socketId);
+    expect(mafia.roleblocking).toBeNull();
+
+    blocker.handleNightAction(players[1]!);
+    setDeterministicRandom(room, [1]);
+    new VisitResolutionSystem(room).resolveNight();
+    expect(mafia.roleblocking).toBe(blocker);
+    expect(latestAction(players[0]!.user.socketId)).toEqual(failed);
+    expect(failed?.feedback).toContain("No additional result");
+  });
+
+  it("points only the investigator to their existing private result", () => {
+    const { room, players } = createRoomWithPlayers("visit-private-feedback", [
+      "investigator",
+      "doctor",
+      "target",
+    ]);
+    const investigator = assignRole(room, players[0]!, investigatorDefinition);
+    const doctor = assignRole(room, players[1]!, doctorDefinition);
+    assignRole(room, players[2]!, doctorDefinition);
+    investigator.handleNightAction(players[2]!);
+    doctor.handleNightAction(players[2]!);
+
+    new VisitResolutionSystem(room).resolveNight();
+
+    expect(latestAction(players[0]!.user.socketId)?.feedback).toContain(
+      "private result is available",
+    );
+    expect(latestAction(players[1]!.user.socketId)?.feedback).toContain(
+      "No additional result",
+    );
+    expect(latestAction(players[2]!.user.socketId)).toBeUndefined();
+  });
+
+  it("does not apply a dead actor's previously selected visit", () => {
+    const { room, players } = createRoomWithPlayers("visit-dead-actor", [
+      "doctor",
+      "target",
+    ]);
+    const doctor = assignRole(room, players[0]!, doctorDefinition);
+    const target = assignRole(room, players[1]!, doctorDefinition);
+    doctor.handleNightAction(players[1]!);
+    players[0]!.isAlive = false;
+
+    new VisitResolutionSystem(room).resolveNight();
+
+    expect(target.defence).toBe(CombatLevel.None);
   });
 });

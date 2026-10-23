@@ -5,12 +5,12 @@ import type {
   JoinRoomResult,
   ServerToClientEvents,
 } from "./events";
-import { PartyKitMessageType, ServerEvent } from "./events";
+import { PartyServerMessageType, ServerEvent } from "./events";
 import {
   gameMessagePayloadSchema,
   gameSnapshotSchema,
   joinRoomCallbackArgsSchema,
-  partykitServerEnvelopeSchema,
+  partyserverServerEnvelopeSchema,
   playerListPayloadSchema,
   playerNamePayloadSchema,
   playerReturnedPayloadSchema,
@@ -86,6 +86,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
     "remove-player": new Set<ServerToClientEvents["remove-player"]>(),
     "receive-player-list": new Set<
       ServerToClientEvents["receive-player-list"]
+    >(),
+    "receive-spectator-message": new Set<
+      ServerToClientEvents["receive-spectator-message"]
     >(),
     "receive-chat-message": new Set<
       ServerToClientEvents["receive-chat-message"]
@@ -167,6 +170,15 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
           isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)
         ) {
           this.listeners["receive-player-list"].add(handler);
+        }
+        break;
+      case ServerEvent.ReceiveSpectatorMessage:
+        if (
+          isTypedHandler<ServerToClientEvents["receive-spectator-message"]>(
+            handler,
+          )
+        ) {
+          this.listeners["receive-spectator-message"].add(handler);
         }
         break;
       case ServerEvent.ReceiveChatMessage:
@@ -256,6 +268,9 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         case ServerEvent.ReceivePlayerList:
           this.listeners["receive-player-list"].clear();
           break;
+        case ServerEvent.ReceiveSpectatorMessage:
+          this.listeners["receive-spectator-message"].clear();
+          break;
         case ServerEvent.ReceiveChatMessage:
           this.listeners["receive-chat-message"].clear();
           break;
@@ -319,6 +334,15 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
           isTypedHandler<ServerToClientEvents["receive-player-list"]>(handler)
         ) {
           this.listeners["receive-player-list"].delete(handler);
+        }
+        break;
+      case ServerEvent.ReceiveSpectatorMessage:
+        if (
+          isTypedHandler<ServerToClientEvents["receive-spectator-message"]>(
+            handler,
+          )
+        ) {
+          this.listeners["receive-spectator-message"].delete(handler);
         }
         break;
       case ServerEvent.ReceiveChatMessage:
@@ -407,7 +431,7 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         roomId: this.roomId,
         socketId: this.socketId,
         message: {
-          type: PartyKitMessageType.Event,
+          type: PartyServerMessageType.Event,
           event,
           args: serializableArgs,
           ...(callbackId ? { callbackId } : {}),
@@ -467,7 +491,7 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
           roomId: this.roomId,
           socketId: this.socketId,
           message: {
-            type: PartyKitMessageType.Event,
+            type: PartyServerMessageType.Event,
             event: "disconnect",
             args: [],
           },
@@ -503,12 +527,12 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
   }
 
   private handleDeliveryPayload(payload: unknown): void {
-    const parsed = partykitServerEnvelopeSchema.safeParse(payload);
+    const parsed = partyserverServerEnvelopeSchema.safeParse(payload);
     if (!parsed.success) {
       return;
     }
 
-    if (parsed.data.type === PartyKitMessageType.Callback) {
+    if (parsed.data.type === PartyServerMessageType.Callback) {
       const callbackArgs = joinRoomCallbackArgsSchema.safeParse(
         parsed.data.args,
       );
@@ -520,7 +544,7 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
       return;
     }
 
-    if (parsed.data.type === PartyKitMessageType.Event)
+    if (parsed.data.type === PartyServerMessageType.Event)
       this.dispatchEvent(parsed.data.event, parsed.data.args);
   }
 
@@ -542,6 +566,7 @@ export class SupabaseRealtimeClientAdapter implements GameSocket {
         }
         break;
       }
+      case ServerEvent.ReceiveSpectatorMessage:
       case ServerEvent.ReceiveChatMessage:
       case ServerEvent.ReceiveWhisperMessage:
       case ServerEvent.ReceiveRole: {

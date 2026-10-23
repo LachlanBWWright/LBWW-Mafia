@@ -9,13 +9,21 @@ export async function consumeLimit(
   windowMs = 60_000,
 ) {
   const key = createHash("sha256").update(scope).digest("hex");
-  const result = await db.execute(sql`
-    insert into ${requestLimits} (key, window_start, hits) values (${key}, now(), 1)
-    on conflict (key) do update set
-      hits = case when ${requestLimits.windowStart} <= now() - (${windowMs} * interval '1 millisecond') then 1 else ${requestLimits.hits} + 1 end,
-      window_start = case when ${requestLimits.windowStart} <= now() - (${windowMs} * interval '1 millisecond') then now() else ${requestLimits.windowStart} end
-    returning hits`);
-  return Number(result[0]?.hits) <= maximum;
+  const windowExpired = sql`
+    ${requestLimits.windowStart} <= now() - (${windowMs} * interval '1 millisecond')
+  `;
+  const [result] = await db
+    .insert(requestLimits)
+    .values({ key, windowStart: sql`now()`, hits: 1 })
+    .onConflictDoUpdate({
+      target: requestLimits.key,
+      set: {
+        hits: sql`case when ${windowExpired} then 1 else ${requestLimits.hits} + 1 end`,
+        windowStart: sql`case when ${windowExpired} then now() else ${requestLimits.windowStart} end`,
+      },
+    })
+    .returning({ hits: requestLimits.hits });
+  return Number(result?.hits) <= maximum;
 }
 export async function guardRequest(
   request: Request,

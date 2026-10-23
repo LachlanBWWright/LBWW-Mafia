@@ -7,6 +7,10 @@ import type { Room } from "../rooms/room.js";
  * Users are created when a client connects and exist for the duration of the connection.
  */
 export class User {
+  connected = true;
+  /** The seat was released after an explicit leave or reconnect grace expiry. */
+  hasDeparted = false;
+  isBot = false;
   socket: GamePlayerSocket;
   socketId: string;
   readonly username: string;

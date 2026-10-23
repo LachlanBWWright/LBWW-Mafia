@@ -1,3 +1,4 @@
+import { exportPartyData, removePartyMembership } from "./parties";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "~/server/db";
@@ -640,6 +641,7 @@ export const accountFeatureServices: AccountFeatureServices = {
           .select()
           .from(notifications)
           .where(eq(notifications.userId, userId)),
+        party: await exportPartyData(userId, tx),
         invitations: await tx
           .select()
           .from(lobbyInvitations)
@@ -666,6 +668,7 @@ export const accountFeatureServices: AccountFeatureServices = {
       await lockUsers(tx, [userId]);
       const [user] = await tx.select().from(users).where(eq(users.id, userId));
       if (!user || user.deletedAt) throw forbidden();
+      await removePartyMembership(tx, userId);
       const hosted = await tx
         .select({ roomId: customLobbies.roomId })
         .from(customLobbies)

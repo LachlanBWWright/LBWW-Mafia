@@ -3,7 +3,7 @@ import {
   ClientEvent,
   DayTime,
   JoinRoomResultCode,
-  PartyKitMessageType,
+  PartyServerMessageType,
   ServerEvent,
 } from "./events";
 import { MessageKey } from "./messages";
@@ -36,7 +36,7 @@ export const messageSentArgsSchema = z.tuple([
   clientPhaseSchema,
 ]);
 export const voteArgsSchema = z.tuple([
-  recipientIndexSchema,
+  recipientIndexSchema.nullable(),
   clientPhaseSchema,
 ]);
 export const visitArgsSchema = z.tuple([
@@ -58,6 +58,11 @@ export const playerListPayloadSchema = z.array(
     name: z.string(),
     isAlive: z.boolean().optional(),
     role: z.string().optional(),
+    connected: z.boolean().optional(),
+    isBot: z.boolean().optional(),
+    votesReceived: z.number().int().nonnegative().optional(),
+    voteStatus: z.enum(["pending", "voted", "abstained"]).optional(),
+    voteTarget: z.string().optional(),
   }),
 );
 
@@ -80,7 +85,42 @@ export const updateDayTimePayloadSchema = z.object({
   timeLeft: z.number(),
 });
 
+const timelineEntrySchema = z.object({
+  id: z.number(),
+  day: z.number(),
+  phase: clientPhaseSchema,
+  text: z.string(),
+});
 export const gameSnapshotSchema = z.object({
+  participation: z.enum(["player", "eliminated", "spectator"]).optional(),
+  spectatorCount: z.number().int().nonnegative().optional(),
+  capacity: z.number().int().positive().optional(),
+  matchId: z.string().optional(),
+  started: z.boolean().optional(),
+  ended: z.boolean().optional(),
+  voteVisibility: z.enum(["public", "hidden"]).optional(),
+  action: z
+    .object({
+      vote: z.string().nullable().optional(),
+      visit: z.string().nullable().optional(),
+      feedback: z.string().optional(),
+      outcome: z
+        .enum(["submitted", "blocked", "resolved", "rejected"])
+        .optional(),
+    })
+    .optional(),
+  timeline: z.array(timelineEntrySchema).optional(),
+  readyPlayers: z.array(z.string()).optional(),
+  recap: z
+    .object({
+      winner: z.string(),
+      reason: z.string(),
+      players: z.array(
+        z.object({ name: z.string(), role: z.string(), won: z.boolean() }),
+      ),
+      timeline: z.array(timelineEntrySchema),
+    })
+    .optional(),
   phaseVersion: z.number().int().nonnegative().optional(),
   playerName: z.string(),
   players: playerListPayloadSchema,
@@ -126,8 +166,8 @@ export const gameMessagePayloadSchema = z.object({
     .optional(),
 });
 
-export const partykitClientEventEnvelopeSchema = z.object({
-  type: z.literal(PartyKitMessageType.Event),
+export const partyserverClientEventEnvelopeSchema = z.object({
+  type: z.literal(PartyServerMessageType.Event),
   event: z.nativeEnum(ClientEvent),
   args: z.array(z.unknown()),
   callbackId: z.string().max(128).optional(),
@@ -135,23 +175,23 @@ export const partykitClientEventEnvelopeSchema = z.object({
   phaseVersion: z.number().int().nonnegative().optional(),
 });
 
-export const partykitServerEventEnvelopeSchema = z.object({
-  type: z.literal(PartyKitMessageType.Event),
+export const partyserverServerEventEnvelopeSchema = z.object({
+  type: z.literal(PartyServerMessageType.Event),
   event: z.nativeEnum(ServerEvent),
   args: z.array(z.unknown()),
 });
 
-export const partykitCallbackEnvelopeSchema = z.object({
-  type: z.literal(PartyKitMessageType.Callback),
+export const partyserverCallbackEnvelopeSchema = z.object({
+  type: z.literal(PartyServerMessageType.Callback),
   callbackId: z.string(),
   args: z.array(z.unknown()),
 });
 
-export const partykitServerEnvelopeSchema = z.discriminatedUnion("type", [
-  partykitServerEventEnvelopeSchema,
-  partykitCallbackEnvelopeSchema,
+export const partyserverServerEnvelopeSchema = z.discriminatedUnion("type", [
+  partyserverServerEventEnvelopeSchema,
+  partyserverCallbackEnvelopeSchema,
   z.object({
-    type: z.literal(PartyKitMessageType.CommandAck),
+    type: z.literal(PartyServerMessageType.CommandAck),
     commandId: z.string(),
     accepted: z.boolean(),
     reason: z.string().optional(),
@@ -161,5 +201,5 @@ export const partykitServerEnvelopeSchema = z.discriminatedUnion("type", [
 export const supabaseClientEnvelopeSchema = z.object({
   roomId: z.string().min(1),
   socketId: z.string().min(1),
-  message: partykitClientEventEnvelopeSchema,
+  message: partyserverClientEventEnvelopeSchema,
 });

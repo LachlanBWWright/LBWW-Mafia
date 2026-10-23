@@ -4,7 +4,10 @@ import type { CombatLevel } from "./combatLevel.js";
 import type { RoleGroup } from "./roleGroup.js";
 import type { RoleTrait } from "./composition/roleTraits.js";
 import type { GameFaction } from "../factions/factionContracts.js";
-import type { RoleFactionAction, RoleRuntimeState } from "./composition/roleRuntimeState.js";
+import type {
+  RoleFactionAction,
+  RoleRuntimeState,
+} from "./composition/roleRuntimeState.js";
 
 export interface RoleIdentity {
   readonly room: Room;
@@ -53,9 +56,9 @@ export interface RoleCommandHandlers {
   nightVisitFaction: boolean;
   nightVote: boolean;
   handleMessage(message: string): void;
-  handleDayAction(recipient: Player): void;
+  handleDayAction(recipient: Player): boolean | void;
   cancelDayAction(): void;
-  handleNightAction(recipient: Player): void;
+  handleNightAction(recipient: Player): boolean | void;
   cancelNightAction(): void;
   handleNightVote(recipient: Player): void;
 }
@@ -78,12 +81,13 @@ export interface RoleRuntimeOperations {
   victoryCondition: boolean;
   setFactionAction(action: RoleFactionAction | null): void;
   peekFactionAction(): RoleFactionAction | null;
-  consumeFactionAction(expectedKind?: RoleFactionAction["kind"]): RoleFactionAction | null;
+  consumeFactionAction(
+    expectedKind?: RoleFactionAction["kind"],
+  ): RoleFactionAction | null;
   resetNightState(): void;
 }
 
-export type GameRole =
-  RoleIdentity &
+export type GameRole = RoleIdentity &
   RoleCombatState &
   RoleActionState &
   RoleStatusState &

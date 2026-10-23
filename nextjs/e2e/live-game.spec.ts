@@ -13,20 +13,20 @@ async function openWindows(
     await page.goto(`/lobby?room=${encodeURIComponent(roomId)}`, {
       waitUntil: "domcontentloaded",
     });
-    await expect(page.getByLabel("Assigned player name")).toContainText(
-      "You joined as",
-    );
+    await expect(page.getByLabel("Your player name")).not.toBeEmpty();
     pages.push(page);
   }
 
   await Promise.all(
     pages.map(async (page) => {
-      await expect(page.getByLabel("Assigned player name")).toContainText(
-        "You joined as",
-      );
+      await expect(page.getByLabel("Your player name")).not.toBeEmpty();
       await expect(page.locator('[aria-label$="is alive"]')).toHaveCount(count);
       await expect(
-        page.getByText(/Day \d+|Night/, { exact: false }).first(),
+        page
+          .getByRole("heading", {
+            name: /^(Day|Night) \d+|Waiting for players$/,
+          })
+          .first(),
       ).toBeVisible();
     }),
   );
@@ -38,7 +38,12 @@ function aliveRows(page: Page) {
 }
 
 function enabledAction(page: Page, name: string) {
-  return page.locator(`button[aria-label="${name}"]:not([disabled])`).first();
+  return page.locator(`button[aria-label^="${name}"]:not([disabled])`).first();
+}
+
+async function selectMatchTab(page: Page, name: "Chat" | "Players") {
+  const tab = page.getByRole("button", { name, exact: true });
+  if (await tab.isVisible()) await tab.click();
 }
 
 test("three browser windows join one real room and synchronize live chat", async ({
@@ -51,7 +56,7 @@ test("three browser windows join one real room and synchronize live chat", async
     const message = "hello from browser window one";
     const firstPage = pages[0];
     if (!firstPage) throw new Error("first browser window was not created");
-    const input = firstPage.getByPlaceholder("Send a message...");
+    const input = firstPage.getByLabel("Message", { exact: true });
     await input.fill(message);
     await firstPage.getByRole("button", { name: "Send", exact: true }).click();
 
@@ -82,8 +87,10 @@ test("two windows exchange a targeted whisper and can complete a tied vote", asy
     if (!firstPage || !secondPage || !thirdPage) {
       throw new Error("expected three browser windows");
     }
-    await firstPage.getByPlaceholder("Send a message...").fill(draft);
-    await enabledAction(firstPage, "Whisper to player").click();
+    await firstPage.getByLabel("Message", { exact: true }).fill(draft);
+    await selectMatchTab(firstPage, "Players");
+    await enabledAction(firstPage, "Whisper to ").click();
+    await selectMatchTab(firstPage, "Chat");
 
     await expect(firstPage.getByText(new RegExp(draft))).toBeVisible();
     await expect(secondPage.getByText(new RegExp(draft))).toBeVisible();
@@ -113,10 +120,12 @@ test("two windows exchange a targeted whisper and can complete a tied vote", asy
       pages.map(async (page, voter) => {
         const target = voteTargets[voter];
         if (target === undefined) throw new Error("missing vote target");
+        await selectMatchTab(page, "Players");
         await aliveRows(page)
           .nth(target)
-          .getByRole("button", { name: "Vote player" })
+          .getByRole("button", { name: /^Vote for / })
           .click();
+        await selectMatchTab(page, "Chat");
       }),
     );
     await Promise.all(
@@ -129,7 +138,9 @@ test("two windows exchange a targeted whisper and can complete a tied vote", asy
     );
     await Promise.all(
       pages.map((page) =>
-        expect(page.getByText("Night", { exact: true })).toBeVisible(),
+        expect(
+          page.getByRole("heading", { name: /^Night \d+$/ }),
+        ).toBeVisible(),
       ),
     );
   } finally {
@@ -172,12 +183,12 @@ test("a browser can reload and reconnect to the same live room", async ({
     if (!roomId) throw new Error("expected a room id in the lobby URL");
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByLabel("Assigned player name")).toContainText(
-      "You joined as",
-    );
+    await expect(page.getByLabel("Your player name")).not.toBeEmpty();
     await expect(aliveRows(page)).toHaveCount(2);
     await expect(
-      page.getByText(/Day \d+|Night/, { exact: false }).first(),
+      page
+        .getByRole("heading", { name: /^(Day|Night) \d+|Waiting for players$/ })
+        .first(),
     ).toBeVisible();
     await expect(page).toHaveURL(
       new RegExp(`room=${encodeURIComponent(roomId)}`),
@@ -194,9 +205,7 @@ test("an invalid room identifier falls back to the current matchmaking room", as
     waitUntil: "domcontentloaded",
   });
 
-  await expect(page.getByLabel("Assigned player name")).toContainText(
-    "You joined as",
-  );
+  await expect(page.getByLabel("Your player name")).not.toBeEmpty();
   await expect(aliveRows(page)).toHaveCount(1);
 });
 

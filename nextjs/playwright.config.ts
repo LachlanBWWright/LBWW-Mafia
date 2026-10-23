@@ -24,6 +24,7 @@ export default defineConfig({
     url: "http://127.0.0.1:3100/api/matchmaking/current",
     timeout: 120_000,
     reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 15_000 },
     stdout: "pipe",
     stderr: "pipe",
   },

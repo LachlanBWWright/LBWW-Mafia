@@ -5,6 +5,8 @@ packages:
   - "server"
   - "shared"
 allowBuilds:
+  electron: true
+  electron-winstaller: false
   esbuild: true
   sharp: true
   unrs-resolver: true

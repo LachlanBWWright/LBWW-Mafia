@@ -13,7 +13,7 @@ This document provides a comprehensive analysis of the MERN Mafia backend game l
 The backend game logic is structured around three main layers:
 
 ```
-Frontend (Socket.IO/PartyKit Events)
+Frontend (Socket.IO/PartyServer Events)
          ↓
 Game Room (game orchestration)
          ↓
@@ -309,7 +309,7 @@ export const matchParticipants = createTable("match_participant", () => ({
 
 #### **2.1.5 Non-invasive Backend Abstraction**
 
-✅ **Finding**: Socket.IO/PartyKit abstraction layer:
+✅ **Finding**: Socket.IO/PartyServer abstraction layer:
 
 - `GameEmitter` interface decouples from implementation
 - Game logic doesn't import socket libraries directly

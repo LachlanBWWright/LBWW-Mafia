@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  partykitServerEnvelopeSchema,
+  partyserverServerEnvelopeSchema,
   supabaseClientEnvelopeSchema,
 } from "./protocol";
 
@@ -29,10 +29,10 @@ describe("protocol parity fixtures", () => {
   });
 
   it("keeps server event and callback envelopes byte-for-byte stable", () => {
-    const eventEnvelope = partykitServerEnvelopeSchema.parse(
+    const eventEnvelope = partyserverServerEnvelopeSchema.parse(
       fixture.serverRoomMessage,
     );
-    const callbackEnvelope = partykitServerEnvelopeSchema.parse(
+    const callbackEnvelope = partyserverServerEnvelopeSchema.parse(
       fixture.serverCallbackMessage,
     );
 

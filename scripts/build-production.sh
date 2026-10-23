@@ -10,11 +10,11 @@ export AUTH_GOOGLE_ID="${AUTH_GOOGLE_ID:-local-build-google-id}"
 export AUTH_GOOGLE_SECRET="${AUTH_GOOGLE_SECRET:-local-build-google-secret}"
 export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/mernmafia}"
 export BACKEND_SECRET="${BACKEND_SECRET:-local-build-backend-secret}"
-export NEXT_PUBLIC_SOCKET_BACKEND=partykit
+export NEXT_PUBLIC_SOCKET_BACKEND=partyserver
 export NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL:-http://localhost:1999}"
 
-section "Type-checking the server production build"
-pnpm --dir server run build
+section "Type-checking and bundling the Cloudflare game Worker"
+pnpm --dir server run build:partyserver
 
 section "Building the Next.js production application"
 pnpm --dir nextjs run build

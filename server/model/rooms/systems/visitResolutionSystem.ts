@@ -12,7 +12,7 @@ export class VisitResolutionSystem {
 
     for (const step of resolutionPlan) {
       if (step.stage === "preVisit") {
-        step.player.role.visit();
+        this.processVisitor(step.player);
         continue;
       }
 
@@ -45,7 +45,13 @@ export class VisitResolutionSystem {
   }
 
   private processVisitor(player: Room["playerList"][number]): void {
+    if (!player.isAlive) return;
     if (player.role.roleblocked) {
+      this.room.actionFeedback(
+        player,
+        "Your night action was blocked.",
+        "blocked",
+      );
       player.role.visiting = null;
       this.room.messenger.emitToPlayer(player, ServerEvent.ReceiveMessage, {
         key: MessageKey.YouWereRoleblocked,
@@ -55,6 +61,13 @@ export class VisitResolutionSystem {
     }
 
     if (player.role.visiting !== null) {
+      // Completing the attempt does not tell the actor whether a hidden
+      // protection, attack, or probabilistic roleblock took effect.
+      this.room.actionFeedback(
+        player,
+        "Your night action finished. No additional result is available.",
+        "resolved",
+      );
       player.role.visit();
     }
   }

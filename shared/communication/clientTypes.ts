@@ -1,6 +1,6 @@
 /**
  * Client-side abstractions for socket communication.
- * Both Socket.IO-client and PartySocket implement this interface,
+ * Socket.IO and raw WebSocket adapters implement this interface,
  * allowing NextJS and Mobile apps to be backend-agnostic.
  */
 import type { ServerToClientEvents, ClientToServerEvents } from "./events";
@@ -28,7 +28,7 @@ export interface GameSocket {
   readonly connected: boolean;
 }
 
-export type SocketBackendType = "socketio" | "partykit" | "supabase";
+export type SocketBackendType = "socketio" | "partyserver" | "supabase";
 
 export interface GameSocketConfig {
   type: SocketBackendType;

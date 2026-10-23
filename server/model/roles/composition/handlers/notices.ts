@@ -1,10 +1,25 @@
 import { ServerEvent } from "@mernmafia/shared/communication/events";
-import type { GameMessage } from "@mernmafia/shared/communication/messages";
+import {
+  MessageKey,
+  type GameMessage,
+} from "@mernmafia/shared/communication/messages";
 import { io } from "../../../../servers/emitter.js";
 import type { Player } from "../../../player/player.js";
 import type { Room } from "../../../rooms/room.js";
 import type { GameRole } from "../../roleContracts.js";
 import type { GameNotice } from "../resultTypes.js";
+
+const privateActionResults = new Set<MessageKey>([
+  MessageKey.InvestigatorResult,
+  MessageKey.MafiaInvestigatorResult,
+  MessageKey.JudgeAlignmentResult,
+  MessageKey.TrackerTargetVisited,
+  MessageKey.TrackerTargetDidNotVisit,
+  MessageKey.WatchmanNobodyVisited,
+  MessageKey.WatchmanTargetVisitedBy,
+  MessageKey.WatchmanVisitorList,
+  MessageKey.VetterResearchResult,
+]);
 
 function emitToPlayer(
   player: Player,
@@ -23,6 +38,17 @@ function emitToPlayer(
 export function dispatchNotice(role: GameRole, notice: GameNotice): void {
   if (notice.target === "actor") {
     emitToPlayer(role.player, notice.event, notice.message);
+    if (
+      notice.event === ServerEvent.ReceiveMessage &&
+      typeof notice.message !== "string" &&
+      privateActionResults.has(notice.message.key)
+    ) {
+      role.room.actionFeedback(
+        role.player,
+        "Your night action resolved. A private result is available in chat.",
+        "resolved",
+      );
+    }
     return;
   }
   if (notice.target === "target") {

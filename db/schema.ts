@@ -472,9 +472,60 @@ export const mobileOauthRequests = createTable("mobile_oauth_request", () => ({
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 }));
 
+/** Persistent social groups; destination is a suggestion, never a game join. */
+export const parties = createTable("party", () => ({
+  id: varchar("id", { length: 36 }).primaryKey(),
+  leaderId: varchar("leader_id", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  roomId: varchar("room_id", { length: 64 }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+}));
+export const partyMembers = createTable(
+  "party_member",
+  () => ({
+    partyId: varchar("party_id", { length: 36 })
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 255 })
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [index("party_member_party_idx").on(t.partyId)],
+);
+export const partyInvitations = createTable(
+  "party_invitation",
+  () => ({
+    id: serial("id").primaryKey(),
+    partyId: varchar("party_id", { length: 36 })
+      .notNull()
+      .references(() => parties.id, { onDelete: "cascade" }),
+    senderId: varchar("sender_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    recipientId: varchar("recipient_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 16 }).notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [index("party_invitation_recipient_idx").on(t.recipientId)],
+);
+
 // helper object for easier schema imports
 export const schema = {
   createTable,
+  parties,
+  partyMembers,
+  partyInvitations,
   notifications,
   lobbyInvitations,
   lobbyPresets,

@@ -42,6 +42,7 @@ export const selectionAlgorithms = [
 export const lobbyConfigSchema = z
   .object({
     size: z.number().int().min(2).max(64),
+    voteVisibility: z.enum(["public", "hidden"]).optional(),
     roleSelection: z
       .object({
         algorithm: z.enum([

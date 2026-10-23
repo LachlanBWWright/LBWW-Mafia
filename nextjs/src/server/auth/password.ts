@@ -18,8 +18,10 @@ export async function verifyPassword(
   password: string,
   stored: string,
 ): Promise<boolean> {
-  const [algorithm, salt, encoded] = stored.split(":");
-  if (algorithm !== "scrypt" || !salt || !encoded) return false;
+  const parsed = /^scrypt:([a-f0-9]{32}):([a-f0-9]{128})$/.exec(stored);
+  if (!parsed) return false;
+  const salt = parsed[1]!;
+  const encoded = parsed[2]!;
   const expected = Buffer.from(encoded, "hex");
   const actual = (await scrypt(password, salt, expected.length)) as Buffer;
   return expected.length === actual.length && timingSafeEqual(expected, actual);

@@ -5,6 +5,7 @@ import {
 } from "@mernmafia/shared/communication/messages";
 import type { Player } from "../../player/player.js";
 import type { ChatRole } from "../../roles/roleContracts.js";
+import { RoleGroup } from "../../roles/roleGroup.js";
 import { GamePhase } from "../gamePhase.js";
 import type { Room } from "../room.js";
 
@@ -63,11 +64,21 @@ export class ChatSystem {
     }
 
     if (outcome.kind === "room-chat") {
-      this.room.messenger.emitToRoom(ServerEvent.ReceiveChatMessage, outcome.message);
+      this.room.recordConversation(message, role.player.username);
+      this.room.messenger.emitToRoom(
+        ServerEvent.ReceiveChatMessage,
+        outcome.message,
+      );
       return;
     }
 
     if (outcome.kind === "private-chat") {
+      this.room.recordConversation(
+        message,
+        role.player.username,
+        role.jailed?.player.username,
+        "whisper",
+      );
       this.room.messenger.emitToPlayers(
         outcome.recipients,
         ServerEvent.ReceiveChatMessage,
@@ -76,6 +87,8 @@ export class ChatSystem {
       return;
     }
 
+    if (role.faction && role.player.role.group === RoleGroup.Mafia)
+      this.room.recordConversation(message, role.player.username);
     role.faction?.handleNightMessage(outcome.message, role.player.username);
     if (outcome.tapTarget) {
       this.room.messenger.emitToPlayer(

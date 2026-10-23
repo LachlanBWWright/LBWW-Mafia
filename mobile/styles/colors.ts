@@ -4,7 +4,7 @@ export const colors = {
   card: "#0F1528",
   popover: "#0F1528",
   primary: "#5B8CFF",
-  primaryForeground: "#F2F6FF",
+  primaryForeground: "#06102B",
   secondary: "#19213A",
   secondaryForeground: "#DCE5FF",
   muted: "#19213A",

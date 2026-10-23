@@ -4,7 +4,7 @@
 
 `shared/game/lobbyConfig.ts` owns role identifiers, count/uniqueness validation,
 form conversion, and weighted/tier selection. The API validates before saving;
-PartyKit reads `/api/lobbies/{roomId}` with its backend credential before admitting
+PartyServer reads `/api/lobbies/{roomId}` with its backend credential before admitting
 players and caches the configuration in room storage. Configuration outages
 reject joins rather than silently applying defaults. A missing record means a
 public room. Ownership deletion first closes the game host and records a durable
@@ -15,9 +15,9 @@ because this release does not require destructive cleanup.
 
 ## Connection recovery
 
-The PartyKit adapter uses an unguessable connection capability and exponential
+The PartyServer adapter uses an unguessable connection capability and exponential
 backoff (500 ms to 5 seconds). Mobile generates the capability with `expo-crypto`.
-PartyKit reserves disconnected seats for 30 seconds. Returning connections retain
+PartyServer reserves disconnected seats for 30 seconds. Returning connections retain
 their player, role, votes, and selected actions, and receive a private snapshot of
 roster, faction knowledge, phase, timer, and permissions. Other players' secret
 roles are excluded. After the grace period the existing abandonment rule applies.
@@ -26,10 +26,11 @@ Native foreground events trigger an immediate connection attempt when needed.
 Web stores the seat capability per room in tab session storage; native stores it
 in SecureStore. Reloading or restarting can recover the same seat within the grace
 period. Active game state remains in memory;
-worker replacement is not currently recoverable. Persisted game checkpoints and
-recovery across process replacement remain a separate follow-up. Socket.IO and
+Worker replacement ends an unfinished game. Hibernation is explicitly disabled;
+active-match checkpoints and recovery across process replacement are intentionally
+out of scope for these short games. Socket.IO and
 Supabase retain their compatibility transport behavior; the new seat recovery is
-specific to the production PartyKit host and has transport/reducer regression tests.
+specific to the production PartyServer host and has transport/reducer regression tests.
 
 ## Direct messages
 
@@ -38,8 +39,9 @@ Messages and read markers are persisted in PostgreSQL. Sending a message emits
 notifications. Notifications contain IDs rather than full message bodies. SSE
 subscribers refresh through the authenticated API. Each connection rotates after
 four minutes; abort, cancellation, and setup failure all release subscriptions
-and timers. Configure `DIRECT_MESSAGES_DATABASE_URL` with a session-capable
-PostgreSQL connection if `DATABASE_URL` uses transaction pooling. PostgreSQL
+and timers. Configure `DATABASE_URL_UNPOOLED` with a direct PostgreSQL connection when
+`DATABASE_URL` uses Neon transaction pooling. Notifications use it automatically;
+`DIRECT_MESSAGES_DATABASE_URL` is an optional higher-priority override. PostgreSQL
 notifications are hints; clients retain polling as a recovery mechanism.
 
 Web uses SSE plus 10-second refreshes. React Native uses 10-second foreground
@@ -52,8 +54,10 @@ A future native streaming transport must retain the same contract and history.
 ## Verification
 
 The web and mobile unit commands include application tests as well as shared
-contracts. Native boundary tests mock Expo SecureStore and React Native AppState
-to exercise write ordering, restoration races, pause, and resume. These are not
+contracts. `pnpm --dir server run test:worker` exercises the actual local Cloudflare
+Worker runtime, while Playwright boots Wrangler for multiplayer browser checks.
+Neither requires a Cloudflare account or deployed Worker. Native boundary tests
+mock Expo SecureStore and React Native AppState to exercise write ordering, restoration races, pause, and resume. These are not
 emulator tests. Before a native release, also verify secure storage across a real
 app restart and reconnect after backgrounding on iOS and Android devices.
 
@@ -64,14 +68,15 @@ runs omit it and validate the entire manifest.
 
 ## Safe writes and completed-result recovery
 
-PartyKit stores completed results in `pending-history` before upload and schedules
+PartyServer stores completed results in `pending-history` before upload and schedules
 an alarm before contacting the backend. Upload failures retain the result and
 retry with bounded exponential delay and jitter. `onStart` schedules recovery;
 `onAlarm` drains the outbox. PostgreSQL deduplicates by game ID; match and participant rows commit in
 one transaction. This recovers completed results only: active-game recovery
-across worker replacement remains out of scope.
+across Worker replacement is intentionally out of scope. Existing completed-result
+retry persistence is retained independently of active-match state.
 
-PartyKit commands carry an ID and phase version. The client retries an
+PartyServer commands carry an ID and phase version. The client retries an
 unacknowledged command up to three times; the host retains the last 128 IDs per
 seat and rejects outdated phase versions. Day/night transitions advance the
 version, preventing a delayed action from applying on a later day. Web and native
@@ -103,15 +108,18 @@ PostgreSQL maintains shared request buckets. Configure
 Without it, anonymous requests share one conservative bucket. Authenticated RPC
 limits use account IDs as well. Google handoff, lobby creation, and refresh
 are limited; HTTP bodies, RPC batch sizes, socket payloads, socket bursts, and room
-connections are bounded. Database connections and statement lifetimes are bounded.
-Backend/configuration/CAPTCHA requests have deadlines and reconnects use jitter.
+connections are bounded. Database connection pools are bounded (two connections per production instance).
+Direct/local connections set statement timeouts at startup. Neon pooled
+connections require role-level timeout defaults; see `DEPLOYMENT.md`.
+Backend/configuration requests have deadlines and reconnects use jitter.
+CAPTCHA verification is temporarily disabled across web and native game joins.
 Expired request buckets may be removed during database maintenance using
 `DELETE FROM nextjs_request_limit WHERE window_start < now() - interval '1 day'`.
 
 ## Operations and recovery drills
 
 Authenticated `GET /api/health` tests database availability. Backend-authenticated
-GETs to PartyKit rooms expose connection counts, phase version, and pending-history
+GETs to PartyServer rooms expose connection counts, phase version, and pending-history
 attempts, without roles or message content. Logs emit structured `history.retry`,
 `history.persisted`, `connection.resumed`, `phase.delayed`, `rpc.error`, `rpc.slow`,
 and SSE lifecycle events. RPC responses include a generated request ID. Alert on

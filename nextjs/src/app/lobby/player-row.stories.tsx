@@ -2,7 +2,7 @@ import { DayTime } from "@mernmafia/shared/game/playerActionRules";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
-import { PlayerRow } from "./LobbyClient";
+import { PlayerRow } from "./PlayerRow";
 
 const onVote = fn();
 const capability = {
@@ -44,7 +44,9 @@ type Story = StoryObj<typeof meta>;
 export const DayActions: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Vote player" }));
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Vote for Mira" }),
+    );
     await expect(onVote).toHaveBeenCalledWith(1);
   },
 };
@@ -52,7 +54,7 @@ export const DeadPlayer: Story = {
   args: { player: { name: "Mira", isAlive: false, role: "Doctor" } },
   play: async ({ canvasElement }) => {
     await expect(
-      within(canvasElement).getByRole("button", { name: "Vote player" }),
+      within(canvasElement).getByRole("button", { name: "Vote for Mira" }),
     ).toBeDisabled();
   },
 };

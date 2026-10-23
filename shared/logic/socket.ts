@@ -9,7 +9,7 @@
  * Single-Responsibility: this module owns event wiring only.
  * Open/Closed: add new callbacks to `GameEventCallbacks` without touching consumers.
  * Liskov / Interface Segregation: consumers implement only the callbacks they need.
- * Dependency Inversion: depends on `GameSocket` abstraction, not Socket.IO or PartyKit directly.
+ * Dependency Inversion: depends on `GameSocket` abstraction, not Socket.IO or PartyServer directly.
  */
 import { ServerEvent } from "../communication/events";
 import type { GameSocket } from "../communication/clientTypes";

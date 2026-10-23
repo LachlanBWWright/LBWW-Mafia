@@ -12,6 +12,7 @@ export class Player {
   readonly username: string;
   role!: RoleLike; // always assigned during startGame() before any game logic runs
   isAlive: boolean;
+  voteTarget?: string | null;
   hasVoted: boolean;
   votesReceived: number;
 

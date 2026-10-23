@@ -23,7 +23,7 @@ import type {
   GameSocketConfig,
 } from "./clientTypes";
 import { SocketIoClientAdapter } from "./socketIoClientAdapter";
-import { PartykitClientAdapter } from "./partykitClientAdapter";
+import { PartyServerClientAdapter } from "./partyserverClientAdapter";
 import { SupabaseRealtimeClientAdapter } from "./supabaseRealtimeClientAdapter";
 import { createGameSocket } from "./createGameSocket";
 
@@ -46,7 +46,7 @@ export {
   ClientEvent,
   DayTime,
   SocketIoClientAdapter,
-  PartykitClientAdapter,
+  PartyServerClientAdapter,
   SupabaseRealtimeClientAdapter,
   createGameSocket,
 };

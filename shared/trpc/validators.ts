@@ -1,11 +1,20 @@
 import { z } from "zod";
 
+const timelineMetadata = {
+  phase: z.string().max(40).optional(),
+  day: z.number().int().nonnegative().optional(),
+  kind: z
+    .enum(["phase", "vote", "death", "night_action", "outcome", "role_reveal"])
+    .optional(),
+};
+
 /**
  * Validator for match history events.
  * Ensures type safety when deserializing stored JSON.
  */
 export const MatchHistoryEventSchema = z.discriminatedUnion("type", [
   z.object({
+    ...timelineMetadata,
     time: z.number(),
     type: z.literal("system"),
     actor: z.string().optional(),
@@ -13,6 +22,7 @@ export const MatchHistoryEventSchema = z.discriminatedUnion("type", [
     content: z.string(),
   }),
   z.object({
+    ...timelineMetadata,
     time: z.number(),
     type: z.literal("chat"),
     actor: z.string(),
@@ -20,6 +30,7 @@ export const MatchHistoryEventSchema = z.discriminatedUnion("type", [
     content: z.string(),
   }),
   z.object({
+    ...timelineMetadata,
     time: z.number(),
     type: z.literal("whisper"),
     actor: z.string(),
@@ -27,6 +38,7 @@ export const MatchHistoryEventSchema = z.discriminatedUnion("type", [
     content: z.string(),
   }),
   z.object({
+    ...timelineMetadata,
     time: z.number(),
     type: z.literal("action"),
     actor: z.string(),

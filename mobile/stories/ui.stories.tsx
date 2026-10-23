@@ -1,3 +1,12 @@
+import { PracticeMatchStory } from "../components/PracticeMatchStory";
+import { MatchExperienceStory } from "../components/MatchExperienceStory";
+import {
+  nightMatch,
+  dayMatch,
+  hiddenMatch,
+  recapMatch,
+  reconnectMatch,
+} from "../../shared/testing/matchFixtures";
 import {
   AccountPrivacyStory as AccountPrivacyCapture,
   SavedPresetsStory as SavedPresetsCapture,
@@ -28,8 +37,8 @@ import {
 const meta = {
   title: "Mobile/UI kit",
   decorators: [
-    (Story) => (
-      <View className="w-full max-w-xl gap-4 self-center">
+    (Story, context) => (
+      <View className={context.name.startsWith("Match") ? "flex-1 w-full" : "w-full max-w-xl gap-4 self-center"}>
         <Story />
       </View>
     ),
@@ -313,3 +322,25 @@ export const SavedPresetsStory: Story = {
 export const PlayerStatisticsStory: Story = {
   render: () => <PlayerStatisticsCapture />,
 };
+
+export const MatchNight: Story = {
+  render: () => <MatchExperienceStory lobby={nightMatch} />,
+};
+
+export const MatchVoting: Story = {
+  render: () => <MatchExperienceStory lobby={dayMatch} />,
+};
+
+export const MatchHiddenVotes: Story = {
+  render: () => <MatchExperienceStory lobby={hiddenMatch} />,
+};
+
+export const MatchRecap: Story = {
+  render: () => <MatchExperienceStory lobby={recapMatch} />,
+};
+
+export const MatchReconnecting: Story = {
+  render: () => <MatchExperienceStory lobby={reconnectMatch} />,
+};
+
+export const MatchPractice: Story = { render: () => <PracticeMatchStory /> };

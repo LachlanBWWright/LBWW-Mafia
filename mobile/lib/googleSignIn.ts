@@ -23,6 +23,8 @@ async function post(path: string, body: unknown) {
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(10_000),
   });
+  if (response.status === 503)
+    throw new Error("Google sign-in is unavailable right now.");
   if (!response.ok) throw new Error("Unable to sign in. Try again.");
   return response;
 }

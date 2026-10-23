@@ -1,9 +1,15 @@
 import { z } from "zod";
 import { guardRequest, readJson } from "~/server/reliability/requests";
 import { startMobileGoogle } from "~/server/auth/mobileGoogle";
+import { isGoogleSignInConfigured } from "~/server/auth/googleConfiguration";
 export async function POST(request: Request) {
   const limited = await guardRequest(request, "mobile-google-start", 20);
   if (limited) return limited;
+  if (!isGoogleSignInConfigured())
+    return Response.json(
+      { error: "Google sign-in is unavailable right now." },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   const parsed = z
     .object({ challenge: z.string().regex(/^[A-Za-z0-9_-]{43}$/) })
     .safeParse(await readJson(request).catch(() => null));

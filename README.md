@@ -2,14 +2,14 @@
 
 A multiplayer online mafia/werewolf game implementation.
 
-Production uses a Next.js web app on Vercel and isolated PartyKit game rooms.
+Production uses a Next.js web app on Vercel and isolated PartyServer game rooms.
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for configuration.
 
 ## Project Structure
 
 This is a monorepo containing four main components:
 
-- **server/**: Node.js/Express backend with Socket.IO, PartyKit, or Supabase Realtime for real-time gameplay
+- **server/**: Node.js/Express backend with Socket.IO, PartyServer, or Supabase Realtime for real-time gameplay
 - **nextjs/**: Next.js web application using the T3 Stack
 - **mobile/**: React Native mobile application using Expo
 - **shared/**: Shared game logic, types, and communication abstractions
@@ -26,9 +26,9 @@ part of the active workspace or deployment. The supported web application is `ne
 
 The application supports multiple real-time communication backends:
 
-### PartyKit (Default)
+### PartyServer (Default)
 
-Each PartyKit room hosts one isolated game. This is the active production backend and runs on PartyKit's globally distributed room infrastructure.
+Each PartyServer room hosts one isolated game in a Cloudflare Durable Object deployed to your Cloudflare account with Wrangler. The root `wrangler.jsonc` binds `Main` and preserves the `/parties/main/:room` protocol. Active games remain in memory with hibernation disabled; a Worker replacement can end a game. Completed-history upload retries retain their durable outbox.
 
 ### Socket.IO compatibility
 
@@ -40,7 +40,7 @@ Supabase Realtime is available as a managed channel-based transport that can rel
 
 ### Switching Backends
 
-The backend is selected via environment variables. No code changes are required to switch between Socket.IO, PartyKit, and Supabase-backed clients.
+The backend is selected via environment variables. No code changes are required to switch between Socket.IO, PartyServer, and Supabase-backed clients.
 
 #### Server-side
 
@@ -48,8 +48,8 @@ The backend is selected via environment variables. No code changes are required 
 # Socket.IO compatibility
 cd server && pnpm run start:socketio
 
-# PartyKit
-cd server && pnpm run start:partykit
+# PartyServer
+cd server && pnpm run start:partyserver
 
 # Supabase Realtime
 cd server && pnpm run start:supabase
@@ -59,7 +59,7 @@ cd server && pnpm run start:supabase
 
 ```env
 # .env.local
-NEXT_PUBLIC_SOCKET_BACKEND=partykit   # or "socketio" / "supabase"
+NEXT_PUBLIC_SOCKET_BACKEND=partyserver   # or "socketio" / "supabase"
 NEXT_PUBLIC_SOCKET_URL=http://localhost:1999
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 ```
@@ -67,7 +67,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 #### Client-side (Mobile)
 
 ```env
-EXPO_PUBLIC_SOCKET_BACKEND=partykit   # or "socketio" / "supabase"
+EXPO_PUBLIC_SOCKET_BACKEND=partyserver   # or "socketio" / "supabase"
 EXPO_PUBLIC_SOCKET_URL=http://localhost:1999
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 ```
@@ -80,16 +80,16 @@ To add a new socket backend:
 2. **Client**: Implement the `GameSocket` interface from `shared/communication/clientTypes.ts` and add a case to the `createGameSocket()` factory.
 3. **Config**: Add the new backend type to `SocketBackendType` in `shared/communication/clientTypes.ts`.
 
-### Custom PartyKit lobbies
+### Custom PartyServer lobbies
 
-With the PartyKit backend enabled, `POST /lobbies` creates an isolated room with a
+With the PartyServer backend enabled, `POST /lobbies` creates an isolated room with a
 validated role-selection configuration. The Next.js proxy is available at
 `/api/lobbies`; the lobby builder is at `/lobby/create`.
 
 Role rules support `weight`, `minimum`, `maximum`, and an optional `tier`. The
 available algorithms are `weighted-random`, `tier-balanced`, and
 `explicit-slots`. Both clients and the API validate role counts, capacity, and uniqueness before
-creation. PartyKit retrieves and caches the saved rules before the first join.
+creation. PartyServer retrieves and caches the saved rules before the first join.
 The weighted algorithm honors role weights and count bounds; tier balancing
 fills the least-represented available tier before applying weights within it.
 Role IDs use engine identifiers, including `mafia-investigator` and `mafia-roleblocker`.
@@ -109,17 +109,29 @@ bash dev.sh
 ```
 
 This installs the locked dependencies, starts the local Postgres container,
-applies the database schema, and launches the Next.js app and PartyKit game
-server. It uses a three-player room and local-only placeholder credentials
-by default. Open `http://localhost:3000`.
+waits for it to be healthy, applies database migrations, and launches Next.js
+and PartyServer. It uses a three-player room by default. Open
+`http://localhost:3000`.
 
-When dependencies and Postgres are already running, use the focused launcher:
+When dependencies are already installed, use the same launcher without the
+installation step. It also starts and prepares the database:
 
 ```bash
 pnpm run dev:local
 ```
 
-Stop the foreground process with `Ctrl-C`, then stop Postgres with:
+Local development can start without Google OAuth credentials; Google sign-in
+requires `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` in `nextjs/.env.local`.
+Production builds require both credentials. The local PartyServer port is fixed at
+1999 so it matches the client URL; set `PARTYSERVER_PORT` to use another port.
+`WEB_PORT` and `POSTGRES_PORT` override the default web and database ports.
+The launcher refuses occupied web/game ports instead of silently choosing a
+different port. Its database URLs override any Neon URLs in `.env.local` so
+the web app, notifications, and migrations use the same local database.
+
+Closing the terminal, pressing `Ctrl-C`, or any app service exiting stops
+Next.js, PartyServer, and PostgreSQL. Database contents remain in the named volume
+for the next run. To stop a database left over from an older launcher:
 
 ```bash
 pnpm run dev:down
@@ -130,7 +142,7 @@ pnpm run dev:down
 ```bash
 pnpm install
 pnpm --dir server run start:socketio  # Socket.IO compatibility mode
-pnpm --dir server run start:partykit  # PartyKit mode
+pnpm --dir server run start:partyserver  # PartyServer mode
 pnpm --dir server run start:supabase  # Supabase Realtime mode
 ```
 
@@ -170,12 +182,17 @@ and Firefox/WebKit smoke tests:
 pnpm run test:all
 ```
 
-This requires Docker, the Playwright browsers to be installed.
+This requires Docker and the Playwright browsers to be installed. Worker runtime tests run locally without Cloudflare credentials:
+
+```bash
+pnpm --dir server run test:worker
+pnpm --dir server run build:partyserver
+```
 
 ### Playwright live-server tests
 
 The web end-to-end suite boots a real Postgres database, Next.js server, and
-PartyKit game server. It opens several browser windows against the same room
+PartyServer game server. It opens several browser windows against the same room
 to verify joins, synchronized chat, targeted whispers, voting, and disconnects.
 
 ```bash
@@ -194,8 +211,8 @@ Then open the same room URL in separate browser windows or private sessions:
 http://localhost:3000/lobby?room=manual-game-1
 ```
 
-Each browser joins the same live game. Stop the environment with `Ctrl-C`, or
-run `pnpm run dev:down` to stop Postgres.
+Each browser joins the same live game. Close the terminal or press `Ctrl-C` to
+stop the web app, PartyServer, and PostgreSQL together.
 
 Web Storybook screenshots are written to `nextjs/storybook-screenshots/` and
 mobile Storybook screenshots are written to `mobile/visual/storybook-screenshots/`.
@@ -218,9 +235,21 @@ pnpm --dir mobile run lint
 ## Testing
 
 ```bash
-# Run all tests (from server directory)
-pnpm --dir server test
+# Run the offline ChatGPT, Electron, game server, web and mobile unit suites
+pnpm run test:unit
+
+# Enforce shared AI/desktop coverage and native adapter coverage
+pnpm run test:chatgpt:coverage
+pnpm run test:chatgpt:native:coverage
 ```
+
+The AI/desktop coverage check includes the portable OAuth runtime, stream parser,
+decision policy, character decisions, bot runner, desktop controller and encrypted
+store. Native coverage checks the TypeScript authorization adapter, React Native
+service and shared IPC client, with per-file thresholds. Both checks run in CI.
+These tests use isolated stores, signed test identities and simulated transports;
+they do not authorize a real ChatGPT account or spend plan usage. Native OS module
+and live account acceptance remain separate from unit coverage.
 
 ## Tech Stack
 
@@ -229,7 +258,7 @@ pnpm --dir server test
 - Node.js with Express
 - Shared PostgreSQL persistence through the Next.js API
 - Socket.IO for real-time communication
-- PartyKit for production real-time communication (Cloudflare Workers)
+- PartyServer on Cloudflare Workers and Durable Objects, deployed with Wrangler
 - Supabase Realtime for managed channel-based transport
 - TypeScript
 
@@ -245,7 +274,7 @@ pnpm --dir server test
 
 - React Native
 - Expo
-- Socket.IO Client / PartyKit Client
+- Shared WebSocket PartyServer adapter / Socket.IO client
 - TypeScript
 
 ## Code Quality
@@ -273,3 +302,10 @@ For E2E tests with an existing database, set `PLAYWRIGHT_EXTERNAL_DB=true` and
 
 See [RELIABILITY.md](./RELIABILITY.md) for reconnect behavior, messaging transports,
 native testing boundaries, and operational requirements.
+
+See [MATCH_EXPERIENCE.md](./MATCH_EXPERIENCE.md) for the shared web/mobile match
+flow, local practice scenario, action and vote privacy, rematches, and native
+verification requirements. The [AI runtime guide](./tools/ai-bots/README.md)
+explains optional ChatGPT-powered characters, context modes, and character profiles.
+
+ChatGPT AI characters are available in the Electron desktop and installed React Native apps. Subscription sign-in, protected credentials, inference and bot sockets run inside those apps; no separate companion or API key is needed. The Next.js browser client disables AI setup with an explanation. See [desktop setup](desktop/README.md) and [ChatGPT runtime](tools/ai-bots/README.md).

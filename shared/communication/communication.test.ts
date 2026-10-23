@@ -1,13 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { SocketIoClientAdapter, type SocketIoCompatible } from "./socketIoClientAdapter";
-import { PartykitClientAdapter } from "./partykitClientAdapter";
+import { PartyServerClientAdapter } from "./partyserverClientAdapter";
 import { createGameSocket } from "./createGameSocket";
 import type { GameSocketConfig } from "./clientTypes";
 import {
   ClientEvent,
   DayTime,
   JoinRoomResultCode,
-  PartyKitMessageType,
+  PartyServerMessageType,
   ServerEvent,
 } from "./events";
 import { MessageKey } from "./messages";
@@ -104,11 +104,11 @@ describe("SocketIoClientAdapter", () => {
   });
 });
 
-// ───────────── PartykitClientAdapter tests ─────────────
+// ───────────── PartyServerClientAdapter tests ─────────────
 
-describe("PartykitClientAdapter", () => {
+describe("PartyServerClientAdapter", () => {
   it("registers and dispatches event handlers", () => {
-    const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
+    const adapter = new PartyServerClientAdapter("ws://localhost:9999/party/test", false);
     const received: string[] = [];
     adapter.on(ServerEvent.ReceiveMessage, (msg) => { received.push(msg.key); });
     expect(adapter.connected).toBe(false);
@@ -116,7 +116,7 @@ describe("PartykitClientAdapter", () => {
   });
 
   it("off removes specific handler", () => {
-    const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
+    const adapter = new PartyServerClientAdapter("ws://localhost:9999/party/test", false);
     const handler1 = () => undefined;
     const handler2 = () => undefined;
     adapter.on(ServerEvent.ReceiveMessage, handler1);
@@ -125,14 +125,14 @@ describe("PartykitClientAdapter", () => {
   });
 
   it("off without handler removes all handlers for event", () => {
-    const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
+    const adapter = new PartyServerClientAdapter("ws://localhost:9999/party/test", false);
     adapter.on(ServerEvent.ReceiveMessage, () => undefined);
     adapter.on(ServerEvent.ReceiveMessage, () => undefined);
     adapter.off(ServerEvent.ReceiveMessage);
   });
 
   it("emit with callback stores pending callback", () => {
-    const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
+    const adapter = new PartyServerClientAdapter("ws://localhost:9999/party/test", false);
     let callbackCalled = false;
     adapter.emit(ClientEvent.PlayerJoinRoom, "token", (_result) => {
       callbackCalled = true;
@@ -141,7 +141,7 @@ describe("PartykitClientAdapter", () => {
   });
 
   it("disconnect is safe to call when not connected", () => {
-    const adapter = new PartykitClientAdapter("ws://localhost:9999/party/test", false);
+    const adapter = new PartyServerClientAdapter("ws://localhost:9999/party/test", false);
     adapter.disconnect();
     expect(adapter.connected).toBe(false);
     expect(adapter.id).toBeUndefined();
@@ -240,7 +240,7 @@ describe("SupabaseRealtimeClientAdapter", () => {
     channels.get(createSupabaseSocketChannelName("sb_fixture"))?.emit(
       SUPABASE_DELIVERY_EVENT,
       {
-        type: PartyKitMessageType.Callback,
+        type: PartyServerMessageType.Callback,
         callbackId: "cb_1",
         args: [{ status: "joined", username: "alpha" }],
       },
@@ -248,7 +248,7 @@ describe("SupabaseRealtimeClientAdapter", () => {
     channels.get(createSupabaseRoomChannelName("fixture-room"))?.emit(
       SUPABASE_DELIVERY_EVENT,
       {
-        type: PartyKitMessageType.Event,
+        type: PartyServerMessageType.Event,
         event: ServerEvent.ReceiveChatMessage,
         args: ["hello from room"],
       },
@@ -344,9 +344,9 @@ describe("createGameSocket", () => {
     expect(res.error.message).toMatch(/Socket\.IO backend requires/);
   });
 
-  it("creates PartykitClientAdapter for partykit type", () => {
+  it("creates PartyServerClientAdapter for partyserver type", () => {
     const socketRes = createGameSocket({
-      type: "partykit",
+      type: "partyserver",
       url: "http://localhost:1999",
       room: "test-room",
       autoConnect: false,
@@ -354,20 +354,20 @@ describe("createGameSocket", () => {
     expect(socketRes.isOk()).toBe(true);
     const socket = socketRes.value;
     expect(socket).toBeTruthy();
-    expect(socket instanceof PartykitClientAdapter).toBe(true);
+    expect(socket instanceof PartyServerClientAdapter).toBe(true);
     expect(socket.connected).toBe(false);
   });
 
-  it("uses default room for partykit when not specified", () => {
+  it("uses default room for partyserver when not specified", () => {
     const socketRes = createGameSocket({
-      type: "partykit",
+      type: "partyserver",
       url: "http://localhost:1999",
       autoConnect: false,
     });
     expect(socketRes.isOk()).toBe(true);
     const socket = socketRes.value;
     expect(socket).toBeTruthy();
-    expect(socket instanceof PartykitClientAdapter).toBe(true);
+    expect(socket instanceof PartyServerClientAdapter).toBe(true);
   });
 
   it("returns Err for unknown backend type", () => {
@@ -400,9 +400,9 @@ describe("createGameSocket", () => {
     expect(socketRes.error.message).toMatch(/requires an anon\/public API key/i);
   });
 
-  it("converts http URL to ws URL for partykit", () => {
+  it("converts http URL to ws URL for partyserver", () => {
     const socketRes = createGameSocket({
-      type: "partykit",
+      type: "partyserver",
       url: "http://example.com",
       room: "game-room",
       autoConnect: false,
@@ -410,12 +410,12 @@ describe("createGameSocket", () => {
     expect(socketRes.isOk()).toBe(true);
     const socket = socketRes.value;
     expect(socket).toBeTruthy();
-    expect(socket instanceof PartykitClientAdapter).toBe(true);
+    expect(socket instanceof PartyServerClientAdapter).toBe(true);
   });
 
-  it("handles https URL for partykit", () => {
+  it("handles https URL for partyserver", () => {
     const socketRes = createGameSocket({
-      type: "partykit",
+      type: "partyserver",
       url: "https://example.com",
       room: "game-room",
       autoConnect: false,
@@ -423,6 +423,6 @@ describe("createGameSocket", () => {
     expect(socketRes.isOk()).toBe(true);
     const socket = socketRes.value;
     expect(socket).toBeTruthy();
-    expect(socket instanceof PartykitClientAdapter).toBe(true);
+    expect(socket instanceof PartyServerClientAdapter).toBe(true);
   });
 });

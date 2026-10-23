@@ -5,11 +5,11 @@
  * For Socket.IO: pass a pre-created socket (from socket.io-client's `io()` call)
  * as `rawSocket`.
  *
- * For PartyKit: no `rawSocket` needed; the WebSocket URL is derived from `config.url`.
+ * For PartyServer: no `rawSocket` needed; the WebSocket URL is derived from `config.url`.
  */
 import type { GameSocket, GameSocketConfig } from "./clientTypes";
 import { SocketIoClientAdapter, type SocketIoCompatible } from "./socketIoClientAdapter";
-import { PartykitClientAdapter } from "./partykitClientAdapter";
+import { PartyServerClientAdapter } from "./partyserverClientAdapter";
 import {
   createSupabaseRealtimeClient,
   SupabaseRealtimeClientAdapter,
@@ -30,10 +30,10 @@ export function createGameSocket(
       return ok(new SocketIoClientAdapter(rawSocket));
     }
 
-    case "partykit": {
+    case "partyserver": {
       const wsUrl = config.url.replace(/^http(s?)/, "ws$1");
       const room = config.room ?? "default";
-      return ok(new PartykitClientAdapter(
+      return ok(new PartyServerClientAdapter(
         `${wsUrl.replace(/\/$/, "")}/parties/main/${encodeURIComponent(room)}`,
         config.autoConnect ?? true,
         config.resumeKey,

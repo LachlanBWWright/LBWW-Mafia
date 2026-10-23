@@ -1,6 +1,10 @@
 import postgres from "postgres";
 import { z } from "zod";
 import { env } from "~/env";
+import {
+  messageDatabaseUrl,
+  postgresConnectionUrl,
+} from "../db/connectionConfig";
 
 const notificationSchema = z.object({
   userId: z.string(),
@@ -14,7 +18,10 @@ export type MessageNotification = z.infer<typeof notificationSchema>;
  * Only IDs are sent, keeping payloads below PostgreSQL's NOTIFY size limit.
  */
 export function createMessageBus(url: string) {
-  const client = postgres(url, { max: 1, idle_timeout: 20 });
+  const client = postgres(
+    postgresConnectionUrl(messageDatabaseUrl({ DATABASE_URL: url })),
+    { max: 1, idle_timeout: 5, connect_timeout: 10, prepare: false },
+  );
   return {
     async subscribe(
       userId: string,
@@ -42,8 +49,6 @@ export async function subscribeToDirectMessages(
   userId: string,
   listener: (event: MessageNotification) => void,
 ) {
-  bus ??= createMessageBus(
-    env.DIRECT_MESSAGES_DATABASE_URL ?? env.DATABASE_URL,
-  );
+  bus ??= createMessageBus(messageDatabaseUrl(env));
   return bus.subscribe(userId, listener);
 }

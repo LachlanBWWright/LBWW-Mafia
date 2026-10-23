@@ -36,3 +36,15 @@ export const navigationItems = [
 ] as const;
 
 export type NavigationKey = (typeof navigationItems)[number]["key"];
+
+/** Apply the same account and administrator route visibility in every client. */
+export function getVisibleNavigationItems(
+  isAuthenticated: boolean,
+  isAdmin: boolean,
+) {
+  return navigationItems.filter(
+    (item) =>
+      (!("requiresAuth" in item && item.requiresAuth) || isAuthenticated) &&
+      (!("adminOnly" in item) || !item.adminOnly || isAdmin),
+  );
+}

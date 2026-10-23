@@ -3,6 +3,10 @@ import postgres from "postgres";
 
 import { env } from "~/env";
 import { schema } from "@mernmafia/db/schema";
+import {
+  databaseConnectionOptions,
+  postgresConnectionUrl,
+} from "./connectionConfig";
 
 /**
  * Cache the database connection in development. This avoids creating a new connection on every HMR
@@ -14,15 +18,10 @@ const globalForDb = globalThis as unknown as {
 
 const conn =
   globalForDb.conn ??
-  postgres(env.DATABASE_URL, {
-    max: 10,
-    connect_timeout: 10,
-    idle_timeout: 20,
-    connection: {
-      statement_timeout: 10000,
-      idle_in_transaction_session_timeout: 10000,
-    },
-  });
+  postgres(
+    postgresConnectionUrl(env.DATABASE_URL),
+    databaseConnectionOptions(env.DATABASE_URL, env.NODE_ENV === "production"),
+  );
 if (env.NODE_ENV !== "production") globalForDb.conn = conn;
 
 /**

@@ -5,6 +5,10 @@ vi.mock("next-auth/providers/google", () => ({
 vi.mock("~/server/db", () => ({ db: {} }));
 vi.mock("@auth/drizzle-adapter", () => ({ DrizzleAdapter: () => ({}) }));
 vi.mock("./identity", () => ({ getActiveIdentity: vi.fn() }));
+vi.hoisted(() => {
+  process.env.AUTH_GOOGLE_ID = "test-google-client";
+  process.env.AUTH_GOOGLE_SECRET = "test-google-secret";
+});
 import { authConfig } from "./config";
 describe("Google-only authentication policy", () => {
   it("exposes only Google and does not allow email account linking", () => {
@@ -16,6 +20,25 @@ describe("Google-only authentication policy", () => {
       true,
     );
   });
+  it.each([
+    ["", ""],
+    ["test-client", ""],
+    ["", "test-secret"],
+    ["   ", "test-secret"],
+  ])(
+    "does not register Google with incomplete credentials (%s)",
+    async (id, secret) => {
+      vi.stubEnv("AUTH_GOOGLE_ID", id);
+      vi.stubEnv("AUTH_GOOGLE_SECRET", secret);
+      vi.resetModules();
+      try {
+        const { authConfig: unavailable } = await import("./config");
+        expect(unavailable.providers).toEqual([]);
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  );
   it("requires a verified Google account", () => {
     const check = authConfig.callbacks.signIn;
     expect(

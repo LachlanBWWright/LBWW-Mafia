@@ -4,6 +4,15 @@ export type MatchHistoryEvent = {
   actor?: string;
   target?: string;
   content: string;
+  phase?: string;
+  day?: number;
+  kind?:
+    | "phase"
+    | "vote"
+    | "death"
+    | "night_action"
+    | "outcome"
+    | "role_reveal";
 };
 
 export type MatchHistoryParticipant = {

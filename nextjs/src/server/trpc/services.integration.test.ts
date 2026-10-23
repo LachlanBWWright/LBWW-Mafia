@@ -6,6 +6,7 @@ import { trpcServices as services } from "./services";
 import { getActiveIdentity } from "../auth/identity";
 import { createMessageBus } from "../messaging/events";
 import { env } from "~/env";
+import { messageDatabaseUrl } from "../db/connectionConfig";
 import { createMobileToken } from "../auth/mobileToken";
 import { POST as createLobby } from "../../app/api/lobbies/route";
 import { GET as readLobby } from "../../app/api/lobbies/[roomId]/route";
@@ -14,7 +15,7 @@ const prefix = `integration-${crypto.randomUUID()}`;
 const a = `${prefix}-a`,
   b = `${prefix}-b`,
   outsider = `${prefix}-c`;
-const receiver = createMessageBus(env.DATABASE_URL);
+const receiver = createMessageBus(messageDatabaseUrl(env));
 describe("PostgreSQL application services", () => {
   beforeAll(async () => {
     await db

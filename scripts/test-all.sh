@@ -25,6 +25,8 @@ section "Running gameplay and protocol suites"
 pnpm run test:gameplay:all
 
 section "Running application unit suites"
+pnpm run test:desktop
+pnpm run test:chatgpt
 pnpm --dir nextjs run test
 pnpm --dir mobile run test
 

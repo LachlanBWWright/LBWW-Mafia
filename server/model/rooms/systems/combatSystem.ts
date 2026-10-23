@@ -24,6 +24,7 @@ export class CombatSystem {
         },
       });
       role.player.isAlive = false;
+      this.room.recordTimeline(`${role.player.username} died (${role.name}).`);
       this.room.messenger.emitToRoom(ServerEvent.UpdatePlayerRole, {
         name: role.player.username,
         role: role.name,

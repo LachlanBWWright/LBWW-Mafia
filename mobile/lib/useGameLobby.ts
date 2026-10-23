@@ -1,3 +1,5 @@
+import { roomResumeStorageKey } from "../../shared/game/resumeIdentity";
+import { PracticeSocket } from "../../shared/game/practiceSocket";
 import { randomUUID } from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import * as React from "react";
@@ -10,6 +12,7 @@ import { getAccessToken } from "./mobileSession";
 export type { LobbyState } from "../../shared/game/lobbyState";
 export type { LobbyActions } from "../../shared/game/useGameLobby";
 const useSharedGameLobby = createUseSharedGameLobby(React);
+const practiceTicket = async () => undefined;
 async function getTicket() {
   const token = await getAccessToken();
   if (!token) return undefined;
@@ -24,26 +27,49 @@ async function getTicket() {
   const body = (await response.json()) as { token?: string };
   return body.token;
 }
-export function useGameLobby(roomId: string) {
-  const [seat, setSeat] = useState<{ roomId: string; key: string }>();
+export function useGameLobby(
+  roomId: string,
+  practice = false,
+  joinMode: "player" | "spectator" = "player",
+  resumeScope = "guest",
+) {
+  const [seat, setSeat] = useState<{
+    roomId: string;
+    mode: string;
+    scope: string;
+    key: string;
+  }>();
   useEffect(() => {
     let active = true;
-    const storageKey = `mafia-room-resume-${roomId}`;
+    const storageKey = roomResumeStorageKey(roomId, joinMode, resumeScope);
     void SecureStore.getItemAsync(storageKey)
       .then(async (stored) => {
         const key = stored ?? randomUUID();
         if (!stored) await SecureStore.setItemAsync(storageKey, key);
-        if (active) setSeat({ roomId, key });
+        if (active)
+          setSeat({ roomId, mode: joinMode, scope: resumeScope, key });
       })
       .catch(() => {
-        if (active) setSeat({ roomId, key: randomUUID() });
+        if (active)
+          setSeat({
+            roomId,
+            mode: joinMode,
+            scope: resumeScope,
+            key: randomUUID(),
+          });
       });
     return () => {
       active = false;
     };
-  }, [roomId]);
-  const resumeKey = seat?.roomId === roomId ? seat.key : undefined;
+  }, [roomId, joinMode, resumeScope]);
+  const resumeKey =
+    seat?.roomId === roomId &&
+    seat.mode === joinMode &&
+    seat.scope === resumeScope
+      ? seat.key
+      : undefined;
   const socket = useMemo(() => {
+    if (practice) return new PracticeSocket();
     const url = process.env.EXPO_PUBLIC_SOCKET_URL;
     if (!url || !resumeKey) return null;
     const type =
@@ -51,7 +77,7 @@ export function useGameLobby(roomId: string) {
         ? "socketio"
         : process.env.EXPO_PUBLIC_SOCKET_BACKEND === "supabase"
           ? "supabase"
-          : "partykit";
+          : "partyserver";
     const result = createGameSocket(
       {
         type,
@@ -64,15 +90,17 @@ export function useGameLobby(roomId: string) {
       type === "socketio" ? io(url, { autoConnect: false }) : undefined,
     );
     return result.isOk() ? result.value : null;
-  }, [roomId, resumeKey]);
+  }, [roomId, resumeKey, practice, joinMode, resumeScope]);
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (value) => {
       if (value === "active" && !socket?.connected) socket?.connect();
     });
     return () => subscription.remove();
   }, [socket]);
-  const captcha =
-    process.env.EXPO_PUBLIC_CAPTCHA_TOKEN ??
-    (process.env.NODE_ENV === "development" ? "dev-bypass-token" : "");
-  return useSharedGameLobby(socket, captcha, getTicket);
+  return useSharedGameLobby(
+    socket,
+    practice ? practiceTicket : getTicket,
+    undefined,
+    joinMode,
+  );
 }

@@ -1,3 +1,5 @@
+import { Linking } from "react-native";
+import { lobbyNavigationFromUrl } from "../shared/game/lobbyNavigation";
 import "react-native-reanimated";
 import "./global.css";
 import React from "react";
@@ -5,6 +7,7 @@ import {
   NavigationContainer,
   DarkTheme,
   type Theme,
+  type LinkingOptions,
 } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { authIdentity } from "./lib/authIdentity";
@@ -28,7 +31,7 @@ import { StoryCapture } from "./visual/StoryCapture";
 
 export type StackParamList = {
   Home: undefined;
-  Lobby: { roomId?: string } | undefined;
+  Lobby: { roomId?: string; spectator?: boolean } | undefined;
   CreateLobby: undefined;
   Roles: undefined;
   About: undefined;
@@ -57,10 +60,36 @@ const appTheme: Theme = {
   },
 };
 
+const websiteOrigin =
+  process.env.EXPO_PUBLIC_WEBSITE_URL ??
+  process.env.EXPO_PUBLIC_TRPC_URL?.replace(/\/api\/trpc\/?$/, "") ??
+  "http://localhost:3000";
+const lobbyLinking: LinkingOptions<StackParamList> = {
+  prefixes: ["mernmafia://", new URL(websiteOrigin).origin],
+  async getInitialURL() {
+    const url = await Linking.getInitialURL();
+    return url && lobbyNavigationFromUrl(url, websiteOrigin) ? url : null;
+  },
+  subscribe(listener) {
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      if (lobbyNavigationFromUrl(url, websiteOrigin)) listener(url);
+    });
+    return () => subscription.remove();
+  },
+  getStateFromPath(path) {
+    return lobbyNavigationFromUrl(
+      new URL(
+        path.replace(/^\//, ""),
+        `${new URL(websiteOrigin).origin}/`,
+      ).toString(),
+      websiteOrigin,
+    );
+  },
+};
 function AppNavigation() {
   const { authToken } = useAppState();
   return (
-    <NavigationContainer theme={appTheme}>
+    <NavigationContainer theme={appTheme} linking={lobbyLinking}>
       <Stack.Navigator
         key={authIdentity(authToken)}
         screenOptions={{

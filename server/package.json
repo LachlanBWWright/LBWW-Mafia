@@ -8,8 +8,8 @@
     "start": "tsx server.ts",
     "start:socketio": "tsx server.ts",
     "start:supabase": "SOCKET_BACKEND=supabase tsx server.ts",
-    "start:partykit": "pnpm exec partykit dev servers/partykit/partykitServer.ts",
-    "build:partykit": "pnpm run typecheck",
+    "start:partyserver": "wrangler dev --config ../wrangler.jsonc --local",
+    "build:partyserver": "pnpm run typecheck && wrangler deploy --config ../wrangler.jsonc --dry-run --outdir ../.wrangler/build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -19,7 +19,9 @@
     "build": "pnpm run typecheck",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy:partyserver": "wrangler deploy --config ../wrangler.jsonc",
+    "test:worker": "node --test worker-tests/*.test.mjs"
   },
   "keywords": [],
   "author": "",
@@ -32,23 +34,25 @@
     "drizzle-orm": "^0.45.1",
     "express": "^5.2.1",
     "neverthrow": "^8.2.0",
-    "partykit": "^0.0.115",
+    "partyserver": "^0.5.10",
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "4.1.7",
+    "@cloudflare/workers-types": "^5.20261022.1",
     "@mernmafia/db": "workspace:*",
     "@trpc/server": "^11.10.0",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
     "@typescript-eslint/eslint-plugin": "^8.55.0",
     "@typescript-eslint/parser": "^8.55.0",
+    "@vitest/coverage-v8": "4.1.7",
     "eslint": "^9.39.2",
     "eslint-plugin-neverthrow": "^1.1.4",
     "superjson": "^2.2.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
+    "wrangler": "^4.151.3",
     "zod": "^4.3.6"
   }
 }

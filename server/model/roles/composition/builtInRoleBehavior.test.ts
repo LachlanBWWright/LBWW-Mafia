@@ -8,11 +8,19 @@ import {
 } from "../../testUtils/gameTestUtils.js";
 import { GameSystems } from "../../rooms/systems/gameSystems.js";
 import { CombatLevel } from "../combatLevel.js";
+import { ServerEvent } from "@mernmafia/shared/communication/events";
+import { MessageKey } from "@mernmafia/shared/communication/messages";
 import { mafiaDefinition } from "../definitions/mafia.js";
-import { framerDefinition } from "../definitions/neutral.js";
 import {
+  framerDefinition,
+  peacemakerDefinition,
+} from "../definitions/neutral.js";
+import {
+  bodyguardDefinition,
   doctorDefinition,
   fortifierDefinition,
+  investigatorDefinition,
+  judgeDefinition,
   jailorDefinition,
   lawmanDefinition,
   nimbyDefinition,
@@ -38,6 +46,85 @@ describe("built-in role behavior", () => {
     doctor.handleNightAction(players[1]!);
     doctor.visit();
     expect(target.defence).toBe(CombatLevel.Low);
+  });
+
+  it("bodyguard protects a target and retaliates against an attacker", () => {
+    const { room, players } = createRoomWithPlayers("role-bodyguard", [
+      "guard",
+      "target",
+      "visitor",
+    ]);
+    const guard = assignRole(room, players[0]!, bodyguardDefinition);
+    const target = assignRole(room, players[1]!, doctorDefinition);
+    const visitor = assignRole(room, players[2]!, doctorDefinition);
+    room.systems = new GameSystems(room);
+
+    guard.handleNightAction(players[1]!);
+    visitor.handleNightAction(players[1]!);
+    room.systems.visits.resolveNight();
+
+    expect(target.defence).toBe(CombatLevel.Low);
+    expect(visitor.damage).toBe(CombatLevel.Low);
+    expect(visitor.attackers).toContain(guard);
+  });
+
+  it("investigator reports three guesses through the private system notice", () => {
+    const { room, players } = createRoomWithPlayers("role-investigator", [
+      "investigator",
+      "target",
+    ]);
+    const investigator = assignRole(room, players[0]!, investigatorDefinition);
+    const target = assignRole(room, players[1]!, doctorDefinition);
+    const emitted = captureEmitter();
+    setDeterministicRandom(room, [0]);
+
+    investigator.handleNightAction(players[1]!);
+    investigator.visit();
+
+    const notice = emitted.find(
+      (call) =>
+        call.target === players[0]!.user.socketId &&
+        call.event === ServerEvent.ReceiveMessage &&
+        (call.args[0] as { key?: string })?.key ===
+          MessageKey.InvestigatorResult,
+    );
+    expect(notice?.args[0]).toMatchObject({
+      key: MessageKey.InvestigatorResult,
+      params: {
+        targetName: "target",
+        role1: target.name,
+        role2: target.name,
+        role3: target.name,
+      },
+    });
+  });
+
+  it("judge returns the target alignment and peacemaker wins a no-death draw", () => {
+    const { room, players } = createRoomWithPlayers("role-alignment", [
+      "judge",
+      "target",
+      "peacemaker",
+    ]);
+    const judge = assignRole(room, players[0]!, judgeDefinition);
+    const target = assignRole(room, players[1]!, doctorDefinition);
+    const peacemaker = assignRole(room, players[2]!, peacemakerDefinition);
+    const emitted = captureEmitter();
+    setDeterministicRandom(room, [0.9]);
+
+    judge.handleNightAction(players[1]!);
+    judge.visit();
+    peacemaker.onNoDeathDraw();
+
+    expect(emitted.map((call) => call.args[0])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: MessageKey.JudgeAlignmentResult,
+          params: { targetName: "target", factionName: target.group },
+        }),
+        expect.objectContaining({ key: MessageKey.PeacemakerWon }),
+      ]),
+    );
+    expect(peacemaker.victoryCondition).toBe(true);
   });
 
   it("mafia stores faction votes and applies a deterministic faction attack", () => {

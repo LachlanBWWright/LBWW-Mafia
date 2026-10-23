@@ -12,6 +12,12 @@ storybook-dist
 # OS metadata
 .DS_Store
 
-# Rust build output
-rust/target/
-target/
+# Desktop distributions
+desktop/dist/
+
+# Wrangler local state and secrets
+.wrangler/
+.vercel/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

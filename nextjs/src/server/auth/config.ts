@@ -12,6 +12,9 @@ import {
   userRoles,
 } from "@mernmafia/db/schema";
 import { getActiveIdentity } from "./identity";
+import { googleCredentials } from "./googleConfiguration";
+
+const google = googleCredentials();
 
 function invalidateWebToken(token: JWT) {
   token.sub = undefined;
@@ -50,14 +53,15 @@ declare module "next-auth" {
  * @see https://next-auth.js.org/configuration/options
  */
 export const authConfig = {
-  providers: [
-    GoogleProvider({
-      clientId: process.env.AUTH_GOOGLE_ID ?? "",
-      clientSecret: process.env.AUTH_GOOGLE_SECRET ?? "",
-      checks: ["pkce", "state", "nonce"],
-      allowDangerousEmailAccountLinking: false,
-    }),
-  ],
+  providers: google
+    ? [
+        GoogleProvider({
+          ...google,
+          checks: ["pkce", "state", "nonce"],
+          allowDangerousEmailAccountLinking: false,
+        }),
+      ]
+    : [],
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,

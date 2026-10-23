@@ -1,6 +1,6 @@
 /**
  * Server-side abstractions for emitting events to clients.
- * Both Socket.IO and PartyKit backends implement these interfaces,
+ * Both Socket.IO and PartyServer backends implement these interfaces,
  * allowing the game logic (Room, Role, Faction) to remain backend-agnostic.
  */
 
@@ -33,7 +33,7 @@ export interface GameEmitter {
 
 /**
  * Represents an individual player's server-side connection.
- * Abstracts away the differences between a Socket.IO Socket and a PartyKit Connection.
+ * Abstracts away the differences between a Socket.IO Socket and a PartyServer Connection.
  */
 export interface GamePlayerSocket {
   readonly id: string;

@@ -32,7 +32,9 @@ export type SupabaseServerChannelLike = {
 
 export type SupabaseServerClientLike = SupabaseEmitterClientLike & {
   channel(name: string): SupabaseServerChannelLike;
-  removeChannel?(channel: SupabaseServerChannelLike): Promise<unknown> | unknown;
+  removeChannel?(
+    channel: SupabaseServerChannelLike,
+  ): Promise<unknown> | unknown;
 };
 
 export type SupabaseRealtimeServer = {
@@ -66,92 +68,103 @@ export function createSupabaseRealtimeServer(
   const rooms = new Map<string, Room>();
   const playerSockets = new Map<string, SupabasePlayerSocket>();
   const emitter = new SupabaseEmitter(client);
-  const controlChannel = (client.channel(
-    SUPABASE_CONTROL_CHANNEL,
-  ) as unknown as SupabaseServerChannelLike)
-    .on("broadcast", { event: SUPABASE_CONTROL_EVENT }, ({ payload }) => {
-      const parsed = supabaseClientEnvelopeSchema.safeParse(payload);
-      if (!parsed.success) {
+  const controlChannel = (
+    client.channel(
+      SUPABASE_CONTROL_CHANNEL,
+    ) as unknown as SupabaseServerChannelLike
+  ).on("broadcast", { event: SUPABASE_CONTROL_EVENT }, ({ payload }) => {
+    const parsed = supabaseClientEnvelopeSchema.safeParse(payload);
+    if (!parsed.success) {
+      return;
+    }
+
+    const { roomId, socketId, message } = parsed.data;
+    const playerSocket = getOrCreateSocket(socketId);
+    const room = getOrCreateRoom(roomId);
+
+    switch (message.event) {
+      case ClientEvent.SpectatorJoinRoom:
+      case ClientEvent.PlayerJoinRoom: {
+        const captchaToken = parseJoinRoomToken(message.args[0]);
+        if (captchaToken === null) {
+          return;
+        }
+        playerSocket.join(room.name);
+        playerSocket.data.roomObject = room;
+        const result =
+          message.event === ClientEvent.SpectatorJoinRoom
+            ? room.addSpectator(playerSocket)
+            : room.addUser(playerSocket);
+        if (message.callbackId) {
+          playerSocket.sendCallback(message.callbackId, result);
+        }
         return;
       }
-
-      const { roomId, socketId, message } = parsed.data;
-      const playerSocket = getOrCreateSocket(socketId);
-      const room = getOrCreateRoom(roomId);
-
-      switch (message.event) {
-        case ClientEvent.PlayerJoinRoom: {
-          const captchaToken = parseJoinRoomToken(message.args[0]);
-          if (!captchaToken) {
-            return;
-          }
-          playerSocket.join(room.name);
-          playerSocket.data.roomObject = room;
-          const result = room.addUser(playerSocket);
-          if (message.callbackId) {
-            playerSocket.sendCallback(message.callbackId, result);
-          }
-          return;
-        }
-        case ClientEvent.Disconnect: {
-          playerSocket.data.roomObject?.removePlayer(socketId);
-          playerSockets.delete(socketId);
-          return;
-        }
-        case ClientEvent.MessageSentByUser: {
-          const payload = parseMessageSentPayload(message.args[0], message.args[1]);
-          if (!payload || playerSocket.data.roomObject === undefined) {
-            return;
-          }
-          playerSocket.data.roomObject.handleSentMessage(
-            playerSocket,
-            payload.message,
-            payload.phase,
-          );
-          return;
-        }
-        case ClientEvent.HandleVote: {
-          const payload = parseVotePayload(message.args[0], message.args[1]);
-          if (!payload || playerSocket.data.roomObject === undefined) {
-            return;
-          }
-          playerSocket.data.roomObject.handleVote(
-            playerSocket,
-            payload.recipient,
-            payload.phase,
-          );
-          return;
-        }
-        case ClientEvent.HandleVisit: {
-          const payload = parseVisitPayload(message.args[0], message.args[1]);
-          if (!payload || playerSocket.data.roomObject === undefined) {
-            return;
-          }
-          playerSocket.data.roomObject.handleVisit(
-            playerSocket,
-            payload.recipient,
-            payload.phase,
-          );
-          return;
-        }
-        case ClientEvent.HandleWhisper: {
-          const payload = parseWhisperPayload(
-            message.args[0],
-            message.args[1],
-            message.args[2],
-          );
-          if (!payload || playerSocket.data.roomObject === undefined) {
-            return;
-          }
-          playerSocket.data.roomObject.handleWhisper(
-            playerSocket,
-            payload.recipient,
-            payload.message,
-            payload.phase,
-          );
-        }
+      case ClientEvent.Disconnect: {
+        playerSocket.data.roomObject?.removePlayer(socketId);
+        playerSockets.delete(socketId);
+        return;
       }
-    });
+      case ClientEvent.MessageSentByUser: {
+        const payload = parseMessageSentPayload(
+          message.args[0],
+          message.args[1],
+        );
+        if (!payload || playerSocket.data.roomObject === undefined) {
+          return;
+        }
+        playerSocket.data.roomObject.handleSentMessage(
+          playerSocket,
+          payload.message,
+          payload.phase,
+        );
+        return;
+      }
+      case ClientEvent.ReadyForRematch:
+        playerSocket.data.roomObject?.readyForRematch(playerSocket);
+        return;
+      case ClientEvent.HandleVote: {
+        const payload = parseVotePayload(message.args[0], message.args[1]);
+        if (!payload || playerSocket.data.roomObject === undefined) {
+          return;
+        }
+        playerSocket.data.roomObject.handleVote(
+          playerSocket,
+          payload.recipient,
+          payload.phase,
+        );
+        return;
+      }
+      case ClientEvent.HandleVisit: {
+        const payload = parseVisitPayload(message.args[0], message.args[1]);
+        if (!payload || playerSocket.data.roomObject === undefined) {
+          return;
+        }
+        playerSocket.data.roomObject.handleVisit(
+          playerSocket,
+          payload.recipient,
+          payload.phase,
+        );
+        return;
+      }
+      case ClientEvent.HandleWhisper: {
+        const payload = parseWhisperPayload(
+          message.args[0],
+          message.args[1],
+          message.args[2],
+        );
+        if (!payload || playerSocket.data.roomObject === undefined) {
+          return;
+        }
+        playerSocket.data.roomObject.handleWhisper(
+          playerSocket,
+          payload.recipient,
+          payload.message,
+          payload.phase,
+        );
+      }
+    }
+  });
 
   setGameEmitter(emitter);
 

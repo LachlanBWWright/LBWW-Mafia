@@ -1,10 +1,10 @@
 # Game server
 
-The production host is PartyKit. Each room owns its game engine and validated
+The production host is PartyServer. Each room owns its game engine and validated
 lobby rules. Socket.IO and Supabase remain compatibility transports.
 
 Run the full local game from the repository root with `pnpm run dev`.
-For deployment and required PartyKit variables see [DEPLOYMENT.md](../DEPLOYMENT.md).
+For deployment and required PartyServer variables see [DEPLOYMENT.md](../DEPLOYMENT.md).
 For reconnect behavior and tests see [RELIABILITY.md](../RELIABILITY.md).
 
 ```bash

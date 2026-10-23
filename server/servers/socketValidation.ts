@@ -34,7 +34,7 @@ export function parseMessageSentPayload(
 export function parseVotePayload(
   recipient: unknown,
   phase: unknown,
-): { recipient: number; phase: DayTime } | null {
+): { recipient: number | null; phase: DayTime } | null {
   const parsed = voteArgsSchema.safeParse([recipient, phase]);
   if (!parsed.success) {
     return null;

@@ -1,8 +1,9 @@
 /**
  * Shared event type definitions for client-server communication.
- * These types are backend-agnostic and used by both Socket.IO and PartyKit.
+ * These types are backend-agnostic and used by both Socket.IO and PartyServer.
  */
 import { DayTime } from "../game/playerActionRules";
+import type { MatchExperience } from "../game/matchExperience";
 import type { GameMessage } from "./messages";
 export { DayTime };
 
@@ -48,8 +49,8 @@ export enum ActionKind {
   NightVisit = "night-visit",
 }
 
-/** Named PartyKit envelope kinds for the JSON socket protocol. */
-export enum PartyKitMessageType {
+/** Named PartyServer envelope kinds for the JSON socket protocol. */
+export enum PartyServerMessageType {
   Event = "event",
   Callback = "callback",
   CommandAck = "command-ack",
@@ -63,6 +64,7 @@ export enum ServerEvent {
   ReceiveNewPlayer = "receive-new-player",
   RemovePlayer = "remove-player",
   ReceivePlayerList = "receive-player-list",
+  ReceiveSpectatorMessage = "receive-spectator-message",
   ReceiveChatMessage = "receive-chat-message",
   ReceiveWhisperMessage = "receive-whisper-message",
   UpdateDayTime = "update-day-time",
@@ -76,9 +78,11 @@ export enum ServerEvent {
 
 /** Enum of all client → server socket event names. */
 export enum ClientEvent {
+  SpectatorJoinRoom = "spectatorJoinRoom",
   PlayerJoinRoom = "playerJoinRoom",
   Disconnect = "disconnect",
   MessageSentByUser = "messageSentByUser",
+  ReadyForRematch = "readyForRematch",
   HandleVote = "handleVote",
   HandleVisit = "handleVisit",
   HandleWhisper = "handleWhisper",
@@ -88,6 +92,11 @@ export type PlayerList = {
   name: string;
   isAlive?: boolean;
   role?: string;
+  connected?: boolean;
+  isBot?: boolean;
+  votesReceived?: number;
+  voteStatus?: "pending" | "voted" | "abstained";
+  voteTarget?: string;
 };
 
 export type PlayerReturned = {
@@ -103,19 +112,26 @@ export type PlayerReturned = {
 };
 
 export type ClientToServerEvents = {
+  spectatorJoinRoom: (
+    legacyJoinToken: string,
+    identityTokenOrCallback: string | ((result: JoinRoomResult) => void),
+    cb?: (result: JoinRoomResult) => void,
+  ) => Promise<void>;
   playerJoinRoom: (
-    captchaToken: string,
+    legacyJoinToken: string,
     identityTokenOrCallback: string | ((result: JoinRoomResult) => void),
     cb?: (result: JoinRoomResult) => void,
   ) => Promise<void>;
   disconnect: () => void;
   messageSentByUser: (message: string, phase: DayTime) => void;
-  handleVote: (recipient: number, phase: DayTime) => void;
+  readyForRematch: () => void;
+  handleVote: (recipient: number | null, phase: DayTime) => void;
   handleVisit: (recipient: number | null, phase: DayTime) => void;
   handleWhisper: (recipient: number, message: string, phase: DayTime) => void;
 };
 
-export type GameSnapshot = {
+export type GameSnapshot = MatchExperience & {
+  matchId?: string;
   phaseVersion?: number;
   playerName: string;
   players: PlayerList[];
@@ -134,6 +150,7 @@ export type ServerToClientEvents = {
   "receive-new-player": (player: { name: string }) => void;
   "remove-player": (player: { name: string }) => void;
   "receive-player-list": (playerList: PlayerList[]) => void;
+  "receive-spectator-message": (message: string) => void;
   "receive-chat-message": (message: string) => void;
   "receive-whisper-message": (message: string) => void;
   "update-day-time": (data: {

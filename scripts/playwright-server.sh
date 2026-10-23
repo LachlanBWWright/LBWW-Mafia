@@ -4,6 +4,8 @@ set -Eeuo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_common.sh"
 
 require_command pnpm
+require_command setsid
+require_command pkill
 
 no_db="${PLAYWRIGHT_NO_DB:-false}"
 if [[ "$no_db" != "true" ]]; then
@@ -16,9 +18,10 @@ export AUTH_GOOGLE_ID="${AUTH_GOOGLE_ID:-playwright-google-id}"
 export AUTH_GOOGLE_SECRET="${AUTH_GOOGLE_SECRET:-playwright-google-secret}"
 export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:5432/mernmafia}"
 export BACKEND_SECRET="${BACKEND_SECRET:-playwright-backend-secret}"
-export NEXT_PUBLIC_SOCKET_BACKEND=partykit
+export NEXT_PUBLIC_SOCKET_BACKEND=partyserver
 export NEXT_PUBLIC_SOCKET_URL="${NEXT_PUBLIC_SOCKET_URL:-http://127.0.0.1:1999}"
 export NEXTJS_URL="http://127.0.0.1:3100"
+export PARTYSERVER_PORT=1999
 export ROOM_SIZE="${ROOM_SIZE:-3}"
 export DAY_SECONDS="${DAY_SECONDS:-10}"
 export NIGHT_SECONDS="${NIGHT_SECONDS:-10}"
@@ -35,19 +38,36 @@ else
 fi
 
 next_pid=""
-partykit_pid=""
+partyserver_pid=""
 cleanup() {
-  trap - TERM INT EXIT
-  if [[ -n "$next_pid" ]]; then kill "$next_pid" 2>/dev/null || true; fi
-  if [[ -n "$partykit_pid" ]]; then kill "$partykit_pid" 2>/dev/null || true; fi
-  wait "$next_pid" "$partykit_pid" 2>/dev/null || true
+  local status=$?
+  trap - EXIT HUP INT TERM
+  for service_pid in "$next_pid" "$partyserver_pid"; do
+    if [[ -n "$service_pid" ]]; then
+      pkill -TERM -s "$service_pid" 2>/dev/null || true
+    fi
+  done
+  for service_pid in "$next_pid" "$partyserver_pid"; do
+    if [[ -n "$service_pid" ]]; then
+      for _ in {1..20}; do
+        if ! pkill -0 -s "$service_pid" 2>/dev/null; then break; fi
+        sleep 0.1
+      done
+      pkill -KILL -s "$service_pid" 2>/dev/null || true
+      wait "$service_pid" 2>/dev/null || true
+    fi
+  done
+  exit "$status"
 }
-trap cleanup TERM INT EXIT
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-pnpm --dir nextjs exec next dev --hostname 127.0.0.1 --port 3100 &
+setsid pnpm --dir nextjs exec next dev --hostname 127.0.0.1 --port 3100 &
 next_pid=$!
-pnpm --dir server run start:partykit --var "NEXTJS_URL=$NEXTJS_URL" --var "BACKEND_SECRET=$BACKEND_SECRET" --var "DEBUG=$DEBUG" --var "ROOM_SIZE=$ROOM_SIZE" &
-partykit_pid=$!
+setsid bash scripts/partyserver-dev.sh &
+partyserver_pid=$!
 
 pnpm exec wait-on --interval 1000 --httpTimeout 30000 http://127.0.0.1:3100/api/matchmaking/current tcp:1999
-wait "$next_pid" "$partykit_pid"
+wait -n "$next_pid" "$partyserver_pid"

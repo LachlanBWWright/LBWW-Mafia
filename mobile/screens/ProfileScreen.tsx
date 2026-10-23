@@ -5,7 +5,6 @@ import { Text, View } from "react-native";
 import { StackParamList } from "../App";
 import {
   fetchCurrentUserMatches,
-  fetchRecentMatches,
   type RecentMatchSummary,
 } from "../lib/appQueries";
 import { useAppState } from "../context/AppStateContext";
@@ -95,6 +94,10 @@ function MatchesContent({
             <Text className="text-xs leading-[18px] text-muted-foreground">
               {new Date(match.endedAt).toLocaleString()} • {match.roomName}
             </Text>
+            <Text className="text-xs leading-[18px] text-muted-foreground">
+              Winners: {match.winningRoles.join(", ") || "None"} • Events:{" "}
+              {match.conversationCount + match.actionCount}
+            </Text>
           </View>
         ))}
       </View>
@@ -116,22 +119,20 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
   );
 
   useEffect(() => {
-    if (!playerName.trim()) {
+    if (!authToken) {
       setMatches([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    void (
-      authToken ? fetchCurrentUserMatches(5) : fetchRecentMatches(playerName, 5)
-    )
+    void fetchCurrentUserMatches(10)
       .then((rows) => setMatches(rows))
       .catch(() => setMatches([]))
       .finally(() => setLoading(false));
-  }, [authToken, playerName, refreshVersion]);
+  }, [authToken, refreshVersion]);
 
-  if (!playerName.trim()) {
+  if (!authToken) {
     return (
       <Screen
         navigation={navigation}
@@ -166,7 +167,7 @@ export function ProfileScreen({ navigation }: ProfileScreenProps) {
           lastRoomName={lastRoomName}
           navigation={navigation}
         />
-        {authToken ? <PlayerInsights key={refreshVersion} /> : null}
+        <PlayerInsights key={refreshVersion} />
         <MatchesContent loading={loading} matches={matches} />
       </View>
     </Screen>

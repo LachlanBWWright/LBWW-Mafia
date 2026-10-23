@@ -1,6 +1,6 @@
 /**
  * Mutable GameEmitter singleton.
- * The chosen backend (Socket.IO or PartyKit) sets the emitter before game logic runs.
+ * The chosen backend (Socket.IO or PartyServer) sets the emitter before game logic runs.
  * All game logic imports `io` from this module, which delegates to the active emitter.
  */
 import type { GameEmitter } from "../../shared/communication/serverTypes.js";
@@ -26,7 +26,7 @@ export function getGameEmitter(): Result<GameEmitter, Error> {
 /**
  * Delegating GameEmitter proxy.
  * Import `io` from this module in game logic (Room, Role, Faction) to stay
- * backend-agnostic. Avoids pulling Socket.IO into the PartyKit bundle.
+ * backend-agnostic. Avoids pulling Socket.IO into the PartyServer bundle.
  */
 export const io: GameEmitter = {
   to(target: string) {

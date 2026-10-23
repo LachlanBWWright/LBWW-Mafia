@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navigationItems } from "./navigation";
+import { getVisibleNavigationItems, navigationItems } from "./navigation";
 
 describe("web and mobile navigation contract", () => {
   it("has unique destinations and stable labels", () => {
@@ -31,5 +31,34 @@ describe("web and mobile navigation contract", () => {
         .filter((item) => "adminOnly" in item)
         .map((item) => item.key),
     ).toEqual(["Admin"]);
+  });
+
+  it("shows the same destinations for guests, members, and admins", () => {
+    const keysFor = (isAuthenticated: boolean, isAdmin: boolean) =>
+      getVisibleNavigationItems(isAuthenticated, isAdmin).map(
+        (item) => item.key,
+      );
+
+    expect(keysFor(false, false)).toEqual([
+      "Home",
+      "Lobby",
+      "Roles",
+      "History",
+      "About",
+    ]);
+    expect(keysFor(true, false)).toEqual([
+      "Home",
+      "Lobby",
+      "CreateLobby",
+      "Roles",
+      "History",
+      "Community",
+      "Notifications",
+      "Messages",
+      "About",
+      "Profile",
+      "Settings",
+    ]);
+    expect(keysFor(true, true)).toContain("Admin");
   });
 });
