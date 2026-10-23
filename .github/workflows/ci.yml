@@ -132,7 +132,12 @@ jobs:
         run: pnpm --dir nextjs run storybook:screenshots
       - run: node scripts/check-storybook-screenshot-coverage.mjs nextjs/storybook-static/index.json nextjs/.storybook/screenshots.spec.ts-snapshots small-phone phone tablet desktop small-phone-light phone-light tablet-light desktop-light phone-rtl desktop-rtl
       - run: pnpm run test:e2e
-      - run: pnpm run test:e2e:cross-browser
+      - name: Test Firefox and WebKit
+        env:
+          # GitHub mounts /github/home with a different owner; Firefox requires
+          # HOME to belong to the root user running this job container.
+          HOME: /root
+        run: pnpm run test:e2e:cross-browser
       - name: Report Playwright retries
         if: always()
         run: node scripts/report-playwright-flakes.mjs nextjs/playwright-report/results.json nextjs/playwright-report/cross-browser.json nextjs/test-results/storybook.json
