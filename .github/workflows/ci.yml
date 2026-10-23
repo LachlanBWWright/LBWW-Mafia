@@ -91,6 +91,22 @@ jobs:
   web-browser-test:
     name: Web — Storybook and Playwright
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mernmafia
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PLAYWRIGHT_EXTERNAL_DB: "true"
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/mernmafia
     permissions:
       contents: read
     steps:
@@ -104,7 +120,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir nextjs exec playwright install --with-deps chromium firefox webkit
       - name: Build and test web Storybook with isolated configuration
         env:
           AUTH_SECRET: ci-storybook-secret
@@ -216,6 +231,11 @@ jobs:
   mobile-browser-test:
     name: Mobile — typecheck, tests, visual screens
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      EXPO_NO_DOTENV: "1"
     permissions:
       contents: read
     steps:
@@ -229,7 +249,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir mobile exec playwright install --with-deps chromium
       - run: pnpm --dir mobile run lint
       - run: pnpm --dir mobile run typecheck
       - run: pnpm --dir mobile run test

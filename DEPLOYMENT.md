@@ -151,6 +151,16 @@ CAPTCHA verification is temporarily disabled for web and mobile joins. No CAPTCH
 
 ## Release checks
 
+Browser jobs use `mcr.microsoft.com/playwright:v1.62.1-noble` so browser binaries and fonts match the screenshot baselines. The web job uses a disposable PostgreSQL service reachable as `postgres`; it does not run Docker inside the test container. Update the image in both browser jobs and `scripts/visual-baselines.sh` together with the locked Playwright version.
+
+On Linux, after installing workspace dependencies, reproduce the visual suites in the same image:
+
+```bash
+bash scripts/visual-baselines.sh all
+```
+
+To intentionally update a suite, use `web`, `mobile`, or `mobile-storybook` followed by `--update`. Review the generated screenshots, then rerun that suite without `--update` and commit the comparison baselines. The helper disables loading local Expo env files and uses dummy web configuration. It supports rootless Docker. Generated galleries and reports remain ignored; all comparison baselines under `*-snapshots/` must be tracked. Web Storybook checks baseline completeness before launching browser tests, so a missing fixture fails immediately.
+
 CI runs server, Next.js, web browser, and mobile checks on pushes and pull requests to `master` and `dev`. To run the core checks locally:
 
 ```bash

@@ -4,16 +4,9 @@ modules/**/android/build/
 modules/**/android/.gradle/
 storybook-static/
 test-results/
+playwright-report/
 visual-dist/
 visual/storybook-dist/
 visual/screenshots/
-visual/screenshots.spec.ts-snapshots/
 visual/storybook-screenshots/
-# Track baselines for the match experience stories.
-visual/storybook-screenshots.spec.ts-snapshots/**
-!visual/storybook-screenshots.spec.ts-snapshots/**/
-!visual/storybook-screenshots.spec.ts-snapshots/**/match-*.png
-
-!visual/storybook-screenshots.spec.ts-snapshots/**/private-notes-*.png
-!visual/storybook-screenshots.spec.ts-snapshots/**/party-*.png
-!visual/storybook-screenshots.spec.ts-snapshots/**/spectators-*.png
+# Visual and Storybook comparison baselines are committed source fixtures.

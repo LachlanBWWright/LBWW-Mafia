@@ -22,11 +22,10 @@ next-env.d.ts
 /build
 /storybook-static
 /storybook-screenshots
-# Track baselines for the match experience stories.
-/.storybook/screenshots.spec.ts-snapshots/**
-!/.storybook/screenshots.spec.ts-snapshots/**/
-!/.storybook/screenshots.spec.ts-snapshots/**/game-match-experience-*.png
+# Storybook comparison baselines are source fixtures and must be committed.
 /test-results
+/.storybook/test-results/
+/playwright-report/
 
 # misc
 .DS_Store
@@ -50,5 +49,3 @@ yarn-error.log*
 
 # idea files
 .idea
-
-!/.storybook/screenshots.spec.ts-snapshots/**/features-*.png

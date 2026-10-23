@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: ".",
   testMatch: ["screenshots.spec.ts", "interactions.spec.ts"],
   fullyParallel: false,
+  workers: Number(process.env.VISUAL_TEST_WORKERS ?? 2),
   retries: process.env.CI ? 1 : 0,
   updateSnapshots: process.env.VISUAL_UPDATE_SNAPSHOTS === "true" ? "all" : "none",
   reporter: process.env.CI

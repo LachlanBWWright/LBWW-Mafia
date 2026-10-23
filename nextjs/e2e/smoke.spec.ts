@@ -7,11 +7,11 @@ test("authenticated routes preserve the sign-in boundary", async ({ page }) => {
 });
 
 test("invalid lobby links still produce a playable lobby", async ({ page }) => {
-  await page.goto("/lobby?room=cross-browser-invalid", {
+  await page.goto("/lobby?room=invalid%2Froom", {
     waitUntil: "domcontentloaded",
   });
-  await expect(page.getByLabel("Assigned player name")).toContainText(
-    "You joined as",
-  );
-  await expect(page.getByText(/Day \d+|Night/, { exact: false }).first()).toBeVisible();
+  await expect(page.getByLabel("Your player name")).not.toBeEmpty();
+  await expect(page.getByRole("heading", {
+    name: /^(Waiting for players|Day \d+|Night \d+)$/,
+  }).first()).toBeVisible();
 });

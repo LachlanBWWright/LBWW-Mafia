@@ -9,6 +9,7 @@ export default defineConfig({
     "ai-characters.spec.ts",
   ],
   fullyParallel: false,
+  workers: Number(process.env.VISUAL_TEST_WORKERS ?? 2),
   retries: process.env.CI ? 1 : 0,
   updateSnapshots:
     process.env.STORYBOOK_UPDATE_SNAPSHOTS === "true" ? "all" : "none",

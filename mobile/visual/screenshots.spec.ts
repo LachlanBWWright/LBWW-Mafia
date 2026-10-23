@@ -9,11 +9,11 @@ type ScreenCase = {
 };
 
 const screens: ScreenCase[] = [
-  { name: "home", readyText: "Quick Start" },
+  { name: "home", readyText: "LBWW Mafia" },
   {
     name: "lobby-connection",
     navigate: (page) => clickLink(page, "Lobby"),
-    readyText: "Connecting to Game Lobby",
+    readyText: "Connection unavailable",
   },
   {
     name: "roles",
@@ -30,7 +30,7 @@ const screens: ScreenCase[] = [
   {
     name: "history-signed-out",
     navigate: (page) => clickLink(page, "History"),
-    readyText: "No username available for history lookup.",
+    readyText: "Sign in to view recent matches.",
   },
   {
     name: "sign-in",

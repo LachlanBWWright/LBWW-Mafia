@@ -1,6 +1,7 @@
 /build
 .env
 node_modules
+.pnpm-store/
 mobile/.expo
 .next
 dist
