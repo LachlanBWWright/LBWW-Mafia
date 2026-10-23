@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Superseded PR checks can stop; production migrations/deployments must finish.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
 jobs:
   server-test:
     name: Server — lint, typecheck, test

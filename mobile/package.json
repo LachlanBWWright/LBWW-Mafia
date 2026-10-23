@@ -10,6 +10,7 @@
     "storybook": "EXPO_PUBLIC_STORYBOOK_ENABLED=true STORYBOOK_ENABLED=true expo start",
     "storybook:ios": "EXPO_PUBLIC_STORYBOOK_ENABLED=true STORYBOOK_ENABLED=true expo start --ios",
     "storybook:android": "EXPO_PUBLIC_STORYBOOK_ENABLED=true STORYBOOK_ENABLED=true expo start --android",
+    "storybook:generate": "sb-rn-get-stories",
     "storybook:screenshots": "node visual/storybook-screenshots.mjs",
     "visual:build": "EXPO_PUBLIC_VISUAL_TESTS=true expo export --platform web --output-dir visual-dist",
     "visual:screenshots": "VISUAL_PORT=${VISUAL_PORT:-6010}; export VISUAL_PORT; node visual/clean.mjs && pnpm run visual:build && start-server-and-test \"http-server visual-dist -p $VISUAL_PORT -c-1\" http://127.0.0.1:$VISUAL_PORT 'playwright test -c visual/playwright.config.ts' && node visual/generate-gallery.mjs",
@@ -19,7 +20,7 @@
     "check:styles": "bash ../scripts/check-mobile-styling.sh",
     "lint": "eslint . && pnpm run check:styles",
     "lint:fix": "eslint . --fix && pnpm run check:styles",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "pnpm run storybook:generate && tsc --noEmit",
     "android:build": "expo run:android",
     "ios:build": "expo run:ios"
   },
