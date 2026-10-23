@@ -1,0 +1,194 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import { setGameEmitter, getGameEmitter } from "../../server/servers/emitter";
+import type { GameEmitter } from "./serverTypes";
+import {
+  JoinRoomResultCode,
+  PartyServerMessageType,
+  ServerEvent,
+} from "./events";
+import { DayTime } from "../game/playerActionRules";
+import { MessageKey } from "./messages";
+
+// ───────────── GameEmitter singleton tests ─────────────
+
+describe("GameEmitter singleton", () => {
+  it("setGameEmitter and getGameEmitter round-trip", () => {
+    const emittedCalls: { target: string; event: string; args: unknown[] }[] = [];
+    const disconnectCalls: string[] = [];
+
+    const mockEmitter: GameEmitter = {
+      to(target: string) {
+        return {
+          emit(event: string, ...args: unknown[]) {
+            emittedCalls.push({ target, event, args });
+          },
+        };
+      },
+      in(target: string) {
+        return {
+          disconnectSockets() {
+            disconnectCalls.push(target);
+          },
+        };
+      },
+    };
+
+    setGameEmitter(mockEmitter);
+    const retrievedRes = getGameEmitter();
+    expect(retrievedRes.isOk()).toBe(true);
+    const retrieved = retrievedRes.value;
+    expect(retrieved).toBe(mockEmitter);
+
+    retrieved.to("room-1").emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.RoomFullStartingGame,
+    });
+    expect(emittedCalls.length).toBe(1);
+    expect(emittedCalls[0]?.target).toBe("room-1");
+    expect(emittedCalls[0]?.event).toBe(ServerEvent.ReceiveMessage);
+    expect(emittedCalls[0]?.args).toEqual([
+      { key: MessageKey.RoomFullStartingGame },
+    ]);
+
+    retrieved.to("socket-id-123").emit(ServerEvent.BlockMessages);
+    expect(emittedCalls.length).toBe(2);
+    expect(emittedCalls[1]?.target).toBe("socket-id-123");
+    expect(emittedCalls[1]?.event).toBe(ServerEvent.BlockMessages);
+
+    retrieved.in("game-room").disconnectSockets();
+    expect(disconnectCalls.length).toBe(1);
+    expect(disconnectCalls[0]).toBe("game-room");
+  });
+
+  it("getGameEmitter returns current emitter via io proxy", async () => {
+    const { io } = await import("../../server/servers/emitter");
+    const emittedCalls: { target: string; event: string }[] = [];
+
+    const mockEmitter: GameEmitter = {
+      to(target: string) {
+        return {
+          emit(event: string) {
+            emittedCalls.push({ target, event });
+          },
+        };
+      },
+      in(_target: string) {
+        return { disconnectSockets() {} };
+      },
+    };
+
+    setGameEmitter(mockEmitter);
+    io.to("test-room").emit(ServerEvent.UpdateDayTime, { time: DayTime.Day, dayNumber: 1, timeLeft: 10 });
+    expect(emittedCalls.length).toBe(1);
+    expect(emittedCalls[0]?.event).toBe(ServerEvent.UpdateDayTime);
+  });
+});
+
+// ───────────── PartyServerEmitter tests ─────────────
+
+describe("PartyServerEmitter", () => {
+  it("broadcasts to room and sends to individual connections", async () => {
+    const { PartyServerEmitter } = await import("../../server/servers/partyserver/partyserverEmitter");
+
+    const broadcastedMessages: string[] = [];
+    const sentMessages: Map<string, string[]> = new Map();
+    const closedConnections: string[] = [];
+
+    const mockPartyRoom = {
+      broadcast(msg: string) { broadcastedMessages.push(msg); },
+      getConnection(id: string) {
+        if (id === "conn-1") {
+          return {
+            id: "conn-1",
+            send(msg: string) {
+              const msgs = sentMessages.get("conn-1") ?? [];
+              msgs.push(msg);
+              sentMessages.set("conn-1", msgs);
+            },
+            close() { closedConnections.push("conn-1"); },
+          };
+        }
+        return undefined;
+      },
+      getConnections() {
+        return [
+          { id: "conn-1", close() { closedConnections.push("conn-1"); } },
+          { id: "conn-2", close() { closedConnections.push("conn-2"); } },
+        ];
+      },
+    };
+
+    const emitter = new PartyServerEmitter(mockPartyRoom, "test-room-name");
+
+    emitter.to("test-room-name").emit(ServerEvent.ReceiveMessage, {
+      key: MessageKey.RoomFullStartingGame,
+    });
+    expect(broadcastedMessages.length).toBe(1);
+    const parsed = JSON.parse(broadcastedMessages[0] ?? "{}");
+    expect(parsed.type).toBe(PartyServerMessageType.Event);
+    expect(parsed.event).toBe(ServerEvent.ReceiveMessage);
+    expect(parsed.args).toEqual([{ key: MessageKey.RoomFullStartingGame }]);
+
+    emitter.to("conn-1").emit(ServerEvent.BlockMessages);
+    expect(sentMessages.get("conn-1")?.length).toBe(1);
+    const parsedDirect = JSON.parse(sentMessages.get("conn-1")?.[0] ?? "{}");
+    expect(parsedDirect.event).toBe(ServerEvent.BlockMessages);
+
+    emitter.to("conn-nonexistent").emit(ServerEvent.ReceiveMessage, "test");
+
+    emitter.in("test-room-name").disconnectSockets();
+    expect(closedConnections.length).toBe(2);
+    expect(closedConnections.includes("conn-1")).toBe(true);
+    expect(closedConnections.includes("conn-2")).toBe(true);
+
+    const prevCount = closedConnections.length;
+    emitter.in("other-room").disconnectSockets();
+    expect(closedConnections.length).toBe(prevCount);
+  });
+});
+
+// ───────────── PartyServerPlayerSocket tests ─────────────
+
+describe("PartyServerPlayerSocket", () => {
+  it("wraps connection with correct interface", async () => {
+    const { PartyServerPlayerSocket } = await import(
+      "../../server/servers/partyserver/partyserverPlayerSocket"
+    );
+
+    const sentMessages: string[] = [];
+    const mockConnection = {
+      id: "pk-conn-1",
+      send(msg: string) { sentMessages.push(msg); },
+    };
+
+    const playerSocket = new PartyServerPlayerSocket(mockConnection);
+    expect(playerSocket.id).toBe("pk-conn-1");
+    expect(playerSocket.data).toEqual({});
+
+    playerSocket.join("some-room");
+    playerSocket.data.position = 5;
+    expect(playerSocket.data.position).toBe(5);
+
+    playerSocket.sendCallback("cb_1", {
+      status: "rejected",
+      code: JoinRoomResultCode.RoomFull,
+    });
+    expect(sentMessages.length).toBe(1);
+    const parsed = JSON.parse(sentMessages[0] ?? "{}");
+    expect(parsed.type).toBe(PartyServerMessageType.Callback);
+    expect(parsed.callbackId).toBe("cb_1");
+    expect(parsed.args).toEqual([
+      { status: "rejected", code: JoinRoomResultCode.RoomFull },
+    ]);
+  });
+
+  it("both PlayerSocket and PartyServerPlayerSocket satisfy GamePlayerSocket", async () => {
+    const { PartyServerPlayerSocket } = await import(
+      "../../server/servers/partyserver/partyserverPlayerSocket"
+    );
+    const mockConnection = { id: "test-conn", send() {} };
+    const partySocket = new PartyServerPlayerSocket(mockConnection);
+    expect(typeof partySocket.id).toBe("string");
+    expect(typeof partySocket.data).toBe("object");
+    expect(typeof partySocket.join).toBe("function");
+  });
+});

@@ -1,0 +1,2 @@
+import { redirect } from "next/navigation"; import { Header } from "~/components/header"; import { Community } from "~/components/community"; import { auth } from "~/server/auth";
+export default async function CommunityPage() { if (!(await auth())?.user) redirect("/signin"); return <div className="min-h-screen bg-background"><Header /><main className="mx-auto max-w-4xl px-4 py-8"><Community /></main></div>; }

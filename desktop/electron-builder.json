@@ -1,0 +1,24 @@
+{
+  "appId": "com.lbww.mafia",
+  "productName": "LBWW Mafia",
+  "directories": { "output": "desktop/dist" },
+  "extraMetadata": { "main": "desktop/main.mjs" },
+  "files": [
+    "desktop/*.mjs",
+    "desktop/preload.cjs",
+    "desktop/config.json",
+    "shared/ai/*.mjs",
+    "shared/game/botProfiles.json",
+    "tools/ai-bots/chatgpt/*.mjs",
+    "!**/*.test.mjs",
+    "!desktop/smoke.mjs",
+    "package.json"
+  ],
+  "linux": { "target": ["AppImage"], "category": "Game" },
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.games",
+    "hardenedRuntime": true
+  },
+  "win": { "target": ["nsis"] }
+}

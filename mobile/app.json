@@ -2,14 +2,15 @@
   "expo": {
     "name": "LBWW-Mafia-Mobile",
     "slug": "LBWW-Mafia-Mobile",
+    "scheme": "mernmafia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#060912"
     },
     "updates": {
       "fallbackToCacheTimeout": 0
@@ -18,16 +19,30 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "bundleIdentifier": "com.lbww.mafia"
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
-      }
+        "backgroundColor": "#060912"
+      },
+      "package": "com.lbww.mafia"
     },
     "web": {
+      "bundler": "metro",
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-sharing"
+    ]
   }
 }

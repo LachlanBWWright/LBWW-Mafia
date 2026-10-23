@@ -1,5 +1,24 @@
 /build
 .env
 node_modules
+.pnpm-store/
+mobile/.expo
 .next
 dist
+coverage
+storybook-static
+storybook-dist
+*.db
+
+# OS metadata
+.DS_Store
+
+# Desktop distributions
+desktop/dist/
+
+# Wrangler local state and secrets
+.wrangler/
+.vercel/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example

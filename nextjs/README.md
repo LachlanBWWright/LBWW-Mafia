@@ -8,7 +8,7 @@ The application uses modern web technologies:
 
 - [Next.js](https://nextjs.org) - React framework for production
 - [NextAuth.js](https://next-auth.js.org) - Authentication for Next.js
-- [Drizzle ORM](https://orm.drizzle.team) - TypeScript ORM with SQLite
+- [Drizzle ORM](https://orm.drizzle.team) - TypeScript ORM with PostgreSQL
 - [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
 - [shadcn/ui](https://ui.shadcn.com) - Re-usable component library
 
@@ -17,35 +17,36 @@ The application uses modern web technologies:
 1. Install dependencies:
 
 ```bash
-npm install
+# Run this from the repository root so pnpm sees the workspace packages.
+pnpm install
 ```
 
-2. Set up your environment variables (copy `.env.example` to `.env` and fill in values)
+2. Copy `nextjs/.env.example` to `nextjs/.env.local` and fill in the values. Use Node.js 24 and the repository's pinned pnpm version.
 
 3. Run database migrations:
 
 ```bash
-npm run db:push
+pnpm --dir nextjs run db:migrate
 ```
 
 4. Start the development server:
 
 ```bash
-npm run dev
+pnpm --dir nextjs run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 ## Database
 
-The app uses Drizzle ORM with SQLite for local development. The shared schema is located at `/db/schema.ts` in the repository root.
+The app uses Drizzle ORM with PostgreSQL for local development and production. The shared schema is located at `db/schema.ts` in the repository root. Start the local database with `docker compose up -d db` before running migrations.
 
 ### Database Commands
 
-- `npm run db:generate` - Generate migrations
-- `npm run db:migrate` - Run migrations
-- `npm run db:push` - Push schema to database
-- `npm run db:studio` - Open Drizzle Studio
+- `pnpm run db:generate` - Generate migrations
+- `pnpm run db:migrate` - Run migrations
+- `pnpm run db:push` - Push schema to database
+- `pnpm run db:studio` - Open Drizzle Studio
 
 ## Learn More
 
@@ -55,4 +56,4 @@ The app uses Drizzle ORM with SQLite for local development. The shared schema is
 
 ## Deployment
 
-Follow the T3 Stack deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker).
+Follow the repository's [deployment instructions](../DEPLOYMENT.md#vercel). The Vercel Root Directory is `nextjs`; `nextjs/vercel.json` defines its build commands. Configure PostgreSQL, Google OAuth, and the deployed PartyServer endpoint before deployment. CAPTCHA is disabled.

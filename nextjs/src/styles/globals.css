@@ -4,8 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 @theme inline {
@@ -60,7 +60,7 @@
   --popover-foreground: #e9eeff;
   /* Blue primary color */
   --primary: #5b8cff;
-  --primary-foreground: #f2f6ff;
+  --primary-foreground: #06102b;
   --secondary: #19213a;
   --secondary-foreground: #dce5ff;
   --muted: #19213a;
@@ -77,6 +77,29 @@
   --chart-3: 30 80% 55%;
   --chart-4: 280 65% 60%;
   --chart-5: 340 75% 55%;
+}
+
+/* The light theme is used by account preferences and visual regression tests. */
+.light {
+  --background: #f8fafc;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #1e293b;
+  --muted: #e2e8f0;
+  --muted-foreground: #475569;
+  --accent: #dbeafe;
+  --accent-foreground: #172554;
+  --destructive: #b4233d;
+  --destructive-foreground: #ffffff;
+  --border: #cbd5e1;
+  --input: #ffffff;
+  --ring: #1d4ed8;
 }
 
 @layer base {

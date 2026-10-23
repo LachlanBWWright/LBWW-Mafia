@@ -1,28 +1,32 @@
-import { PlayerSocket } from "../../servers/socket.js";
-import { Room } from "../rooms/room.js";
-import { type Role } from "../roles/abstractRole.js";
+import type { User } from "../user/user.js";
+import type { RoleLike } from "../roles/roleLike.js";
 
+/**
+ * Represents the in-game character of a connected User.
+ * Players are only instantiated at the start of a game.
+ * Their role may be changed mid-game (e.g. conversion mechanics).
+ */
 export class Player {
-  socket: PlayerSocket;
-  socketId: string;
-  playerUsername: string;
-  role: Role | undefined;
+  readonly id: string;
+  readonly user: User;
+  readonly username: string;
+  role!: RoleLike; // always assigned during startGame() before any game logic runs
   isAlive: boolean;
+  voteTarget?: string | null;
   hasVoted: boolean;
   votesReceived: number;
 
-  constructor(
-    socket: PlayerSocket,
-    socketId: string,
-    playerUsername: string,
-    _room: Room,
-  ) {
-    this.socket = socket;
-    this.socketId = socketId;
-    this.playerUsername = playerUsername;
-    this.role = undefined;
+  constructor(user: User) {
+    this.id = user.username;
+    this.user = user;
+    this.username = user.username;
     this.isAlive = true;
     this.hasVoted = false;
     this.votesReceived = 0;
+  }
+
+  /** Assign or change this player's role (e.g. at game start or mid-game conversion). */
+  assignRole(role: RoleLike) {
+    this.role = role;
   }
 }

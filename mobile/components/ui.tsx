@@ -1,0 +1,487 @@
+import React from "react";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { colors } from "../styles/colors";
+import { buttonWebAccessibility } from "./buttonAccessibility";
+import { useAppState } from "../context/AppStateContext";
+import { getVisibleNavigationItems } from "../../shared/navigation";
+
+type NavigationLike = {
+  navigate: (screen: string, params?: Record<string, unknown>) => void;
+};
+
+type ButtonVariant = "primary" | "secondary" | "outline" | "destructive" | "ghost";
+type ButtonSize = "sm" | "md" | "lg" | "icon";
+type BadgeVariant = "secondary" | "outline" | "primary" | "destructive";
+type ListRowTone = "default" | "muted" | "danger" | "success";
+
+type ScreenProps = {
+  navigation: NavigationLike;
+  activeRoute: string;
+  title?: string;
+  subtitle?: string;
+  scroll?: boolean;
+  className?: string;
+  contentClassName?: string;
+  titleClassName?: string;
+  subtitleClassName?: string;
+  children: React.ReactNode;
+};
+
+type CardProps = {
+  children: React.ReactNode;
+  className?: string;
+};
+
+type ButtonProps = {
+  accessibilityLabel?: string;
+  accessibilityState?: React.ComponentProps<typeof Pressable>["accessibilityState"];
+  children: React.ReactNode;
+  onPress: () => void;
+  disabled?: boolean;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+  textClassName?: string;
+};
+
+type InputProps = React.ComponentProps<typeof TextInput> & {
+  value: string;
+  className?: string;
+};
+
+type BadgeProps = {
+  children: React.ReactNode;
+  variant?: BadgeVariant;
+  className?: string;
+  textClassName?: string;
+};
+
+type ListRowProps = {
+  title: string;
+  subtitle?: string;
+  trailing?: React.ReactNode;
+  tone?: ListRowTone;
+  onPress?: () => void;
+  className?: string;
+  contentClassName?: string;
+  titleClassName?: string;
+  subtitleClassName?: string;
+  trailingClassName?: string;
+};
+
+type EmptyStateProps = {
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+  className?: string;
+  titleClassName?: string;
+  descriptionClassName?: string;
+  actionClassName?: string;
+};
+
+type SectionHeaderProps = {
+  title: string;
+  subtitle?: string;
+  className?: string;
+  titleClassName?: string;
+  subtitleClassName?: string;
+};
+
+type LoadingCardProps = {
+  label: string;
+  className?: string;
+  textClassName?: string;
+};
+
+export function cn(...classNames: ClassValue[]) {
+  return twMerge(clsx(classNames));
+}
+
+function getButtonVariantClass(variant: ButtonVariant): string {
+  switch (variant) {
+    case "primary": return "border-primary bg-primary";
+    case "secondary": return "border-border bg-secondary";
+    case "outline": return "border-border bg-transparent";
+    case "destructive": return "border-destructive bg-destructive";
+    default: return "border-transparent bg-transparent";
+  }
+}
+
+function getButtonSizeClass(size: ButtonSize): string {
+  switch (size) {
+    case "sm": return "min-h-11 px-md py-xs";
+    case "lg": return "min-h-12 px-xl py-md";
+    case "icon": return "min-h-11 w-11 px-0 py-0";
+    default: return "min-h-11 px-lg py-sm";
+  }
+}
+
+function getButtonTextVariantClass(variant: ButtonVariant): string {
+  switch (variant) {
+    case "primary": return "text-primary-foreground";
+    case "destructive": return "text-destructive-foreground";
+    default: return "text-foreground";
+  }
+}
+
+function getBadgeVariantClass(variant: BadgeVariant): string {
+  switch (variant) {
+    case "primary": return "border-primary bg-primary";
+    case "destructive": return "border-destructive bg-destructive";
+    case "outline": return "border-border bg-transparent";
+    default: return "border-border bg-secondary";
+  }
+}
+
+function getBadgeTextVariantClass(variant: BadgeVariant): string {
+  switch (variant) {
+    case "primary": return "text-primary-foreground";
+    case "destructive": return "text-destructive-foreground";
+    case "outline": return "text-muted-foreground";
+    default: return "text-secondary-foreground";
+  }
+}
+
+function getRowToneClass(tone: ListRowTone): string {
+  switch (tone) {
+    case "muted": return "bg-muted";
+    case "danger": return "bg-destructive/15";
+    case "success": return "bg-success/10";
+    default: return "bg-secondary";
+  }
+}
+
+function buttonClassName(variant: ButtonVariant, size: ButtonSize, disabled: boolean, className?: string) {
+  return cn(
+    "flex-row items-center justify-center rounded-lg border",
+    getButtonVariantClass(variant),
+    getButtonSizeClass(size),
+    disabled ? "opacity-45" : "pressed:opacity-90",
+    className,
+  );
+}
+
+function buttonTextClassName(variant: ButtonVariant, textClassName?: string) {
+  return cn(
+    "text-sm font-bold",
+    getButtonTextVariantClass(variant),
+    textClassName,
+  );
+}
+
+function badgeClassName(variant: BadgeVariant, className?: string) {
+  return cn(
+    "flex-row items-center justify-center rounded-full border px-3 py-1",
+    getBadgeVariantClass(variant),
+    className,
+  );
+}
+
+function badgeTextClassName(variant: BadgeVariant, textClassName?: string) {
+  return cn(
+    "text-[11px] font-extrabold leading-none tracking-[0.02em]",
+    getBadgeTextVariantClass(variant),
+    textClassName,
+  );
+}
+
+function rowToneClassName(tone: ListRowTone) {
+  return getRowToneClass(tone);
+}
+
+function ScreenHeader({
+  title,
+  subtitle,
+  titleClassName,
+  subtitleClassName,
+}: {
+  title?: string;
+  subtitle?: string;
+  titleClassName?: string;
+  subtitleClassName?: string;
+}) {
+  if (!title && !subtitle) return null;
+  return (
+    <View className="gap-sm">
+      {title && (
+        <Text className={cn("text-[30px] font-extrabold leading-[34px] tracking-[-0.02em] text-foreground", titleClassName)}>
+          {title}
+        </Text>
+      )}
+      {subtitle && (
+        <Text className={cn("text-[15px] leading-[21px] text-muted-foreground", subtitleClassName)}>
+          {subtitle}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+export function Screen({
+  navigation,
+  activeRoute,
+  title,
+  subtitle,
+  scroll = true,
+  className,
+  contentClassName,
+  titleClassName,
+  subtitleClassName,
+  children,
+}: ScreenProps) {
+  const header = (
+    <ScreenHeader
+      title={title}
+      subtitle={subtitle}
+      titleClassName={titleClassName}
+      subtitleClassName={subtitleClassName}
+    />
+  );
+
+  return (
+    <SafeAreaView className={cn("relative flex-1 overflow-hidden bg-background", className)} edges={["top", "left", "right"]}>
+      <StatusBar style="light" />
+      <View pointerEvents="none" className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-primary/10" />
+      <AppHeader navigation={navigation} activeRoute={activeRoute} />
+      {scroll ? (
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName={cn("gap-lg p-lg", contentClassName)}
+          showsVerticalScrollIndicator={false}
+        >
+          {header}
+          {children}
+        </ScrollView>
+      ) : (
+        <View className={cn("flex-1 gap-lg p-lg", contentClassName)}>
+          {header}
+          {children}
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
+function AppHeader({
+  navigation,
+  activeRoute,
+}: {
+  navigation: NavigationLike;
+  activeRoute: string;
+}) {
+  const { isAdmin, authToken } = useAppState();
+  const showAdmin = isAdmin || process.env.EXPO_PUBLIC_VISUAL_TESTS === "true";
+  const visibleNavItems = getVisibleNavigationItems(
+    Boolean(authToken),
+    showAdmin,
+  );
+
+  return (
+    <View className="h-12 flex-row items-center border-b border-border/80 bg-background px-xs">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="flex-1"
+        contentContainerClassName="h-12 items-center gap-xs px-xs"
+      >
+        {visibleNavItems.map((item) => (
+          <NavChip
+            key={item.key}
+            label={item.label}
+            active={item.key === activeRoute}
+            onPress={() => navigation.navigate(item.key)}
+          />
+        ))}
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 min-h-0 shrink-0 px-3"
+          onPress={() => navigation.navigate(authToken ? "Profile" : "SignIn")}
+        >
+          {authToken ? "Profile" : "Sign in"}
+        </Button>
+      </ScrollView>
+    </View>
+  );
+}
+
+export function Card({ children, className }: CardProps) {
+  return <View className={cn("gap-md rounded-xl border border-border/90 bg-card/95 p-lg", className)}>{children}</View>;
+}
+
+export function Button({
+  accessibilityLabel,
+  accessibilityState,
+  children,
+  onPress,
+  disabled = false,
+  variant = "primary",
+  size = "md",
+  className,
+  textClassName,
+}: ButtonProps) {
+  return (
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      accessibilityState={{ ...accessibilityState, disabled }}
+      {...(Platform.OS === "web" ? buttonWebAccessibility(accessibilityState, disabled) : {})}
+      onPress={onPress}
+      disabled={disabled}
+      className={buttonClassName(variant, size, disabled, className)}
+    >
+      {React.isValidElement(children) ? children : <Text className={buttonTextClassName(variant, textClassName)}>{children}</Text>}
+    </Pressable>
+  );
+}
+
+export function Input({
+  value,
+  onChangeText,
+  placeholder,
+  multiline,
+  numberOfLines,
+  className,
+  ...props
+}: InputProps) {
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.mutedForeground}
+      multiline={multiline}
+      numberOfLines={numberOfLines}
+      {...props}
+      textAlignVertical={multiline ? "top" : "center"}
+      className={cn(
+        "rounded-lg border border-border bg-input px-md py-3 text-sm text-foreground",
+        multiline ? "min-h-[88px] py-md" : "h-12",
+        className,
+      )}
+    />
+  );
+}
+
+export function Badge({
+  children,
+  variant = "secondary",
+  className,
+  textClassName,
+}: BadgeProps) {
+  return (
+    <View className={badgeClassName(variant, className)}>
+      <Text className={badgeTextClassName(variant, textClassName)}>{children}</Text>
+    </View>
+  );
+}
+
+export function ListRow({
+  title,
+  subtitle,
+  trailing,
+  tone = "default",
+  onPress,
+  className,
+  contentClassName,
+  titleClassName,
+  subtitleClassName,
+  trailingClassName,
+}: ListRowProps) {
+  const row = (
+    <View className={cn("flex-row items-center justify-between gap-md rounded-lg border border-border p-md", rowToneClassName(tone), className)}>
+      <View className={cn("flex-1 gap-xs", contentClassName)}>
+        <Text className={cn("text-sm font-bold text-foreground", titleClassName)}>{title}</Text>
+        {subtitle ? <Text className={cn("text-xs leading-[17px] text-muted-foreground", subtitleClassName)}>{subtitle}</Text> : null}
+      </View>
+      {trailing ? <View className={cn("shrink-0", trailingClassName)}>{trailing}</View> : null}
+    </View>
+  );
+
+  if (!onPress) {
+    return row;
+  }
+
+  return (
+    <Pressable onPress={onPress} className="pressed:opacity-90">
+      {row}
+    </Pressable>
+  );
+}
+
+export function EmptyState({
+  title,
+  description,
+  action,
+  className,
+  titleClassName,
+  descriptionClassName,
+  actionClassName,
+}: EmptyStateProps) {
+  return (
+    <Card className={cn("items-center", className)}>
+      <Text className={cn("text-center text-lg font-extrabold text-foreground", titleClassName)}>{title}</Text>
+      <Text className={cn("text-center text-sm leading-5 text-muted-foreground", descriptionClassName)}>{description}</Text>
+      {action ? <View className={cn("mt-xs", actionClassName)}>{action}</View> : null}
+    </Card>
+  );
+}
+
+export function SectionHeader({
+  title,
+  subtitle,
+  className,
+  titleClassName,
+  subtitleClassName,
+}: SectionHeaderProps) {
+  return (
+    <View className={cn("gap-xs", className)}>
+      <Text className={cn("text-lg font-extrabold text-foreground", titleClassName)}>{title}</Text>
+      {subtitle ? <Text className={cn("text-sm leading-5 text-muted-foreground", subtitleClassName)}>{subtitle}</Text> : null}
+    </View>
+  );
+}
+
+export function LoadingCard({ label, className, textClassName }: LoadingCardProps) {
+  return (
+    <Card className={cn("items-center", className)}>
+      <ActivityIndicator color={colors.primary} />
+      <Text className={cn("text-sm text-muted-foreground", textClassName)}>{label}</Text>
+    </Card>
+  );
+}
+
+function NavChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Button
+      variant={active ? "secondary" : "ghost"}
+      size="sm"
+      onPress={onPress}
+      className={cn("h-9 min-h-0 shrink-0 rounded-md px-3", active && "border-primary")}
+      textClassName={active ? "text-foreground" : "text-muted-foreground"}
+    >
+      {label}
+    </Button>
+  );
+}

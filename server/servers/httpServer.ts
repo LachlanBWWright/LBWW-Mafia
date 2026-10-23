@@ -10,10 +10,29 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 
+/**
+ * Request rate limiting window in milliseconds.
+ * @type {number}
+ */
 const requestWindowMs = 60_000;
+
+/**
+ * Maximum number of requests allowed per window per IP.
+ * @type {number}
+ */
 const maxRequestsPerWindow = 120;
+
+/**
+ * Tracks request counts and timestamps per IP address.
+ * @type {Map<string, { count: number; start: number }>}
+ */
 const requestLog = new Map<string, { count: number; start: number }>();
 
+/**
+ * Rate limiting middleware.
+ * Limits requests to maxRequestsPerWindow per requestWindowMs per IP address.
+ * Returns 429 (Too Many Requests) when limit is exceeded.
+ */
 app.use((req, res, next) => {
   const key = req.ip ?? req.socket.remoteAddress ?? "unknown";
   const now = Date.now();
@@ -35,10 +54,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname + "/../client/build"))); //Serves the web app
+app.use(express.static(path.join(__dirname + "/../client/build")));
 
 export const httpServer = createServer(app);
 
+/**
+ * Catch-all route for undefined endpoints.
+ * Returns 404 Not Found for any unmatched requests.
+ */
 app.get(/.*/, (_, res) => {
   res.status(404).send("Not found");
 });

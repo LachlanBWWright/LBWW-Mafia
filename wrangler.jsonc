@@ -1,0 +1,35 @@
+{
+  "$schema": "./server/node_modules/wrangler/config-schema.json",
+  "name": "lbww-mafia-game",
+  "main": "server/servers/partyserver/worker.ts",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "dev": { "port": 1999, "ip": "127.0.0.1" },
+  "vars": {
+    "NEXTJS_URL": "http://localhost:3000"
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "Main", "class_name": "MafiaServer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MafiaServer"] }],
+  "env": {
+    // Environment vars are intentionally not inherited. Supply staging's NEXTJS_URL
+    // with --var NEXTJS_URL:https://...; keep BACKEND_SECRET in Cloudflare secrets.
+    "staging": {
+      "name": "lbww-mafia-game-staging",
+      "durable_objects": {
+        "bindings": [{ "name": "Main", "class_name": "MafiaServer" }]
+      }
+    },
+    "production": {
+      "name": "lbww-mafia-game",
+      "vars": {
+        "NEXTJS_URL": "https://mern-mafia.vercel.app"
+      },
+      "durable_objects": {
+        "bindings": [{ "name": "Main", "class_name": "MafiaServer" }]
+      }
+    }
+  }
+}

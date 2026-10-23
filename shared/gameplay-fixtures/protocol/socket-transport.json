@@ -1,0 +1,30 @@
+{
+  "clientControlMessage": {
+    "roomId": "fixture-room",
+    "socketId": "sb_fixture",
+    "message": {
+      "type": "event",
+      "event": "playerJoinRoom",
+      "args": ["captcha-token"],
+      "callbackId": "cb_1"
+    }
+  },
+  "expectedClientControlJson": "{\"roomId\":\"fixture-room\",\"socketId\":\"sb_fixture\",\"message\":{\"type\":\"event\",\"event\":\"playerJoinRoom\",\"args\":[\"captcha-token\"],\"callbackId\":\"cb_1\"}}",
+  "serverRoomMessage": {
+    "type": "event",
+    "event": "receive-chat-message",
+    "args": ["hello from fixture"]
+  },
+  "expectedServerRoomJson": "{\"type\":\"event\",\"event\":\"receive-chat-message\",\"args\":[\"hello from fixture\"]}",
+  "serverCallbackMessage": {
+    "type": "callback",
+    "callbackId": "cb_1",
+    "args": [
+      {
+        "status": "joined",
+        "username": "Glen"
+      }
+    ]
+  },
+  "expectedServerCallbackJson": "{\"type\":\"callback\",\"callbackId\":\"cb_1\",\"args\":[{\"status\":\"joined\",\"username\":\"Glen\"}]}"
+}

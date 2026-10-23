@@ -1,11 +1,18 @@
-import { sharedDbClient } from "./sharedDb";
-
 export type MatchHistoryEvent = {
   time: number;
   type: "system" | "chat" | "whisper" | "action";
   actor?: string;
   target?: string;
   content: string;
+  phase?: string;
+  day?: number;
+  kind?:
+    | "phase"
+    | "vote"
+    | "death"
+    | "night_action"
+    | "outcome"
+    | "role_reveal";
 };
 
 export type MatchHistoryParticipant = {
@@ -16,6 +23,7 @@ export type MatchHistoryParticipant = {
 };
 
 export type MatchHistoryInput = {
+  gameId?: string;
   roomName: string;
   startedAt: Date;
   endedAt: Date;
@@ -26,48 +34,110 @@ export type MatchHistoryInput = {
   actionHistory: MatchHistoryEvent[];
 };
 
-export async function persistMatchHistory(input: MatchHistoryInput) {
-  const insertMatchResult = await sharedDbClient.execute({
-    sql: `
-      INSERT INTO nextjs_match
-      (roomName, startedAt, endedAt, winningFaction, winningRoles, playerCount, conversationHistory, actionHistory)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    args: [
-      input.roomName,
-      input.startedAt.getTime(),
-      input.endedAt.getTime(),
-      input.winningFaction,
-      JSON.stringify(input.winningRoles),
-      input.participants.length,
-      JSON.stringify(input.conversationHistory),
-      JSON.stringify(input.actionHistory),
-    ],
-  });
+/**
+ * Triggers rotation of the active room by making a tRPC request to the NextJS backend.
+ * This is used to advance the game state and manage room transitions.
+ *
+ * @returns Resolves when the request completes
+ * @throws If the tRPC request fails (logged to console error)
+ */
+export type BackendContext = {
+  url?: string;
+  secret?: string;
+  persistHistory?: (input: MatchHistoryInput) => Promise<void>;
+};
+const defaultBackend = (): BackendContext =>
+  typeof process === "undefined"
+    ? {}
+    : { url: process.env.NEXTJS_URL, secret: process.env.BACKEND_SECRET };
+export async function rotateActiveRoom(
+  backend: BackendContext = defaultBackend(),
+): Promise<void> {
+  const { url, secret } = backend;
 
-  const insertedMatchId = Number(insertMatchResult.lastInsertRowid ?? 0);
-  if (!insertedMatchId) {
-    console.error("Match history insert did not return an ID", {
-      roomName: input.roomName,
-      endedAt: input.endedAt.toISOString(),
-    });
+  if (!url || !secret) {
+    console.warn(
+      "rotateActiveRoom: NEXTJS_URL or BACKEND_SECRET not set, skipping",
+    );
     return;
   }
 
-  for (const participant of input.participants) {
-    await sharedDbClient.execute({
-      sql: `
-        INSERT INTO nextjs_match_participant
-        (matchId, userId, username, role, won)
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      args: [
-        insertedMatchId,
-        participant.userId ?? null,
-        participant.username,
-        participant.role,
-        participant.won ? 1 : 0,
-      ],
-    });
+  const res = await fetch(`${url}/api/trpc/room.rotate?batch=1`, {
+    signal: AbortSignal.timeout(10_000),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify({ "0": { json: null } }),
+  });
+
+  if (!res.ok) {
+    console.error(
+      `rotateActiveRoom: tRPC request failed with status ${res.status}`,
+    );
+  }
+}
+
+/**
+ * Persists a completed match's history to the database via the NextJS backend.
+ * Converts date objects to ISO strings and sends all match metadata to the match.persist tRPC endpoint.
+ *
+ * @param input - The match history data to persist
+ * @param input .roomName - The name of the room where the match occurred
+ * @param input .startedAt - When the match started
+ * @param input .endedAt - When the match ended
+ * @param input .winningFaction - Name of the faction that won
+ * @param input .winningRoles - List of role names that won
+ * @param input .participants - List of all players and their results
+ * @param input .conversationHistory - Chat messages during the match
+ * @param input .actionHistory - Actions taken during the match
+ * @returns Resolves when the request completes
+ */
+export async function persistMatchHistory(
+  input: MatchHistoryInput,
+  backend: BackendContext = defaultBackend(),
+) {
+  if (backend.persistHistory) return backend.persistHistory(input);
+  const { url, secret } = backend;
+
+  if (!url || !secret) {
+    throw new Error(
+      "persistMatchHistory: NEXTJS_URL or BACKEND_SECRET not set, skipping",
+    );
+    return;
+  }
+
+  const body = {
+    "0": {
+      json: {
+        gameId:
+          input.gameId ?? `${input.roomName}:${input.startedAt.toISOString()}`,
+        roomName: input.roomName,
+        startedAt: input.startedAt.toISOString(),
+        endedAt: input.endedAt.toISOString(),
+        winningFaction: input.winningFaction,
+        winningRoles: input.winningRoles,
+        participants: input.participants,
+        conversationHistory: input.conversationHistory,
+        actionHistory: input.actionHistory,
+      },
+    },
+  };
+
+  const res = await fetch(`${url}/api/trpc/match.persist?batch=1`, {
+    signal: AbortSignal.timeout(10_000),
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${secret}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `persistMatchHistory: tRPC request failed with status ${res.status}`,
+    );
   }
 }

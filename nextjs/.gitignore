@@ -20,6 +20,12 @@ next-env.d.ts
 
 # production
 /build
+/storybook-static
+/storybook-screenshots
+# Storybook comparison baselines are source fixtures and must be committed.
+/test-results
+/.storybook/test-results/
+/playwright-report/
 
 # misc
 .DS_Store

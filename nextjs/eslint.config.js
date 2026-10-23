@@ -7,7 +7,13 @@ import neverthrow from "eslint-plugin-neverthrow";
 
 export default tseslint.config(
   {
-    ignores: [".next"],
+    ignores: [
+      ".next",
+      "coverage/**",
+      "storybook-static/**",
+      "storybook-screenshots/**",
+      "test-results/**",
+    ],
   },
   ...nextVitals,
   {

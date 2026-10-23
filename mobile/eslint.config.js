@@ -4,7 +4,16 @@ const neverthrow = require("eslint-plugin-neverthrow");
 
 module.exports = [
   {
-    ignores: ["node_modules/**", "android/**", "ios/**"],
+    ignores: [
+      "node_modules/**",
+      "android/**",
+      "ios/**",
+      ".expo/**",
+      "storybook-static/**",
+      "storybook-dist/**",
+      "visual-dist/**",
+      ".rnstorybook/storybook.requires.ts",
+    ],
   },
   {
     files: ["**/*.ts", "**/*.tsx"],

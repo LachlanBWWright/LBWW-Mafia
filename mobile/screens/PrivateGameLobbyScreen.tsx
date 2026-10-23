@@ -1,14 +1,25 @@
 import React from "react";
-import { View, Text } from "react-native";
-import { commonStyles } from "../styles/commonStyles";
+import { Text } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { StackParamList } from "../App";
+import { Button, Screen } from "../components/ui";
 
-export function PrivateGameLobbyScreen() {
+export function PrivateGameLobbyScreen({
+  navigation,
+}: NativeStackScreenProps<StackParamList, "Lobby">) {
   return (
-    <View style={commonStyles.container}>
-      <Text style={commonStyles.centeredText}>Welcome To LBWW Mafia!</Text>
-      <Text style={commonStyles.centeredText}>
-        A list of games should go right about here!
+    <Screen
+      navigation={navigation}
+      activeRoute="Lobby"
+      title="Private lobby"
+      subtitle="Private rooms use the same live lobby and game surface."
+    >
+      <Text className="text-sm text-muted-foreground">
+        Enter a room from Create Lobby or use the shared lobby link.
       </Text>
-    </View>
+      <Button onPress={() => navigation.navigate("CreateLobby")}>
+        Create private lobby
+      </Button>
+    </Screen>
   );
 }

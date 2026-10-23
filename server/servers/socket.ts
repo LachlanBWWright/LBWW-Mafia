@@ -1,95 +1,43 @@
 import { Server, Socket } from "socket.io";
-import axios from "axios";
-import { fromThrowable, ResultAsync } from "neverthrow";
 import { httpServer } from "./httpServer.js";
 import { Room } from "../model/rooms/room.js";
+import type {
+  ClientToServerEvents,
+  ServerToClientEvents,
+  InterServerEvents,
+} from "../../shared/communication/events.js";
+import {
+  ClientEvent,
+} from "../../shared/communication/events.js";
+import {
+  isJoinRoomCallback,
+  parseJoinRoomToken,
+  parseMessageSentPayload,
+  parseVisitPayload,
+  parseVotePayload,
+  parseWhisperPayload,
+} from "./socketValidation.js";
+import { verifyGameIdentity } from "./gameIdentity.js";
 
-export type ClientToServerEvents = {
-  playerJoinRoom: (
-    captchaToken: string,
-    cb: (result: string | number) => void,
-  ) => Promise<void>;
-  disconnect: () => void;
-  messageSentByUser: (message: string, isDay: boolean) => void;
-  handleVote: (recipient: number | null, isDay: boolean) => void;
-  handleVisit: (recipient: number | null, isDay: boolean) => void;
-  handleWhisper: (recipient: number, message: string, isDay: boolean) => void;
-};
-
-type PlayerList = {
-  name: string;
-  isAlive: boolean | undefined;
-  role: string;
-};
-
-type PlayerReturned = {
-  name: string;
-  role: string;
-  dayVisitSelf: boolean;
-  dayVisitOthers: boolean;
-  dayVisitFaction: boolean;
-  nightVisitSelf: boolean;
-  nightVisitOthers: boolean;
-  nightVisitFaction: boolean;
-  nightVote: boolean;
-};
-
-export type ServerToClientEvents = {
-  //receive-message
-  receiveMessage: (message: string) => void;
-  blockMessages: () => void;
-  "receive-new-player": (player: { name: string }) => void;
-  "remove-player": (player: { name: string }) => void;
-  "receive-player-list": (playerList: PlayerList[]) => void;
-  "receive-chat-message": (message: string) => void;
-  "receive-whisper-message": (message: string) => void;
-  "update-day-time": (data: {
-    time: string;
-    dayNumber: number;
-    timeLeft: number;
-  }) => void;
-  "disable-voting": () => void;
-  "update-player-role": (data: { name: string; role?: string }) => void;
-  "assign-player-role": (data: PlayerReturned) => void;
-  "update-faction-role": (data: { name: string; role: string }) => void;
-  "receive-role": (role: string) => void;
-  "update-player-visit": () => void;
-};
-
-export type InterServerEvents = Record<string, never>;
-
+/**
+ * Data attached to each Socket connection.
+ * Stores the player's current room and position in the player list.
+ *
+ * @typedef {Object} SocketData
+ * @property {Room} roomObject - The game room this player is in
+ * @property {number} position - The player's index in the room's player list
+ */
 export type SocketData = {
   roomObject: Room;
   position: number;
 };
 
-export const io = new Server<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  InterServerEvents,
-  SocketData
->(httpServer, {
-  cors: {
-    origin: ["http://localhost:3000"],
-  },
-});
-
-const playRoom: { current: Room | undefined } = {
-  current: undefined,
-};
-const DEBUG_MODE =
-  process.env.DEBUG?.toLowerCase() === "true" ||
-  process.env.debug?.toLowerCase() === "true";
-
-const runSafely = (context: string, action: () => void) => {
-  const safeAction = fromThrowable(action, (error) => error);
-  const result = safeAction();
-
-  if (result.isErr()) {
-    console.error(`${context}: ${String(result.error)}`);
-  }
-};
-
+/**
+ * Type-safe Socket instance for game connections.
+ * Properly types client-to-server events, server-to-client events, and attached data.
+ *
+ * @typedef {Socket} PlayerSocket
+ */
 export type PlayerSocket = Socket<
   ClientToServerEvents,
   ServerToClientEvents,
@@ -97,8 +45,35 @@ export type PlayerSocket = Socket<
   SocketData
 >;
 
+/**
+ * Creates a Socket.IO server configured for game communications.
+ * Sets up CORS and binds to the HTTP server.
+ *
+ * @returns Configured Socket.IO server instance
+ */
+export function createSocketIoServer() {
+  return new Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    InterServerEvents,
+    SocketData
+  >(httpServer, {
+    cors: {
+      origin: ["http://localhost:3000"],
+    },
+  });
+}
+
+/**
+ * Adds event listeners to the Socket.IO server for all game events.
+ * Manages player connections, disconnections, and all game actions.
+ *
+ * @param socketIoServer - The Socket.IO server to add listeners to
+ * @param roomSize - The maximum number of players per game room
+ * @returns
+ */
 export function addSocketListeners(
-  io: Server<
+  socketIoServer: Server<
     ClientToServerEvents,
     ServerToClientEvents,
     InterServerEvents,
@@ -106,99 +81,128 @@ export function addSocketListeners(
   >,
   roomSize: number,
 ) {
-  io.on("connection", (socket: PlayerSocket) => {
+  const playRoom: { current: Room | undefined } = { current: undefined };
+
+  socketIoServer.on("connection", (socket: PlayerSocket) => {
     console.log("New Connection");
-    //Handle players joining a room
-    socket.on(
-      "playerJoinRoom",
-      async (captchaToken: string, cb: (code: string | number) => void) => {
-        await ResultAsync.fromPromise(
-          axios.post(
-            `https://www.google.com/recaptcha/api/siteverify?response=${captchaToken}&secret=${process.env.CAPTCHA_KEY}`,
-          ),
-          (error) => error,
-        ).match(
-          (res) => {
-            if (res.data.success || DEBUG_MODE) {
-              console.log("Captcha Success");
-              //Blocks players from joining if ReCaptcha V3 score is too low, allows regardless if debug mode is on
-              if (playRoom.current?.started || playRoom.current === undefined)
-                playRoom.current = new Room(roomSize);
-              console.log("playroomCurrent", playRoom.current);
-              if (playRoom.current !== undefined) {
-                socket.data.roomObject = playRoom.current;
-                socket.join(playRoom.current.name); //Joins room, messages will be received accordingly
-                const result = socket.data.roomObject.addPlayer(socket);
-                console.log("Result: " + result);
-                cb(result);
-              }
-            } else cb(2);
-            console.log("END");
-          },
-          (error) => {
-            console.error(`Captcha verification failed: ${String(error)}`);
-            cb(2);
-          },
-        );
-      },
+    /**
+     * Handles player and spectator join requests.
+     * Creates a new room if the current room is full or not started,
+     * then adds the player to the room.
+     */
+    for (const joinEvent of [
+      ClientEvent.PlayerJoinRoom,
+      ClientEvent.SpectatorJoinRoom,
+    ] as const)
+      socket.on(
+        joinEvent,
+        async (captchaToken, identityTokenOrCallback, optionalCallback) => {
+          const cb =
+            typeof identityTokenOrCallback === "function"
+              ? identityTokenOrCallback
+              : optionalCallback;
+          const identityToken =
+            typeof identityTokenOrCallback === "string"
+              ? identityTokenOrCallback
+              : undefined;
+          const parsedCaptchaToken = parseJoinRoomToken(captchaToken);
+          if (parsedCaptchaToken === null || !isJoinRoomCallback(cb)) {
+            return;
+          }
+          if (
+            (joinEvent === ClientEvent.PlayerJoinRoom &&
+              playRoom.current?.started) ||
+            playRoom.current === undefined
+          )
+            playRoom.current = new Room(roomSize);
+          socket.data.roomObject = playRoom.current;
+          socket.join(playRoom.current.name);
+          const result =
+            joinEvent === ClientEvent.SpectatorJoinRoom
+              ? socket.data.roomObject.addSpectator(
+                  socket,
+                  verifyGameIdentity(identityToken),
+                )
+              : socket.data.roomObject.addUser(
+                  socket,
+                  verifyGameIdentity(identityToken),
+                );
+          cb(result);
+        },
+      );
+
+    /**
+     * Handles player disconnections.
+     * Removes the player from their room.
+     */
+    socket.on(ClientEvent.Disconnect, () => {
+      if (socket.data.roomObject !== undefined) {
+        socket.data.roomObject.removePlayer(socket.id);
+      }
+    });
+
+    /**
+     * Handles chat messages sent by players.
+     * Validates message length (1-150 characters) before forwarding to room.
+     */
+    socket.on(ClientEvent.MessageSentByUser, (message, phase) => {
+      const parsed = parseMessageSentPayload(message, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
+      }
+      socket.data.roomObject.handleSentMessage(
+        socket,
+        parsed.message,
+        parsed.phase,
+      );
+    });
+
+    /**
+     * Handles voting actions during day/night phases.
+     * Validates that recipient is a valid player index before processing.
+     */
+    socket.on(ClientEvent.ReadyForRematch, () =>
+      socket.data.roomObject?.readyForRematch(socket),
     );
-
-    //Handles users disconnecting from a room
-    socket.on("disconnect", () => {
-      runSafely("Disconnect error", () => {
-        if (socket.data.roomObject !== undefined) {
-          socket.data.roomObject.removePlayer(socket.id);
-        }
-      });
+    socket.on(ClientEvent.HandleVote, (recipient, phase) => {
+      const parsed = parseVotePayload(recipient, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
+      }
+      socket.data.roomObject.handleVote(socket, parsed.recipient, parsed.phase);
     });
 
-    //Handle users sending a chat message to all other players
-    socket.on("messageSentByUser", (message, isDay: boolean) => {
-      runSafely("messageSentByUser error", () => {
-        if (message.length > 0 && message.length <= 150) {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleSentMessage(socket, message, isDay);
-        }
-      });
+    /**
+     * Handles visit/action actions during day/night phases.
+     * Validates that recipient is a valid player index or null before processing.
+     */
+    socket.on(ClientEvent.HandleVisit, (recipient, phase) => {
+      const parsed = parseVisitPayload(recipient, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
+      }
+      socket.data.roomObject.handleVisit(
+        socket,
+        parsed.recipient,
+        parsed.phase,
+      );
     });
 
-    //Handles a player voting for another player - Recipient is the player's position in the array
-    socket.on("handleVote", (recipient, isDay: boolean) => {
-      runSafely("handleVote error", () => {
-        if (typeof recipient === "number") {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleVote(socket, recipient, isDay);
-        }
-      });
-    });
-
-    //Handles a player visiting another player - Recipient is the player's position in the array
-    socket.on("handleVisit", (recipient, isDay: boolean) => {
-      runSafely("handleVisit error", () => {
-        if (typeof recipient === "number" || recipient === null) {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleVisit(socket, recipient, isDay);
-        }
-      });
-    });
-
-    //Handles a player whispering to another player - Recipient is the player's position in the array
-    socket.on("handleWhisper", (recipient, message, isDay) => {
-      runSafely("handleWhisper error", () => {
-        if (
-          typeof recipient === "number" &&
-          message.length > 0 &&
-          message.length <= 150
-        ) {
-          if (socket.data.roomObject !== undefined)
-            socket.data.roomObject.handleWhisper(
-              socket,
-              recipient,
-              message,
-              isDay,
-            );
-        }
-      });
+    /**
+     * Handles private whisper messages during day phases.
+     * Validates recipient index and message length (1-150 characters) before processing.
+     */
+    socket.on(ClientEvent.HandleWhisper, (recipient, message, phase) => {
+      const parsed = parseWhisperPayload(recipient, message, phase);
+      if (!parsed || socket.data.roomObject === undefined) {
+        return;
+      }
+      socket.data.roomObject.handleWhisper(
+        socket,
+        parsed.recipient,
+        parsed.message,
+        parsed.phase,
+      );
     });
   });
 }

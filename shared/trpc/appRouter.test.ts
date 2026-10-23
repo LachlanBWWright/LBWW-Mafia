@@ -1,10 +1,9 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { describe, it, expect, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
-
 import { createAppRouter } from "./appRouter";
 
 let setUserAdminCalls = 0;
+let presenceCalls = 0;
 const mockServices = {
   getRecentMatches: async () => [
     {
@@ -24,68 +23,109 @@ const mockServices = {
   setUserAdmin: async () => {
     setUserAdminCalls += 1;
   },
+  listDirectConversations: async () => [],
+  getDirectThread: async () => ({
+    conversationId: null,
+    otherUser: null,
+    messages: [],
+  }),
+  sendDirectMessage: async () => ({
+    id: 1,
+    conversationId: 1,
+    senderId: "1",
+    senderName: "Admin",
+    body: "hello",
+    createdAt: new Date(),
+  }),
+  markDirectConversationRead: async () => undefined,
+  markPresence: async () => {
+    presenceCalls += 1;
+  },
 };
 
 const appRouter = createAppRouter(mockServices);
 
-test("recentByUsername returns typed history rows", async () => {
-  const caller = appRouter.createCaller({ sessionUser: null });
-  const result = await caller.match.recentByUsername({
-    username: "alex",
-    limit: 5,
+describe("appRouter", () => {
+  it("recentByUsername returns match list", async () => {
+    const caller = appRouter.createCaller({ sessionUser: null });
+    const result = await caller.match.recentByUsername({
+      username: "alex",
+      limit: 5,
+    });
+    expect(result.length).toBe(1);
+    expect(result[0]?.roomName).toBe("room-alpha");
+    expect(result[0]?.winningFaction).toBe("town");
   });
 
-  assert.equal(result.length, 1);
-  assert.equal(result[0]?.winningFaction, "town");
-});
-
-test("recentForCurrentUser rejects unauthenticated calls", async () => {
-  const caller = appRouter.createCaller({ sessionUser: null });
-
-  await assert.rejects(
-    () => caller.match.recentForCurrentUser({ limit: 5 }),
-    (error: unknown) =>
-      error instanceof TRPCError && error.code === "UNAUTHORIZED",
-  );
-});
-
-test("admin search rejects non-admin calls", async () => {
-  const caller = appRouter.createCaller({
-    sessionUser: {
-      id: "2",
-      name: "Player",
-      isAdmin: false,
-    },
+  it("recentByUsername rejects invalid input", async () => {
+    const caller = appRouter.createCaller({ sessionUser: null });
+    await expect(
+      caller.match.recentByUsername({ username: "", limit: 5 }),
+    ).rejects.toBeInstanceOf(TRPCError);
   });
 
-  await assert.rejects(
-    () => caller.admin.searchUsers({ query: "", limit: 10 }),
-    (error: unknown) => error instanceof TRPCError && error.code === "FORBIDDEN",
-  );
-});
-
-test("recentForCurrentUser resolves for authenticated user", async () => {
-  const caller = appRouter.createCaller({
-    sessionUser: {
-      id: "3",
-      name: "alex",
-      isAdmin: false,
-    },
+  it("recentForCurrentUser rejects unauthenticated calls", async () => {
+    const caller = appRouter.createCaller({ sessionUser: null });
+    await expect(
+      caller.match.recentForCurrentUser({ limit: 2 }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "UNAUTHORIZED",
+    );
   });
-  const result = await caller.match.recentForCurrentUser({ limit: 2 });
-  assert.equal(result.length, 1);
-});
 
-test("admin setUserAdmin mutates when caller is admin", async () => {
-  setUserAdminCalls = 0;
-  const caller = appRouter.createCaller({
-    sessionUser: {
-      id: "1",
-      name: "Admin",
+  it("messages and presence reject unauthenticated calls", async () => {
+    const caller = appRouter.createCaller({ sessionUser: null });
+    await expect(caller.messages.conversations()).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "UNAUTHORIZED",
+    );
+    await expect(caller.presence.heartbeat()).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "UNAUTHORIZED",
+    );
+  });
+
+  it("admin search rejects non-admin calls", async () => {
+    const caller = appRouter.createCaller({
+      sessionUser: { id: "2", name: "user", isAdmin: false },
+    });
+    await expect(
+      caller.admin.searchUsers({ query: "", limit: 10 }),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof TRPCError && error.code === "FORBIDDEN",
+    );
+  });
+
+  it("recentForCurrentUser resolves for authenticated user", async () => {
+    const caller = appRouter.createCaller({
+      sessionUser: { id: "3", name: "alex", isAdmin: false },
+    });
+    const result = await caller.match.recentForCurrentUser({ limit: 2 });
+    expect(result.length).toBe(1);
+  });
+
+  it("admin setUserAdmin mutates when caller is admin", async () => {
+    setUserAdminCalls = 0;
+    const caller = appRouter.createCaller({
+      sessionUser: { id: "1", name: "Admin", isAdmin: true },
+    });
+    const result = await caller.admin.setUserAdmin({
+      userId: "2",
       isAdmin: true,
-    },
+    });
+    expect(result.success).toBe(true);
+    expect(setUserAdminCalls).toBe(1);
   });
-  const result = await caller.admin.setUserAdmin({ userId: "2", isAdmin: true });
-  assert.equal(result.success, true);
-  assert.equal(setUserAdminCalls, 1);
+
+  it("authenticated messaging and presence procedures reach their services", async () => {
+    presenceCalls = 0;
+    const caller = appRouter.createCaller({
+      sessionUser: { id: "1", name: "Admin", isAdmin: true },
+    });
+    expect(await caller.messages.conversations()).toEqual([]);
+    await caller.presence.heartbeat();
+    expect(presenceCalls).toBe(1);
+  });
 });

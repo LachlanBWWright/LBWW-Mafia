@@ -1,0 +1,275 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, dev]
+  pull_request:
+    branches: [master, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Superseded PR checks can stop; production migrations/deployments must finish.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  server-test:
+    name: Server — lint, typecheck, test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Verify local launcher startup and terminal cleanup
+        run: python3 scripts/test-dev-lifecycle.py
+      - name: Test production deployment verification
+        run: node --test scripts/smoke-production.test.mjs
+      - run: pnpm run test:chatgpt:coverage
+      - run: pnpm run test:chatgpt:native:coverage
+      - run: pnpm --dir server run lint
+      - run: pnpm --dir server run typecheck
+      - run: pnpm --dir server run test:coverage
+      - name: Validate Cloudflare Worker bundle without deployment
+        run: pnpm --dir server run build:partyserver
+      - name: Exercise PartyServer in local workerd
+        run: pnpm run test:worker
+
+  nextjs-test:
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mernmafia
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    name: Next.js — lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      AUTH_SECRET: ci-dummy-secret
+      AUTH_GOOGLE_ID: ci-dummy
+      AUTH_GOOGLE_SECRET: ci-dummy
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mernmafia
+      BACKEND_SECRET: ci-dummy-backend-secret
+      NEXT_PUBLIC_SOCKET_BACKEND: partyserver
+      NEXT_PUBLIC_SOCKET_URL: http://127.0.0.1:1999
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir nextjs run lint
+      - run: pnpm --dir nextjs run typecheck
+      - run: pnpm --dir nextjs run test
+      - run: pnpm --dir nextjs run db:migrate
+      - run: pnpm --dir nextjs run test:integration
+      - run: pnpm --dir nextjs run build
+
+  web-browser-test:
+    name: Web — Storybook and Playwright
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mernmafia
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PLAYWRIGHT_EXTERNAL_DB: "true"
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/mernmafia
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Build and test web Storybook with isolated configuration
+        env:
+          AUTH_SECRET: ci-storybook-secret
+          AUTH_GOOGLE_ID: ci-storybook-google-id
+          AUTH_GOOGLE_SECRET: ci-storybook-google-secret
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/mernmafia
+          BACKEND_SECRET: ci-storybook-backend-secret
+          NEXT_PUBLIC_SOCKET_BACKEND: partyserver
+          NEXT_PUBLIC_SOCKET_URL: http://127.0.0.1:1999
+        run: pnpm --dir nextjs run storybook:screenshots
+      - run: node scripts/check-storybook-screenshot-coverage.mjs nextjs/storybook-static/index.json nextjs/.storybook/screenshots.spec.ts-snapshots small-phone phone tablet desktop small-phone-light phone-light tablet-light desktop-light phone-rtl desktop-rtl
+      - run: pnpm run test:e2e
+      - name: Test Firefox and WebKit
+        env:
+          # GitHub mounts /github/home with a different owner; Firefox requires
+          # HOME to belong to the root user running this job container.
+          HOME: /root
+        run: pnpm run test:e2e:cross-browser
+      - name: Report Playwright retries
+        if: always()
+        run: node scripts/report-playwright-flakes.mjs nextjs/playwright-report/results.json nextjs/playwright-report/cross-browser.json nextjs/test-results/storybook.json
+      - name: Upload browser test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-browser-test-artifacts
+          path: |
+            nextjs/test-results/
+            nextjs/playwright-report/
+            nextjs/storybook-screenshots/
+          if-no-files-found: ignore
+
+  deploy-production:
+    name: Production — migrate, deploy, verify
+    needs: [server-test, nextjs-test, web-browser-test, mobile-browser-test]
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: Production
+      url: https://mern-mafia.vercel.app
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      PRODUCTION_WEB_URL: https://mern-mafia.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require deployment credentials
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo 'Missing Production secret CLOUDFLARE_API_TOKEN'; exit 1; }
+          test -n "$VERCEL_TOKEN" || { echo 'Missing Production secret VERCEL_TOKEN'; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" && test -n "$VERCEL_ORG_ID" && test -n "$VERCEL_PROJECT_ID" || { echo 'Missing Production account/project variables'; exit 1; }
+      - name: Prevent an older checked commit from replacing a newer release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/master" --jq .object.sha)
+          test "$latest" = "$GITHUB_SHA" || { echo 'master has advanced; deploy the newer commit instead.'; exit 1; }
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@65.2.0
+      - name: Pull production configuration
+        run: vercel pull --yes --environment=production --scope="$VERCEL_ORG_ID"
+      - name: Mask downloaded server credentials in subsequent logs
+        run: |
+          node --env-file=.vercel/.env.production.local --input-type=module <<'NODE'
+          for (const [key, value] of Object.entries(process.env)) {
+            if (!key.startsWith('NEXT_PUBLIC_') && value.length > 8)
+              console.log(`::add-mask::${value.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A')}`);
+          }
+          NODE
+      - name: Apply production database migrations
+        run: |
+          node --env-file=.vercel/.env.production.local --input-type=module <<'NODE'
+          import { spawnSync } from 'node:child_process';
+          const result = spawnSync('pnpm', ['--dir', 'nextjs', 'run', 'db:migrate'], { stdio: 'inherit', env: process.env });
+          process.exit(result.status ?? 1);
+          NODE
+      - name: Build production web artifact
+        run: vercel build --prod --yes --scope="$VERCEL_ORG_ID"
+      - name: Prepare matching Worker secret
+        run: |
+          node --env-file=.vercel/.env.production.local --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          if (!process.env.BACKEND_SECRET) throw new Error('Production BACKEND_SECRET is missing');
+          if (process.env.NEXT_PUBLIC_SOCKET_BACKEND !== 'partyserver' || process.env.NEXT_PUBLIC_SOCKET_URL !== 'https://lbww-mafia-game.lachlanbwwright.workers.dev')
+            throw new Error('Production socket settings do not match the Worker');
+          writeFileSync('.vercel/worker-secrets.json', JSON.stringify({ BACKEND_SECRET: process.env.BACKEND_SECRET }), { mode: 0o600 });
+          NODE
+      - name: Deploy production Worker
+        run: pnpm --dir server exec wrangler deploy --config ../wrangler.jsonc --env production --secrets-file ../.vercel/worker-secrets.json
+      - name: Deploy prebuilt production web artifact
+        run: vercel deploy --prebuilt --prod --yes --scope="$VERCEL_ORG_ID"
+      - name: Verify production database, room authentication and WebSockets
+        run: node --env-file=.vercel/.env.production.local scripts/smoke-production.mjs
+      - name: Remove downloaded production credentials
+        if: always()
+        run: rm -f .vercel/.env.production.local .vercel/worker-secrets.json
+
+  mobile-browser-test:
+    name: Mobile — typecheck, tests, visual screens
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      options: --ipc=host
+    env:
+      EXPO_NO_DOTENV: "1"
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir mobile run lint
+      - run: pnpm --dir mobile run typecheck
+      - run: pnpm --dir mobile run test
+      - run: pnpm --dir mobile run visual:screenshots
+      - run: pnpm --dir mobile run storybook:screenshots
+      - name: Report mobile Playwright retries
+        if: always()
+        run: node scripts/report-playwright-flakes.mjs mobile/test-results/mobile-visual.json mobile/test-results/storybook.json
+      - name: Upload mobile visual artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-visual-test-artifacts
+          path: |
+            mobile/test-results/
+            mobile/visual/screenshots/
+            mobile/visual/storybook-screenshots/
+            mobile/visual/screenshots/index.html
+          if-no-files-found: ignore

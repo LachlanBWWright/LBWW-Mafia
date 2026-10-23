@@ -1,4 +1,14 @@
-This game attempts to replicate a similar experience to mafia, or the online game 'Town Of Salem'
+# Game server
 
-Playable at:
-https://lbww-mafia.herokuapp.com/
+The production host is PartyServer. Each room owns its game engine and validated
+lobby rules. Socket.IO and Supabase remain compatibility transports.
+
+Run the full local game from the repository root with `pnpm run dev`.
+For deployment and required PartyServer variables see [DEPLOYMENT.md](../DEPLOYMENT.md).
+For reconnect behavior and tests see [RELIABILITY.md](../RELIABILITY.md).
+
+```bash
+pnpm --dir server run typecheck
+pnpm --dir server run test
+pnpm --dir server run test:coverage
+```

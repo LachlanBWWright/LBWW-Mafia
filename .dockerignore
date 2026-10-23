@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/.next
+*.env
+*.db
+.DS_Store
+**/.wrangler
+.dev.vars*
+**/.dev.vars*

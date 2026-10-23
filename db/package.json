@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "peerDependencies": {
-    "@libsql/client": "*",
     "drizzle-orm": "*"
   }
 }

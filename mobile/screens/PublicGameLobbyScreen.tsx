@@ -1,44 +1,25 @@
 import React from "react";
-import { View, Text, Button, StyleSheet } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Text } from "react-native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StackParamList } from "../App";
-import { commonStyles } from "../styles/commonStyles";
-import { colors } from "../styles/colors";
-
-type PublicGameLobbyScreenProps = NativeStackScreenProps<
-  StackParamList,
-  "PublicGameLobbyScreen"
->;
-
-const styles = StyleSheet.create({
-  description: {
-    color: colors.textSecondary,
-    marginBottom: 12,
-    textAlign: "center",
-  },
-});
+import { Button, Screen } from "../components/ui";
 
 export function PublicGameLobbyScreen({
-  route,
   navigation,
-}: PublicGameLobbyScreenProps) {
+}: NativeStackScreenProps<StackParamList, "Lobby">) {
   return (
-    <View style={commonStyles.container}>
-      <Text style={commonStyles.centeredText}>Public Lobby</Text>
-      <Text style={styles.description}>
-        Join the active game room. If the current room is full, the backend will
-        create the next room automatically.
+    <Screen
+      navigation={navigation}
+      activeRoute="Lobby"
+      title="Public lobby"
+      subtitle="Join the live public room with chat, votes, visits, and whispers."
+    >
+      <Text className="text-sm text-muted-foreground">
+        The public game is available from the shared Lobby destination.
       </Text>
-      <Button
-        title="Join Game"
-        color={colors.accent}
-        onPress={() =>
-          navigation.navigate("GameScreen", {
-            title: "LBWW Mafia",
-            name: route.params.name,
-          })
-        }
-      />
-    </View>
+      <Button onPress={() => navigation.navigate("Lobby")}>
+        Join public lobby
+      </Button>
+    </Screen>
   );
 }

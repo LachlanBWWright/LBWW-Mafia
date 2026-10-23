@@ -1,3 +1,4 @@
+import { PlayerInsights } from "~/components/player-insights";
 import Link from "next/link";
 import { Header } from "~/components/header";
 import { RecentMatches } from "~/components/recent-matches";
@@ -10,7 +11,7 @@ export default async function ProfilePage() {
 
   if (!session?.user) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="bg-background min-h-screen">
         <Header />
         <main className="mx-auto w-full max-w-4xl px-4 py-8">
           <Card>
@@ -18,7 +19,7 @@ export default async function ProfilePage() {
               <CardTitle>Profile</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Sign in to view your profile and match history.
               </p>
             </CardContent>
@@ -29,7 +30,7 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background min-h-screen">
       <Header />
       <main className="mx-auto w-full max-w-4xl space-y-4 px-4 py-8">
         <Card>
@@ -45,7 +46,8 @@ export default async function ProfilePage() {
             ) : null}
           </CardContent>
         </Card>
-        <RecentMatches username={session.user.name ?? ""} title="Your Recent Matches" />
+        <PlayerInsights />
+        <RecentMatches currentUser title="Your Recent Matches" />
       </main>
     </div>
   );

@@ -1,3 +1,7 @@
+/**
+ * List of player names available for random assignment in game lobbies.
+ * Names are kept in alphabetical order for consistency.
+ */
 export const names = [
   "Glen",
   "Finn",

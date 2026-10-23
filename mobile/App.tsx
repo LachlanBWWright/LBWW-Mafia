@@ -1,30 +1,48 @@
+import { Linking } from "react-native";
+import { lobbyNavigationFromUrl } from "../shared/game/lobbyNavigation";
 import "react-native-reanimated";
 import "./global.css";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import {
-  DarkTheme,
-  NavigationContainer,
-  Theme,
-} from "@react-navigation/native";
-import {
-  createNativeStackNavigator,
-  NativeStackNavigationProp,
-} from "@react-navigation/native-stack";
-import { HomeScreen } from "./screens/HomeScreen";
-import { PrivateGameLobbyScreen } from "./screens/PrivateGameLobbyScreen";
-import { PublicGameLobbyScreen } from "./screens/PublicGameLobbyScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { GameScreen } from "./screens/GameScreen";
 import React from "react";
-import Icon from "react-native-vector-icons/MaterialIcons";
+import {
+  NavigationContainer,
+  DarkTheme,
+  type Theme,
+  type LinkingOptions,
+} from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { authIdentity } from "./lib/authIdentity";
+import { AppStateProvider, useAppState } from "./context/AppStateContext";
+import { LandingScreen } from "./screens/LandingScreen";
+import { LobbyScreen } from "./screens/LobbyScreen";
+import { RolesScreen } from "./screens/RolesScreen";
+import { AboutScreen } from "./screens/AboutScreen";
+import { HistoryScreen } from "./screens/HistoryScreen";
+import { ProfileScreen } from "./screens/ProfileScreen";
+import { AdminScreen } from "./screens/AdminScreen";
+import { SignInScreen } from "./screens/SignInScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
+import { CommunityScreen } from "./screens/CommunityScreen";
+import { NotificationsScreen } from "./screens/NotificationsScreen";
+import { MessagesScreen } from "./screens/MessagesScreen";
+import { CreateLobbyScreen } from "./screens/CreateLobbyScreen";
 import { colors } from "./styles/colors";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StoryCapture } from "./visual/StoryCapture";
 
 export type StackParamList = {
-  HomeScreen: undefined;
-  PrivateGameLobbyScreen: undefined;
-  PublicGameLobbyScreen: { name: string };
-  SettingsScreen: undefined;
-  GameScreen: { title: string; name: string };
+  Home: undefined;
+  Lobby: { roomId?: string; spectator?: boolean } | undefined;
+  CreateLobby: undefined;
+  Roles: undefined;
+  About: undefined;
+  History: undefined;
+  Profile: undefined;
+  Admin: undefined;
+  SignIn: undefined;
+  Community: undefined;
+  Messages: undefined;
+  Notifications: undefined;
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<StackParamList>();
@@ -34,98 +52,96 @@ const appTheme: Theme = {
   colors: {
     ...DarkTheme.colors,
     background: colors.background,
-    card: colors.surface,
+    card: colors.card,
     border: colors.border,
-    text: colors.textPrimary,
-    primary: colors.accent,
-    notification: colors.danger,
+    text: colors.foreground,
+    primary: colors.primary,
+    notification: colors.destructive,
   },
 };
 
-const styles = StyleSheet.create({
-  headerRight: {
-    flexDirection: "row",
+const websiteOrigin =
+  process.env.EXPO_PUBLIC_WEBSITE_URL ??
+  process.env.EXPO_PUBLIC_TRPC_URL?.replace(/\/api\/trpc\/?$/, "") ??
+  "http://localhost:3000";
+const lobbyLinking: LinkingOptions<StackParamList> = {
+  prefixes: ["mernmafia://", new URL(websiteOrigin).origin],
+  async getInitialURL() {
+    const url = await Linking.getInitialURL();
+    return url && lobbyNavigationFromUrl(url, websiteOrigin) ? url : null;
   },
-  iconPadding: {
-    paddingHorizontal: 7,
+  subscribe(listener) {
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      if (lobbyNavigationFromUrl(url, websiteOrigin)) listener(url);
+    });
+    return () => subscription.remove();
   },
-});
-
-function HeaderRight({
-  navigation,
-}: {
-  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">;
-}) {
+  getStateFromPath(path) {
+    return lobbyNavigationFromUrl(
+      new URL(
+        path.replace(/^\//, ""),
+        `${new URL(websiteOrigin).origin}/`,
+      ).toString(),
+      websiteOrigin,
+    );
+  },
+};
+function AppNavigation() {
+  const { authToken } = useAppState();
   return (
-    <View style={styles.headerRight}>
-      <Pressable onPress={() => navigation.navigate("SettingsScreen")}>
-        <Icon
-          name="settings"
-          size={30}
-          color={colors.accent}
-          style={styles.iconPadding}
-        />
-      </Pressable>
-    </View>
-  );
-}
-
-function HeaderLeft() {
-  return <Text />;
-}
-
-const homeScreenOptions = (
-  navigation: NativeStackNavigationProp<StackParamList, "HomeScreen">,
-) => ({
-  title: "LBWW Mafia",
-  headerRight: () => <HeaderRight navigation={navigation} />,
-  headerStyle: { backgroundColor: colors.surface },
-  headerTintColor: colors.textPrimary,
-});
-
-const gameScreenOptions = (title: string) => ({
-  title: title,
-  headerLeft: HeaderLeft,
-  headerStyle: { backgroundColor: colors.surface },
-  headerTintColor: colors.textPrimary,
-});
-
-export default function App() {
-  return (
-    <NavigationContainer theme={appTheme}>
+    <NavigationContainer theme={appTheme} linking={lobbyLinking}>
       <Stack.Navigator
+        key={authIdentity(authToken)}
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
-          headerTintColor: colors.textPrimary,
-          contentStyle: { backgroundColor: colors.background },
+          headerShown: false,
         }}
       >
-        <Stack.Screen
-          name="HomeScreen"
-          component={HomeScreen}
-          options={({ navigation }) => homeScreenOptions(navigation)}
-        />
-        <Stack.Screen
-          name="PrivateGameLobbyScreen"
-          component={PrivateGameLobbyScreen}
-          options={{ title: "Private Games" }}
-        />
-        <Stack.Screen
-          name="PublicGameLobbyScreen"
-          component={PublicGameLobbyScreen}
-          options={{ title: "Public Games" }}
-        />
-        <Stack.Screen
-          name="SettingsScreen"
-          component={SettingsScreen}
-          options={{ title: "Settings" }}
-        />
-        <Stack.Screen
-          name="GameScreen"
-          component={GameScreen}
-          options={({ route }) => gameScreenOptions(route.params.title)}
-        />
+        <Stack.Screen name="Home" component={LandingScreen} />
+        <Stack.Screen name="Lobby" component={LobbyScreen} />
+        <Stack.Screen name="CreateLobby" component={CreateLobbyScreen} />
+        <Stack.Screen name="Roles" component={RolesScreen} />
+        <Stack.Screen name="About" component={AboutScreen} />
+        <Stack.Screen name="History" component={HistoryScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="Admin" component={AdminScreen} />
+        <Stack.Screen name="SignIn" component={SignInScreen} />
+        <Stack.Screen name="Community" component={CommunityScreen} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+        <Stack.Screen name="Messages" component={MessagesScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
+export function App() {
+  return (
+    <SafeAreaProvider>
+      <AppStateProvider>
+        <AppNavigation />
+      </AppStateProvider>
+    </SafeAreaProvider>
+  );
+}
+
+const isStorybookEnabled =
+  process.env.EXPO_PUBLIC_STORYBOOK_ENABLED === "true" ||
+  process.env.STORYBOOK_ENABLED === "true";
+const storybookCaptureId =
+  process.env.EXPO_PUBLIC_STORYBOOK_CAPTURE_ID ??
+  (typeof window !== "undefined"
+    ? (new URLSearchParams(window.location.search).get("capture") ?? undefined)
+    : undefined);
+
+let AppEntryPoint: React.ComponentType = App;
+
+if (isStorybookEnabled) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const StorybookUI = require("./.rnstorybook").default;
+  AppEntryPoint = StorybookUI;
+}
+
+if (storybookCaptureId) {
+  AppEntryPoint = () => <StoryCapture storyId={storybookCaptureId} />;
+}
+
+export default AppEntryPoint;
