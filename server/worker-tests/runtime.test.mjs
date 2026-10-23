@@ -22,6 +22,30 @@ let storage;
 let base;
 let logs = "";
 const backendRequests = [];
+const privacyLineups = [
+  ["doctor", "mafia", "investigator"],
+  ["mafia", "mafia-investigator", "doctor"],
+  ["mafia", "mafia-roleblocker", "lawman"],
+];
+
+function assertRoleVisibility(snapshots) {
+  const privateRoles = new Map(snapshots.map((snapshot) => [snapshot.playerName, snapshot.role.role]));
+  const mafiaRoles = new Set(["Mafia", "Mafia Investigator", "Mafia Roleblocker"]);
+  for (const snapshot of snapshots) {
+    assert.equal(snapshot.players.length, snapshots.length);
+    assert.ok(snapshot.role.role);
+    for (const player of snapshot.players) {
+      const actualRole = privateRoles.get(player.name);
+      assert.ok(actualRole, `missing private role for ${player.name}`);
+      // Mafia teammates and Lawmen share roles; other living opponents do not.
+      const teammate = (mafiaRoles.has(snapshot.role.role) && mafiaRoles.has(actualRole)) ||
+        (snapshot.role.role === "Lawman" && actualRole === "Lawman");
+      const visible = player.name === snapshot.playerName || teammate;
+      assert.equal(player.role, visible ? actualRole : undefined,
+        `${snapshot.playerName} (${snapshot.role.role}) viewing ${player.name} (${actualRole})`);
+    }
+  }
+}
 
 const delay = (milliseconds) => new Promise((done) => setTimeout(done, milliseconds));
 
@@ -92,9 +116,14 @@ before(async () => {
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     backendRequests.push({ url: request.url, authorization: request.headers.authorization, body: Buffer.concat(chunks).toString() });
-    // A missing stored lobby uses the DEBUG three-player room configuration.
-    response.writeHead(request.url.startsWith("/api/lobbies/") ? 404 : 200, { "content-type": "application/json" });
-    response.end("{}");
+    const lineupIndex = request.url.match(/^\/api\/lobbies\/privacy-(\d+)-/u)?.[1];
+    const lineup = lineupIndex === undefined ? undefined : privacyLineups[Number(lineupIndex)];
+    // Other rooms retain the DEBUG fallback configuration and real match timers.
+    response.writeHead(request.url.startsWith("/api/lobbies/") && !lineup ? 404 : 200, { "content-type": "application/json" });
+    response.end(JSON.stringify(lineup ? {
+      size: lineup.length,
+      roleSelection: { algorithm: "explicit-slots", roles: [], explicitSlots: lineup },
+    } : {}));
   });
   backend.listen(0, "127.0.0.1");
   await once(backend, "listening");
@@ -171,6 +200,30 @@ test("normal close handshakes finish promptly and reserve the seat", async () =>
   await eventually(async () => (await (await fetch(`${base}/parties/main/${room}`, { headers })).json()).reservedSeats === 1, "clean-close seat reservation", 1_000);
 }, { timeout: 4_000 });
 
+for (const [index, lineup] of privacyLineups.entries()) {
+  test(`live role visibility for explicit lineup: ${lineup.join(", ")}`, async () => {
+    const room = `privacy-${index}-${randomUUID()}`;
+    const players = [];
+    for (let seat = 0; seat < lineup.length; seat++) {
+      const client = await connect(room);
+      assert.equal((await client.join(`Player ${seat}`)).status, "joined");
+      players.push(client);
+    }
+    const snapshots = await Promise.all(players.map((client) => client.snapshot((value) => value.started && value.role)));
+    assert.deepEqual(snapshots.map((snapshot) => snapshot.role.role.toLowerCase().replaceAll(" ", "-")).sort(), [...lineup].sort());
+    assert.ok(snapshots.every((snapshot) => !snapshot.ended && snapshot.players.every((player) => player.isAlive)));
+    assertRoleVisibility(snapshots);
+    const observer = await connect(room);
+    assert.equal((await observer.join("Observer", true)).status, "joined");
+    const observed = await observer.snapshot((value) => value.started);
+    assert.equal(observed.role, undefined);
+    assert.ok(observed.players.every((player) => player.role === undefined));
+    assert.equal((await fetch(`${base}/parties/main/${room}`, {
+      method: "DELETE", headers: { authorization: `Bearer ${secret}` },
+    })).status, 204);
+  }, { timeout: 10_000 });
+}
+
 test("real WebSockets preserve private roles, command semantics, spectators, isolation and reconnects", async () => {
   const room = `match-${randomUUID()}`;
   const first = await connect(room);
@@ -183,11 +236,7 @@ test("real WebSockets preserve private roles, command semantics, spectators, iso
   await third.join("Charlie");
   const players = [first, second, third];
   const snapshots = await Promise.all(players.map((client) => client.snapshot((value) => value.started && value.role)));
-  for (const snapshot of snapshots) {
-    assert.equal(snapshot.players.length, 3);
-    assert.ok(snapshot.role.role);
-    for (const player of snapshot.players.filter((player) => player.name !== snapshot.playerName)) assert.equal(player.role, undefined);
-  }
+  assertRoleVisibility(snapshots);
   const full = await connect(room);
   assert.deepEqual(await full.join("Fourth player"), { status: "rejected", code: 3 });
   const observer = await connect(room);
