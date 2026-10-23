@@ -196,7 +196,9 @@ jobs:
       - name: Install pinned Vercel CLI
         run: npm install --global vercel@65.2.0
       - name: Pull production configuration
-        run: vercel pull --yes --environment=production --scope="$VERCEL_ORG_ID"
+        # VERCEL_ORG_ID and VERCEL_PROJECT_ID target the project directly.
+        # --scope forces a user lookup that project-scoped tokens cannot access.
+        run: vercel pull --yes --environment=production
       - name: Mask downloaded server credentials in subsequent logs
         run: |
           node --env-file=.vercel/.env.production.local --input-type=module <<'NODE'
@@ -213,7 +215,7 @@ jobs:
           process.exit(result.status ?? 1);
           NODE
       - name: Build production web artifact
-        run: vercel build --prod --yes --scope="$VERCEL_ORG_ID"
+        run: vercel build --prod --yes
       - name: Prepare matching Worker secret
         run: |
           node --env-file=.vercel/.env.production.local --input-type=module <<'NODE'
@@ -226,7 +228,7 @@ jobs:
       - name: Deploy production Worker
         run: pnpm --dir server exec wrangler deploy --config ../wrangler.jsonc --env production --secrets-file ../.vercel/worker-secrets.json
       - name: Deploy prebuilt production web artifact
-        run: vercel deploy --prebuilt --prod --yes --scope="$VERCEL_ORG_ID"
+        run: vercel deploy --prebuilt --prod --yes
       - name: Verify production database, room authentication and WebSockets
         run: node --env-file=.vercel/.env.production.local scripts/smoke-production.mjs
       - name: Remove downloaded production credentials
