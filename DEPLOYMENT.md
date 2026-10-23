@@ -112,7 +112,7 @@ Vercel currently shares several integration variables with preview/development. 
 4. Deploys the production Worker with the matching Vercel `BACKEND_SECRET`.
 5. Deploys the prebuilt web artifact and verifies database readiness, room authorization, and a real WebSocket connection. The verifier closes its temporary room.
 
-Production deployments run serially and are not cancelled midway through a migration or upload. GitHub's `Production` environment permits deployments only from `master`. `nextjs/vercel.json` disables Vercel's independent Git deployment for `master`, so production waits for CI; other branches retain Vercel preview deployments. Native application packages remain separate release artifacts and must use the same production API and Worker origins.
+Production deployments run serially and are not cancelled midway through a migration or upload. GitHub's `Production` environment permits deployments only from `master`. `nextjs/vercel.json` disables Vercel's independent Git deployments, so production waits for CI. Automatic hosted previews are also disabled: their inherited settings still select the retired backend and share production credentials. GitHub browser tests use isolated local services. Re-enable previews only after configuring a separate staging database, backend secret, PartyServer Worker, and matching web origin. Native application packages remain separate release artifacts and must use the same production API and Worker origins.
 
 The GitHub `Production` environment has these nonsecret variables configured:
 
