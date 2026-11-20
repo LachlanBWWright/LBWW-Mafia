@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { gameRulesSchema } from "./gameRules";
+import { customRoleSchema } from "./customRoles";
+import { MAX_PLAYERS } from "./gameNames";
 
 export const lobbyRoles = [
   ["bodyguard", "Bodyguard"],
@@ -33,19 +36,30 @@ export const uniqueLobbyRoles = new Set([
   "peacemaker",
   "sniper",
 ]);
-const roleId = z.enum(lobbyRoles.map(([id]) => id));
+const roleId = z.union([
+  z.enum(lobbyRoles.map(([id]) => id)),
+  z.string().regex(/^custom:[a-z][a-z0-9-]{0,39}$/),
+]);
 export const selectionAlgorithms = [
+  ["normal", "Normal"],
   ["weighted-random", "Weighted random"],
   ["tier-balanced", "Tier balanced"],
   ["explicit-slots", "Explicit slots"],
 ] as const;
 export const lobbyConfigSchema = z
   .object({
-    size: z.number().int().min(2).max(64),
+    size: z.number().int().min(2).max(MAX_PLAYERS),
+    directory: z
+      .object({ public: z.boolean(), name: z.string().trim().min(1).max(60) })
+      .strict()
+      .optional(),
+    rules: gameRulesSchema.optional(),
+    customRoles: z.array(customRoleSchema).max(16).optional(),
     voteVisibility: z.enum(["public", "hidden"]).optional(),
     roleSelection: z
       .object({
         algorithm: z.enum([
+          "normal",
           "weighted-random",
           "tier-balanced",
           "explicit-slots",
@@ -56,21 +70,43 @@ export const lobbyConfigSchema = z
               .object({
                 role: roleId,
                 weight: z.number().finite().min(0).max(1000).default(1),
-                minimum: z.number().int().min(0).max(64).default(0),
-                maximum: z.number().int().min(0).max(64).optional(),
+                minimum: z.number().int().min(0).max(MAX_PLAYERS).default(0),
+                maximum: z.number().int().min(0).max(MAX_PLAYERS).optional(),
                 tier: z.number().int().min(0).max(100).optional(),
               })
               .strict(),
           )
-          .max(lobbyRoles.length)
+          .max(lobbyRoles.length + 16)
           .default([]),
-        explicitSlots: z.array(roleId).max(64).default([]),
+        explicitSlots: z.array(roleId).max(MAX_PLAYERS).default([]),
       })
       .strict(),
   })
   .strict()
   .superRefine((config, ctx) => {
     const fail = (message: string) => ctx.addIssue({ code: "custom", message });
+    const customRoles = config.customRoles ?? [];
+    if (new Set(customRoles.map((role) => role.id)).size !== customRoles.length)
+      fail("Custom role IDs must be unique.");
+    const customNames = customRoles.map((role) => role.name.toLowerCase());
+    if (new Set(customNames).size !== customNames.length)
+      fail("Custom role names must be unique.");
+    if (
+      customNames.some((name) =>
+        lobbyRoles.some(([, label]) => label.toLowerCase() === name),
+      )
+    )
+      fail("Give custom roles a name distinct from built-in roles.");
+    for (const id of [
+      ...config.roleSelection.roles.map((rule) => rule.role),
+      ...config.roleSelection.explicitSlots,
+    ]) {
+      if (
+        id.startsWith("custom:") &&
+        !customRoles.some((role) => `custom:${role.id}` === id)
+      )
+        fail(`Unknown custom role: ${id}`);
+    }
     const { algorithm, roles, explicitSlots } = config.roleSelection;
     if (new Set(roles.map((rule) => rule.role)).size !== roles.length)
       fail("Each role may appear only once in the role pool.");
@@ -84,7 +120,10 @@ export const lobbyConfigSchema = z
       if (uniqueLobbyRoles.has(rule.role) && (rule.maximum ?? 1) > 1)
         fail(`${rule.role} is unique; maximum must be at most one.`);
     }
-    if (algorithm === "explicit-slots") {
+    if (algorithm === "normal") {
+      if (roles.length || explicitSlots.length)
+        fail("Normal games use the standard role selection.");
+    } else if (algorithm === "explicit-slots") {
       if (explicitSlots.length !== config.size)
         fail("Role slot count must equal player count.");
       for (const role of uniqueLobbyRoles)
@@ -132,17 +171,22 @@ export function parseLobbyForm(
   algorithm: string,
   roleForms: Record<string, RoleForm>,
   slots: string,
+  customization: Pick<
+    LobbyConfig,
+    "rules" | "customRoles" | "voteVisibility"
+  > = {},
 ) {
   return lobbyConfigSchema.safeParse({
+    ...customization,
     size: Number(size),
     roleSelection: {
       algorithm,
       roles:
-        algorithm === "explicit-slots"
+        algorithm === "explicit-slots" || algorithm === "normal"
           ? []
-          : lobbyRoles
-              .filter(([id]) => roleForms[id]?.enabled)
-              .map(([role]) => {
+          : Object.keys(roleForms)
+              .filter((id) => roleForms[id]?.enabled)
+              .map((role) => {
                 const form = roleForms[role]!;
                 return {
                   role,
@@ -169,6 +213,8 @@ export function selectLobbyRoles(
   random: () => number = Math.random,
 ): string[] {
   const { algorithm, roles, explicitSlots } = config.roleSelection;
+  if (algorithm === "normal")
+    throw new Error("Normal role selection is handled by the game server.");
   if (algorithm === "explicit-slots") return [...explicitSlots];
   const roster = roles.flatMap((rule) =>
     Array<string>(rule.minimum).fill(rule.role),

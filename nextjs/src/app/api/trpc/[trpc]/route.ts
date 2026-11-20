@@ -93,6 +93,8 @@ const handler = async (req: Request) => {
     },
   });
   response.headers.set("x-request-id", requestId);
+  if (paths.includes("admin.games"))
+    response.headers.set("Cache-Control", "private, no-store");
   if (Date.now() - started > 1000)
     console.warn(
       JSON.stringify({

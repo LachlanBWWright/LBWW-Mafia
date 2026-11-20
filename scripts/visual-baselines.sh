@@ -19,7 +19,7 @@ docker run --rm --init --ipc=host \
   --mount "type=bind,source=$repo_root,target=/workspace" \
   --workdir /workspace \
   --env HOME=/tmp --env npm_config_cache=/tmp/npm-cache \
-  --env npm_config_verify_deps_before_run=false \
+  --env pnpm_config_verify_deps_before_run=false \
   --env CI=true --env EXPO_NO_DOTENV=1 \
   --env "VISUAL_TEST_WORKERS=${VISUAL_TEST_WORKERS:-4}" \
   --env "STORYBOOK_UPDATE_SNAPSHOTS=$update" \

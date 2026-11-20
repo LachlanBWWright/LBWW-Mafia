@@ -131,6 +131,8 @@ describe("account features authorization and persistence", () => {
     );
     expect(new Set(invited.map((x) => x.id)).size).toBe(1);
     expect(await features.inbox(b)).toHaveLength(1);
+    expect(await features.sentInvitations(a, roomId)).toHaveLength(1);
+    await expect(features.sentInvitations(b, roomId)).rejects.toThrow();
     await expect(
       features.respondInvitation(outsider, {
         id: invited[0]!.id,
@@ -140,6 +142,9 @@ describe("account features authorization and persistence", () => {
     expect(
       await features.respondInvitation(b, { id: invited[0]!.id, accept: true }),
     ).toEqual({ roomId });
+    expect((await features.sentInvitations(a, roomId))[0]?.status).toBe(
+      "accepted",
+    );
     await expect(
       features.respondInvitation(b, { id: invited[0]!.id, accept: true }),
     ).rejects.toThrow();

@@ -1,3 +1,4 @@
+import { abortable } from "./cancellation.mjs";
 import {
   createDecisionContext,
   passesDecisionPolicy,
@@ -114,6 +115,9 @@ export async function decideCharacterActions({
   model,
   characters,
   sharedConversation = [],
+  signal,
+  onError = () => {},
+  onDecision = () => {},
 }) {
   if (!["shared", "per-character"].includes(mode))
     throw new Error("Bot mode must be shared or per-character.");
@@ -132,90 +136,125 @@ export async function decideCharacterActions({
       role: "user",
       content: JSON.stringify({ characters: contexts }),
     };
-    const response = await generate({
-      model,
-      instructions: `${actionContract}\nYou coordinate the supplied characters. Their information is separated by character; never move information from one character's view into another character's public actions.`,
-      input: [...memory, userTurn],
-    });
+    const signals = [
+      signal,
+      ...characters.map((character) => character.signal),
+    ].filter(Boolean);
+    const decisionSignal = signals.length
+      ? AbortSignal.any(signals)
+      : undefined;
+    const response = await abortable(
+      () =>
+        generate({
+          signal: decisionSignal,
+          model,
+          instructions: `${actionContract}\nYou coordinate the supplied characters. Their information is separated by character; never move information from one character's view into another character's public actions.`,
+          input: [...memory, userTurn],
+        }),
+      decisionSignal,
+    );
+    decisionSignal?.throwIfAborted();
     const decisions = parseDecisions(response, contexts);
     appendMemory(memory, userTurn, {
       role: "assistant",
       content: JSON.stringify({ characters: decisions }),
     });
+    for (const decision of decisions) onDecision(decision);
     return decisions;
   }
   if (mode === "per-character") {
-    const results = await Promise.all(
+    const results = await Promise.allSettled(
       contexts.map(async (context, index) => {
         const memory = characters[index].conversation ?? [];
         const userTurn = {
           role: "user",
           content: JSON.stringify({ characters: [context] }),
         };
-        const response = await generate({
-          model,
-          instructions: `${actionContract}\nYou control only ${context.snapshot.playerName}. Do not act for or use private information belonging to any other character.`,
-          input: [...memory, userTurn],
-        });
+        const signals = [signal, characters[index].signal].filter(Boolean);
+        const decisionSignal = signals.length
+          ? AbortSignal.any(signals)
+          : undefined;
+        const response = await abortable(
+          () =>
+            generate({
+              signal: decisionSignal,
+              model,
+              instructions: `${actionContract}\nYou control only ${context.snapshot.playerName}. Do not act for or use private information belonging to any other character.`,
+              input: [...memory, userTurn],
+            }),
+          decisionSignal,
+        );
+        decisionSignal?.throwIfAborted();
         const [decision] = parseDecisions(response, [context]);
         appendMemory(memory, userTurn, {
           role: "assistant",
           content: JSON.stringify({ characters: [decision] }),
         });
         characters[index].conversation = memory;
+        onDecision(decision);
         return decision;
       }),
     );
-    return results;
+    for (const [index, result] of results.entries()) {
+      if (
+        result.status === "rejected" &&
+        !signal?.aborted &&
+        !characters[index].signal?.aborted
+      )
+        onError(result.reason, characters[index].snapshot.playerName);
+    }
+    return results
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value);
   }
-  throw new Error("Bot mode must be shared or per-character.");
 }
 
-/** Run one decision batch and submit only actions that the game protocol supports. */
+/** Submit each successful character immediately; another seat's failure cannot hold it back. */
 export async function runCharacterTurn({
   generate,
   mode,
   model,
   characters,
   sharedConversation,
+  signal,
+  onError,
 }) {
-  const decisions = await decideCharacterActions({
+  const charactersByName = new Map(
+    characters.map((character) => [character.snapshot.playerName, character]),
+  );
+  return decideCharacterActions({
     generate,
     mode,
     model,
     characters,
     sharedConversation,
+    signal,
+    onError,
+    onDecision(decision) {
+      const character = charactersByName.get(decision.playerName);
+      if (!character?.socket || signal?.aborted || character.signal?.aborted)
+        return;
+      const { snapshot, socket } = character;
+      for (const action of decision.actions) {
+        if (action.kind === "chat")
+          socket.emit("messageSentByUser", action.message, snapshot.time);
+        if (
+          action.kind === "vote" ||
+          action.kind === "visit" ||
+          action.kind === "whisper"
+        ) {
+          const index = snapshot.players.findIndex(
+            (player) => player.name === action.target,
+          );
+          if (index < 0) continue;
+          if (action.kind === "vote")
+            socket.emit("handleVote", index, snapshot.time);
+          if (action.kind === "visit")
+            socket.emit("handleVisit", index, snapshot.time);
+          if (action.kind === "whisper")
+            socket.emit("handleWhisper", index, action.message, snapshot.time);
+        }
+      }
+    },
   });
-  const charactersByName = new Map(
-    characters.map((character) => [character.snapshot.playerName, character]),
-  );
-  for (const decision of decisions) {
-    const character = charactersByName.get(decision.playerName);
-    if (!character?.socket) continue;
-    const { snapshot, socket } = character;
-    for (const action of decision.actions) {
-      if (action.kind === "chat")
-        socket.emit("messageSentByUser", action.message, snapshot.time);
-      if (action.kind === "vote") {
-        const index = snapshot.players.findIndex(
-          (player) => player.name === action.target,
-        );
-        if (index >= 0) socket.emit("handleVote", index, snapshot.time);
-      }
-      if (action.kind === "visit") {
-        const index = snapshot.players.findIndex(
-          (player) => player.name === action.target,
-        );
-        if (index >= 0) socket.emit("handleVisit", index, snapshot.time);
-      }
-      if (action.kind === "whisper") {
-        const index = snapshot.players.findIndex(
-          (player) => player.name === action.target,
-        );
-        if (index >= 0)
-          socket.emit("handleWhisper", index, action.message, snapshot.time);
-      }
-    }
-  }
-  return decisions;
 }

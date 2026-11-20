@@ -6,14 +6,11 @@ import { File, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import {
   avatarPresets,
-  avatarOptions,
   type FeaturePreferences,
 } from "../../shared/trpc/accountFeatures";
 import { trpcClient } from "../lib/trpc";
 import { Button, Input, SectionHeader } from "./ui";
-const emoji: Record<string, string> = Object.fromEntries(
-  avatarOptions.map((option) => [option.id, option.symbol]),
-);
+import { PlayerAvatar } from "./PlayerAvatar";
 export function AccountPreferences({
   initialPreferences,
   initialBlocked = [],
@@ -94,7 +91,7 @@ export function AccountPreferences({
               disabled={busy}
               variant={preferences.avatarPreset === id ? "primary" : "outline"}
               onPress={() => update("avatarPreset", id)}
-            >{`${emoji[id]} ${id[0]!.toUpperCase() + id.slice(1)}`}</Button>
+            ><View className="flex-row items-center gap-2"><PlayerAvatar name={id} preset={id} /><Text className={`text-sm font-bold ${preferences.avatarPreset === id ? "text-primary-foreground" : "text-foreground"}`}>{id[0]!.toUpperCase() + id.slice(1)}</Text></View></Button>
           ))}
         </View>
       </View>

@@ -26,6 +26,8 @@ export enum MessageKey {
   YouHaveDied = "you_have_died",
   /** params: playerName, roleName */
   PlayerHasDied = "player_has_died",
+  PlayerDiedHidden = "player_died_hidden",
+  PlayerDiedFaction = "player_died_faction",
   AttackedButSurvived = "attacked_but_survived",
   CannotSpeakYouAreDead = "cannot_speak_you_are_dead",
   CannotSpeakDeadOrError = "cannot_speak_dead_or_error",

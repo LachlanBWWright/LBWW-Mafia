@@ -19,21 +19,34 @@ const stories = Object.values(storyIndex.entries)
 for (const story of stories) {
   test(`render and capture ${story.id}`, async ({ page }) => {
     const projectName = test.info().project.name;
-    if (projectName.endsWith("rtl") || projectName.endsWith("light")) {
-      await page.addInitScript(
-        ({ isRtl, isLight }) => {
-          if (isRtl) document.documentElement.dir = "rtl";
-          if (isLight) document.documentElement.classList.add("light");
-        },
-        {
-          isRtl: projectName.endsWith("rtl"),
-          isLight: projectName.endsWith("light"),
-        },
-      );
-    }
     await page.goto(`/iframe.html?id=${story.id}&viewMode=story`, {
       waitUntil: "networkidle",
     });
+
+    const isRtl = projectName.endsWith("rtl");
+    const isLight = projectName.endsWith("light");
+    // Init scripts run before documentElement exists. Apply the matrix after
+    // navigation so every capture actually uses its requested theme/direction.
+    await page.evaluate(
+      ({ isRtl, isLight }) => {
+        document.documentElement.dir = isRtl ? "rtl" : "ltr";
+        document.documentElement.classList.toggle("light", isLight);
+      },
+      { isRtl, isLight },
+    );
+    await expect(page.locator("html")).toHaveAttribute(
+      "dir",
+      isRtl ? "rtl" : "ltr",
+    );
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--background")
+            .trim(),
+        ),
+      )
+      .toBe(isLight ? "#f8fafc" : "#060912");
 
     const root = page.locator("#storybook-root");
     await expect(root).toBeVisible();
@@ -52,9 +65,29 @@ for (const story of stories) {
     });
     await page.evaluate(() => document.fonts.ready);
 
-    // Run the full accessibility scan once per story. The remaining projects
+    if (
+      story.id === "features-custom-lobby--custom-role" &&
+      page.viewportSize()!.width < 640
+    ) {
+      const authoredRole = page.getByRole("listitem").filter({
+        has: page.getByRole("button", {
+          name: "Edit Field Medic",
+          exact: true,
+        }),
+      });
+      const description = authoredRole.locator(":scope > div").first();
+      const descriptionWidth = await description.evaluate(
+        (element) => element.getBoundingClientRect().width,
+      );
+      const rowWidth = await authoredRole.evaluate(
+        (element) => element.getBoundingClientRect().width,
+      );
+      expect(descriptionWidth).toBeGreaterThanOrEqual(rowWidth - 1);
+    }
+
+    // Run the full accessibility scan once per story and theme. Remaining projects
     // focus on visual differences across viewport/theme/direction matrices.
-    if (projectName === "desktop") {
+    if (projectName === "desktop" || projectName === "desktop-light") {
       const accessibility = await new AxeBuilder({ page })
         .include("#storybook-root")
         .analyze();

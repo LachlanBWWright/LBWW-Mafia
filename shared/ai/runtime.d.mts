@@ -10,11 +10,8 @@ export type Credentials = {
   expiresAt?: number;
   scopes?: string[];
 };
-export type GenerateInput = {
-  model: string;
-  instructions?: string;
-  input: string | { role: string; content: string }[];
-};
+export type { GenerateInput } from "./generation.mjs";
+import type { GenerateInput } from "./generation.mjs";
 export type Identity = { sub: string; email?: unknown; name?: unknown };
 export type Authorization = {
   authorizationUrl: string;

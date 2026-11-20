@@ -1,3 +1,4 @@
+import { AdminGames } from "~/components/admin-games";
 import { PlayerReports } from "~/components/player-reports";
 import { Header } from "~/components/header";
 import { AdminUserSearch } from "~/components/admin-user-search";
@@ -36,6 +37,7 @@ export default async function AdminPage({
     <div className="bg-background min-h-screen">
       <Header />
       <main className="mx-auto w-full max-w-4xl px-4 py-8">
+        <AdminGames />
         <Card>
           <CardHeader>
             <CardTitle>Admin User Search</CardTitle>

@@ -1,24 +1,17 @@
-import Link from "next/link";
-import {
-  Bell,
-  Home,
-  LogIn,
-  LogOut,
-  Mail,
-  Settings,
-  Shield,
-  UserRound,
-} from "lucide-react";
+"use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useRef } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { getVisibleNavigationItems } from "@mernmafia/shared/navigation";
+import { getNavigationGroups } from "@mernmafia/shared/navigation";
 
 export type HeaderUser = {
   name?: string | null;
   handle?: string | null;
   isAdmin?: boolean;
 };
-
 export function HeaderView({
   user,
   signOutAction,
@@ -26,128 +19,89 @@ export function HeaderView({
   user?: HeaderUser;
   signOutAction?: () => Promise<void>;
 }) {
+  const pathname = usePathname();
+  const menu = useRef<HTMLDetailsElement>(null);
+  const { primary, secondary } = getNavigationGroups(
+    Boolean(user),
+    Boolean(user?.isAdmin),
+  );
+  const selected = (path: string) => pathname === path;
   return (
-    <header className="border-border/40 bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b backdrop-blur">
-      <div className="mx-auto flex h-12 w-full min-w-0 items-center gap-1 px-2 sm:h-14 sm:gap-2 sm:px-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/" aria-label="Home" title="Home">
-            <Home />
-          </Link>
-        </Button>
-        <nav
-          aria-label="Main navigation"
-          className="flex min-w-0 flex-1 [scrollbar-width:none] items-center gap-0.5 overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden"
+    <header className="bg-background/95 border-border sticky top-0 z-50 border-b backdrop-blur">
+      <nav
+        aria-label="Main navigation"
+        className="mx-auto flex min-h-14 max-w-7xl items-center gap-1 px-2 sm:gap-3 sm:px-6"
+      >
+        {primary.map((item) => (
+          <Button
+            key={item.key}
+            variant={selected(item.path) ? "secondary" : "ghost"}
+            className="px-2 sm:px-3"
+            asChild
+          >
+            <Link
+              href={item.path}
+              aria-current={selected(item.path) ? "page" : undefined}
+            >
+              {item.key === "Home" ? "Play" : item.label}
+            </Link>
+          </Button>
+        ))}
+        <details
+          ref={menu}
+          className="group relative ms-auto"
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && menu.current) {
+              menu.current.open = false;
+              menu.current.querySelector("summary")?.focus();
+            }
+          }}
         >
-          {getVisibleNavigationItems(Boolean(user), Boolean(user?.isAdmin))
-            .filter((item) =>
-              [
-                "Roles",
-                "History",
-                "Community",
-                "About",
-                "CreateLobby",
-              ].includes(item.key),
-            )
-            .filter((item) => !("requiresAuth" in item) || Boolean(user))
-            .map((item) => (
-              <Button
+          <summary className="hover:bg-accent focus-visible:ring-ring flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-md px-3 text-sm font-medium focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+            Menu{" "}
+            <ChevronDown aria-hidden className="size-4 group-open:rotate-180" />
+          </summary>
+          <div className="bg-popover border-border absolute end-0 top-full mt-2 grid max-h-[70dvh] w-60 gap-1 overflow-y-auto rounded-lg border p-2 shadow-lg">
+            {secondary.map((item) => (
+              <Link
                 key={item.key}
-                variant="ghost"
-                size="sm"
-                className="shrink-0 px-2 sm:px-3"
-                asChild
+                href={item.path}
+                aria-current={selected(item.path) ? "page" : undefined}
+                onClick={() => {
+                  if (menu.current) menu.current.open = false;
+                }}
+                className={
+                  "hover:bg-accent focus-visible:ring-ring flex min-h-11 items-center rounded-md px-3 text-sm focus-visible:ring-2 " +
+                  (selected(item.path) ? "bg-secondary font-semibold" : "")
+                }
               >
-                <Link href={item.path}>{item.label}</Link>
-              </Button>
+                {item.key === "Profile" && user?.handle
+                  ? "@" + user.handle
+                  : item.label}
+              </Link>
             ))}
-        </nav>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {user ? (
-            <>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="max-w-28 px-2 sm:max-w-36 sm:px-3"
-                asChild
+            {user ? (
+              <form
+                action={signOutAction}
+                className="border-border border-t pt-1"
               >
-                <Link
-                  href="/profile"
-                  title="Profile"
-                  className="overflow-hidden"
-                >
-                  <UserRound />
-                  <span className="sr-only sm:not-sr-only sm:truncate">
-                    {user.handle ? `@${user.handle}` : (user.name ?? "Profile")}
-                  </span>
-                </Link>
-              </Button>
-              <Button variant="ghost" size="icon" asChild>
-                <Link
-                  href="/notifications"
-                  aria-label="Notifications"
-                  title="Notifications"
-                >
-                  <Bell />
-                </Link>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:h-8 sm:w-auto sm:px-3"
-                asChild
-              >
-                <Link href="/messages" aria-label="Messages" title="Messages">
-                  <Mail />
-                  <span className="hidden sm:inline">Messages</span>
-                </Link>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:h-8 sm:w-auto sm:px-3"
-                asChild
-              >
-                <Link href="/settings" aria-label="Settings" title="Settings">
-                  <Settings />
-                  <span className="hidden sm:inline">Settings</span>
-                </Link>
-              </Button>
-              {user.isAdmin ? (
                 <Button
-                  variant="secondary"
-                  size="icon"
-                  className="sm:h-8 sm:w-auto sm:px-3"
-                  asChild
-                >
-                  <Link href="/admin" aria-label="Admin" title="Admin">
-                    <Shield />
-                    <span className="hidden sm:inline">Admin</span>
-                  </Link>
-                </Button>
-              ) : null}
-              <form action={signOutAction}>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="sm:h-8 sm:w-auto sm:px-3"
+                  variant="ghost"
                   type="submit"
-                  title="Sign out"
+                  className="w-full justify-start"
                 >
-                  <LogOut />
-                  <span className="hidden sm:inline">Sign out</span>
+                  Sign out
                 </Button>
               </form>
-            </>
-          ) : (
-            <Button size="icon" className="sm:h-8 sm:w-auto sm:px-3" asChild>
-              <Link href="/signin" aria-label="Sign in" title="Sign in">
-                <LogIn />
-                <span className="hidden sm:inline">Sign in</span>
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
+            ) : null}
+          </div>
+        </details>
+        {!user ? (
+          <Button asChild className="px-3">
+            <Link href="/signin">Sign in</Link>
+          </Button>
+        ) : null}
+      </nav>
     </header>
   );
 }

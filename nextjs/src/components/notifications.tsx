@@ -9,6 +9,7 @@ import type {
   AccountNotification,
   LobbyInvitation,
 } from "@mernmafia/shared/trpc/accountFeatures";
+import { LobbyInvitationCard } from "./lobby-invitation";
 import { Button } from "./ui/button";
 
 export function NotificationsView({
@@ -37,29 +38,17 @@ export function NotificationsView({
         </Button>
       </div>
       {invitations
-        .filter((invite) => invite.status === "pending")
+        .filter(
+          (invite) =>
+            invite.status === "pending" || invite.status === "expired",
+        )
         .map((invite) => (
-          <div key={invite.id} className="space-y-2 border-b py-3">
-            <p>
-              {invite.senderName ?? "A friend"} invited you to lobby{" "}
-              {invite.roomId}.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                disabled={busy}
-                onClick={() => onRespond(invite.id, true)}
-              >
-                Accept and join
-              </Button>
-              <Button
-                variant="outline"
-                disabled={busy}
-                onClick={() => onRespond(invite.id, false)}
-              >
-                Decline
-              </Button>
-            </div>
-          </div>
+          <LobbyInvitationCard
+            key={invite.id}
+            invite={invite}
+            busy={busy}
+            onRespond={onRespond}
+          />
         ))}
       {!items.length ? (
         <p className="text-muted-foreground">No notifications yet.</p>

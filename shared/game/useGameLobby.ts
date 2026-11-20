@@ -88,12 +88,8 @@ export function createUseSharedGameLobby(
               joining.current = false;
               if (result.status === "joined")
                 dispatch({
-                  type: "patch",
-                  value: {
-                    joining: false,
-                    playerName: result.username,
-                    joinStatus: "",
-                  },
+                  type: "joined",
+                  username: result.username,
                 });
               else {
                 dispatch({
@@ -147,6 +143,7 @@ export function createUseSharedGameLobby(
           type: "message",
           text,
           kind: value.key.includes("result") ? "role" : "system",
+          messageKey: value.key,
         });
         if (
           /cannot(?!.*(?:speak|whisper))|invalid(?!.*whisper)|no_day_action|no_night_action|no_night_vote|action_not_confirmed|action_rejected|action_stale|no_sessions|no_alerts|voting_disabled/.test(
@@ -287,7 +284,9 @@ export function createUseSharedGameLobby(
           state.started &&
           !state.ended &&
           state.canVote &&
-          state.action.vote === undefined &&
+          (state.action.vote === undefined ||
+            (state.time === DayTime.Day &&
+              state.setup?.rules.voting.allowRevote)) &&
           (state.time === DayTime.Day ||
             (state.visitCapability &&
               "nightVote" in state.visitCapability &&
@@ -313,6 +312,7 @@ export function createUseSharedGameLobby(
         if (
           disconnected() ||
           !socket ||
+          state.setup?.rules.communication.whispers === false ||
           !state.canTalk ||
           !state.messageDraft.trim()
         )

@@ -15,6 +15,7 @@ import {
 } from "./playerActionRules";
 
 export type LobbyState = MatchExperience & {
+  setup?: GameSnapshot["setup"];
   matchId?: string;
   phaseVersion?: number;
   snapshotReceived: boolean;
@@ -55,6 +56,7 @@ export const initialLobbyState: LobbyState = {
 };
 export type LobbyAction =
   | { type: "patch"; value: Partial<LobbyState> }
+  | { type: "joined"; username: string }
   | {
       type: "phase";
       value: Pick<
@@ -68,6 +70,7 @@ export type LobbyAction =
       text: string;
       kind?: LobbyMessage["kind"];
       sender?: string;
+      messageKey?: LobbyMessage["messageKey"];
     }
   | { type: "add"; player: PlayerList }
   | { type: "remove"; name: string }
@@ -91,6 +94,8 @@ export function lobbyReducer(
   action: LobbyAction,
 ): LobbyState {
   switch (action.type) {
+    case "joined":
+      return { ...state, joining: false, joinStatus: "", playerName: state.started ? state.playerName : action.username };
     case "phase": {
       const changed =
         action.value.time !== state.time ||
@@ -118,6 +123,7 @@ export function lobbyReducer(
           {
             id: (state.messages.at(-1)?.id ?? 0) + 1,
             text: action.text,
+            ...(action.messageKey ? { messageKey: action.messageKey } : {}),
             ...(action.kind
               ? {
                   kind: action.kind,
@@ -157,7 +163,8 @@ export function lobbyReducer(
     case "snapshot": {
       const { role, ...snapshot } = action.value;
       const newMatch = Boolean(
-        state.matchId && snapshot.matchId && state.matchId !== snapshot.matchId,
+        (state.matchId && snapshot.matchId && state.matchId !== snapshot.matchId) ||
+        (!state.started && snapshot.started),
       );
       const newPhase =
         newMatch ||

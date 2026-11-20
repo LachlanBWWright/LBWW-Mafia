@@ -1,3 +1,16 @@
+import type { AdminGamePage, AdminGameQuery } from "../admin/games";
+import {
+  type GameCommunityServices,
+  campaignInput,
+  campaignCreateInput,
+  campaignJoinInput,
+  campaignRoundInput,
+  campaignVoteInput,
+  discussionInput,
+  annotationInput,
+  deleteAnnotationInput,
+  nominationInput,
+} from "./gameCommunity";
 import {
   type PartyServices,
   partyInviteInputSchema,
@@ -27,6 +40,7 @@ export type SessionUser = {
   id: string;
   name?: string | null;
   handle?: string | null;
+  avatarPreset?: string | null;
   isAdmin: boolean;
   roles?: string[];
 };
@@ -142,6 +156,8 @@ export type PersistMatchInput = {
 };
 
 export type RouterServices = {
+  listAdminGames?: (input: AdminGameQuery) => Promise<AdminGamePage>;
+  community?: GameCommunityServices;
   parties?: PartyServices;
   analysis?: MatchAnalysisServices;
   features?: AccountFeatureServices;
@@ -220,6 +236,10 @@ export type AppRouterContext = {
   limitRequest?: (path: string, mutation: boolean) => Promise<boolean>;
 };
 
+function communityServices(services: RouterServices) {
+  if (!services.community) throw new TRPCError({ code: "NOT_IMPLEMENTED" });
+  return services.community;
+}
 function partyServices(services: RouterServices) {
   if (!services.parties) throw new TRPCError({ code: "NOT_IMPLEMENTED" });
   return services.parties;
@@ -305,6 +325,64 @@ const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
  */
 export function createAppRouter(services: RouterServices) {
   return t.router({
+    community: t.router({
+      list: protectedProcedure.query(({ ctx }) =>
+        communityServices(services).list(ctx.sessionUser.id),
+      ),
+      create: protectedProcedure
+        .input(campaignCreateInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).create(ctx.sessionUser.id, input),
+        ),
+      join: protectedProcedure
+        .input(campaignJoinInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).join(ctx.sessionUser.id, input),
+        ),
+      detail: protectedProcedure
+        .input(campaignInput)
+        .query(({ ctx, input }) =>
+          communityServices(services).detail(ctx.sessionUser.id, input),
+        ),
+      rotateHost: protectedProcedure
+        .input(campaignInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).rotateHost(ctx.sessionUser.id, input),
+        ),
+      addRound: protectedProcedure
+        .input(campaignRoundInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).addRound(ctx.sessionUser.id, input),
+        ),
+      voteSetup: protectedProcedure
+        .input(campaignVoteInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).voteSetup(ctx.sessionUser.id, input),
+        ),
+      discussion: protectedProcedure
+        .input(discussionInput)
+        .query(({ ctx, input }) =>
+          communityServices(services).discussion(ctx.sessionUser.id, input),
+        ),
+      annotate: protectedProcedure
+        .input(annotationInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).annotate(ctx.sessionUser.id, input),
+        ),
+      deleteAnnotation: protectedProcedure
+        .input(deleteAnnotationInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).deleteAnnotation(
+            ctx.sessionUser.id,
+            input,
+          ),
+        ),
+      nominate: protectedProcedure
+        .input(nominationInput)
+        .mutation(({ ctx, input }) =>
+          communityServices(services).nominate(ctx.sessionUser.id, input),
+        ),
+    }),
     party: t.router({
       current: protectedProcedure.query(({ ctx }) =>
         partyServices(services).current(ctx.sessionUser.id),
@@ -478,6 +556,14 @@ export function createAppRouter(services: RouterServices) {
       invitations: protectedProcedure.query(({ ctx }) =>
         featureServices(services).invitations(ctx.sessionUser.id),
       ),
+      sentInvitations: protectedProcedure
+        .input(z.object({ roomId: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/) }))
+        .query(({ ctx, input }) =>
+          featureServices(services).sentInvitations(
+            ctx.sessionUser.id,
+            input.roomId,
+          ),
+        ),
       invite: protectedProcedure
         .input(
           z.object({
@@ -647,6 +733,21 @@ export function createAppRouter(services: RouterServices) {
       rotate: backendProcedure.mutation(() => services.rotateActiveRoom()),
     }),
     admin: t.router({
+      games: adminProcedure
+        .input(
+          z.object({
+            offset: z.number().int().min(0).max(1000000).default(0),
+            roomId: z
+              .string()
+              .regex(/^[a-zA-Z0-9_-]{1,64}$/)
+              .optional(),
+          }),
+        )
+        .query(({ input }) => {
+          if (!services.listAdminGames)
+            throw new TRPCError({ code: "NOT_IMPLEMENTED" });
+          return services.listAdminGames(input);
+        }),
       searchUsers: adminProcedure
         .input(
           z.object({

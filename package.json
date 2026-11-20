@@ -39,27 +39,28 @@
     "screenshots:mobile": "pnpm --dir mobile run visual:screenshots",
     "test:integration": "pnpm --dir nextjs run test:integration",
     "test:chatgpt": "node --test tools/ai-bots/chatgpt/*.test.mjs",
+    "test:ai-api": "node --test tools/ai-bots/api/*.test.mjs",
     "desktop": "node desktop/launch.mjs",
     "desktop:pack": "electron-builder --config desktop/electron-builder.json --dir",
     "desktop:dist": "node desktop/preflight.mjs && electron-builder --config desktop/electron-builder.json",
     "test:desktop": "node --test desktop/*.test.mjs",
-    "test:unit": "pnpm run test:chatgpt && pnpm run test:desktop && pnpm --dir server run test && pnpm --dir nextjs run test && pnpm --dir mobile run test",
-    "test:chatgpt:coverage": "node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99 --test-coverage-include='desktop/controller.mjs' --test-coverage-include='desktop/protectedStore.mjs' --test-coverage-include='shared/ai/*.mjs' desktop/*.test.mjs tools/ai-bots/chatgpt/*.test.mjs",
+    "test:unit": "pnpm run test:ai-api && pnpm run test:chatgpt && pnpm run test:desktop && pnpm --dir server run test && pnpm --dir nextjs run test && pnpm --dir mobile run test",
+    "test:chatgpt:coverage": "node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99 --test-coverage-include='desktop/controller.mjs' --test-coverage-include='desktop/protectedStore.mjs' --test-coverage-include='shared/ai/*.mjs' desktop/*.test.mjs tools/ai-bots/chatgpt/*.test.mjs tools/ai-bots/api/generation-limits.test.mjs tools/ai-bots/api/lifecycle.test.mjs",
     "test:chatgpt:native:coverage": "pnpm --dir server exec vitest run --config ../mobile/vitest.chatgpt.config.ts --coverage",
     "deploy:partyserver": "pnpm --dir server run deploy:partyserver",
     "test:worker": "pnpm --dir server run test:worker"
   },
   "description": "LBWW Mafia monorepo root",
   "devDependencies": {
-    "concurrently": "^9.2.1",
+    "concurrently": "^9.2.5",
     "electron": "^45.0.0",
-    "electron-builder": "^26.15.3",
-    "wait-on": "^9.0.4"
+    "electron-builder": "^26.18.0",
+    "wait-on": "^9.5.1"
   },
   "engines": {
     "node": ">=24"
   },
   "dependencies": {
-    "ws": "^8.21.3"
+    "ws": "^8.22.0"
   }
 }

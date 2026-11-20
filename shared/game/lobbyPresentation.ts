@@ -1,5 +1,6 @@
 import type { LobbyState } from "./lobbyState";
 import type { LobbyMessage } from "./matchExperience";
+import { MessageKey } from "../communication/messages";
 
 export type LobbyTab = "chat" | "players" | "group";
 export type LobbyTabContext = {
@@ -53,6 +54,35 @@ export function chatMessagePresentation(
         ? message.text.slice(message.sender.length + 2)
         : message.text,
   };
+}
+
+/** Classify trusted server messages, never player-authored text. */
+export function chatEventStyle(message: LobbyMessage): "phase-day" | "phase-night" | "death" | "vote" | "result" | "outcome" | "ordinary" {
+  if (message.kind !== "system" && message.kind !== "role") return "ordinary";
+  switch (message.messageKey) {
+    case MessageKey.Day1Started:
+    case MessageKey.DayNStarted: return "phase-day";
+    case MessageKey.Night1Started:
+    case MessageKey.NightNStarted: return "phase-night";
+    case MessageKey.PlayerHasDied:
+    case MessageKey.PlayerDiedHidden:
+    case MessageKey.PlayerDiedFaction:
+    case MessageKey.PlayerVotedOutByTown:
+    case MessageKey.YouHaveDied:
+    case MessageKey.YouHaveBeenVotedOut:
+    case MessageKey.ConfeserVotedOut: return "death";
+    case MessageKey.VoteCastSingleVote:
+    case MessageKey.VoteCastMultipleVotes: return "vote";
+    case MessageKey.FactionWon:
+    case MessageKey.GameEndedDraw:
+    case MessageKey.GameEndedNobodyDied:
+    case MessageKey.NeutralPlayersWon: return "outcome";
+    case MessageKey.ActionNotConfirmed:
+    case MessageKey.ActionStale:
+    case MessageKey.YouWereRoleblocked:
+    case MessageKey.AttackedButSurvived: return "result";
+    default: return message.kind === "role" ? "result" : "ordinary";
+  }
 }
 
 /** Use specific verbs only for roles whose visit has an unambiguous meaning. */

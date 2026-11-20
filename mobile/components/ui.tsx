@@ -15,7 +15,7 @@ import { twMerge } from "tailwind-merge";
 import { colors } from "../styles/colors";
 import { buttonWebAccessibility } from "./buttonAccessibility";
 import { useAppState } from "../context/AppStateContext";
-import { getVisibleNavigationItems } from "../../shared/navigation";
+import { getNavigationGroups } from "../../shared/navigation";
 
 type NavigationLike = {
   navigate: (screen: string, params?: Record<string, unknown>) => void;
@@ -253,7 +253,6 @@ export function Screen({
   return (
     <SafeAreaView className={cn("relative flex-1 overflow-hidden bg-background", className)} edges={["top", "left", "right"]}>
       <StatusBar style="light" />
-      <View pointerEvents="none" className="absolute -right-28 -top-28 h-72 w-72 rounded-full bg-primary/10" />
       <AppHeader navigation={navigation} activeRoute={activeRoute} />
       {scroll ? (
         <ScrollView
@@ -283,37 +282,18 @@ function AppHeader({
 }) {
   const { isAdmin, authToken } = useAppState();
   const showAdmin = isAdmin || process.env.EXPO_PUBLIC_VISUAL_TESTS === "true";
-  const visibleNavItems = getVisibleNavigationItems(
-    Boolean(authToken),
-    showAdmin,
-  );
-
+  const { primary, secondary } = getNavigationGroups(Boolean(authToken), showAdmin);
+  const [menuOpen, setMenuOpen] = React.useState(false);
   return (
-    <View className="h-12 flex-row items-center border-b border-border/80 bg-background px-xs">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        className="flex-1"
-        contentContainerClassName="h-12 items-center gap-xs px-xs"
-      >
-        {visibleNavItems.map((item) => (
-          <NavChip
-            key={item.key}
-            label={item.label}
-            active={item.key === activeRoute}
-            onPress={() => navigation.navigate(item.key)}
-          />
-        ))}
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-9 min-h-0 shrink-0 px-3"
-          onPress={() => navigation.navigate(authToken ? "Profile" : "SignIn")}
-        >
-          {authToken ? "Profile" : "Sign in"}
-        </Button>
-      </ScrollView>
+    <View className="border-b border-border bg-background">
+      <View className="min-h-14 flex-row items-center gap-1 px-2">
+        {primary.map((item) => <NavChip key={item.key} label={item.key === "Home" ? "Play" : item.label} active={item.key === activeRoute} onPress={() => { setMenuOpen(false); navigation.navigate(item.key); }} />)}
+        <Button variant="ghost" className="ml-auto px-2" accessibilityState={{ expanded: menuOpen }} onPress={() => setMenuOpen(!menuOpen)}>Menu</Button>
+        {!authToken ? <Button className="px-2" onPress={() => navigation.navigate("SignIn")}>Sign in</Button> : null}
+      </View>
+      {menuOpen ? <ScrollView className="max-h-80 border-t border-border" contentContainerClassName="gap-1 p-2">
+        {secondary.map((item) => <NavChip key={item.key} label={item.label} active={item.key === activeRoute} onPress={() => { setMenuOpen(false); navigation.navigate(item.key); }} />)}
+      </ScrollView> : null}
     </View>
   );
 }
@@ -478,7 +458,8 @@ function NavChip({
       variant={active ? "secondary" : "ghost"}
       size="sm"
       onPress={onPress}
-      className={cn("h-9 min-h-0 shrink-0 rounded-md px-3", active && "border-primary")}
+      className={cn("min-h-11 shrink-0 rounded-md px-2", active && "border-primary")}
+      accessibilityState={{ selected: active }}
       textClassName={active ? "text-foreground" : "text-muted-foreground"}
     >
       {label}

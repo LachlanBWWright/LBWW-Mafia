@@ -230,14 +230,29 @@ export const accountFeatureServices: AccountFeatureServices = {
     return preferences(userId);
   },
   async hostedLobbies(userId) {
-    return db
+    const rows = await db
       .select({
         roomId: customLobbies.roomId,
         createdAt: customLobbies.createdAt,
+        config: customLobbies.config,
       })
       .from(customLobbies)
       .where(eq(customLobbies.ownerId, userId))
       .orderBy(desc(customLobbies.createdAt));
+    return rows.map(({ config, ...row }) => {
+      try {
+        const parsed = lobbyConfigSchema.safeParse(JSON.parse(config));
+        return {
+          ...row,
+          name:
+            parsed.success && parsed.data.directory?.public
+              ? parsed.data.directory.name
+              : "Private lobby",
+        };
+      } catch {
+        return { ...row, name: "Private lobby" };
+      }
+    });
   },
   async invitations(userId) {
     const rows = await db
@@ -248,6 +263,31 @@ export const accountFeatureServices: AccountFeatureServices = {
       .orderBy(desc(lobbyInvitations.createdAt))
       .limit(100);
     return rows.map(({ item, senderName }) => invitation(item, senderName));
+  },
+  async sentInvitations(userId, roomId) {
+    const [owned] = await db
+      .select({ roomId: customLobbies.roomId })
+      .from(customLobbies)
+      .where(
+        and(
+          eq(customLobbies.roomId, roomId),
+          eq(customLobbies.ownerId, userId),
+        ),
+      )
+      .limit(1);
+    if (!owned) throw forbidden("Only the host can view invitations.");
+    const rows = await db
+      .select()
+      .from(lobbyInvitations)
+      .where(
+        and(
+          eq(lobbyInvitations.senderId, userId),
+          eq(lobbyInvitations.roomId, roomId),
+        ),
+      )
+      .orderBy(desc(lobbyInvitations.createdAt))
+      .limit(100);
+    return rows.map((row) => invitation(row, null));
   },
   async invite(userId, input) {
     return db.transaction(async (tx) => {

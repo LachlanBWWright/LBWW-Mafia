@@ -10,6 +10,11 @@ export function lobbyPresetForm(config: LobbyConfig) {
       tier: rule.tier === undefined ? "" : String(rule.tier),
     };
   return {
+    customization: {
+      rules: config.rules,
+      customRoles: config.customRoles,
+      voteVisibility: config.voteVisibility,
+    },
     size: String(config.size),
     algorithm: config.roleSelection.algorithm,
     roles,

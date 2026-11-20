@@ -17,7 +17,7 @@ export default async function RootLayout({
   const session = await auth();
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="dark">
+      <body className="dark bg-background text-foreground font-sans antialiased [&_*]:border-border [&_*]:outline-ring/50">
         <PresenceHeartbeat enabled={Boolean(session?.user)} />
         {children}
       </body>

@@ -1,4 +1,5 @@
-type GameIdentity = { userId?: string; handle?: string; botSeat?: boolean };
+import { avatarPresets } from "@mernmafia/shared/trpc/accountFeatures";
+type GameIdentity = { userId?: string; handle?: string; avatarPreset?: string; botSeat?: boolean };
 
 function decodeBase64Url(value: string): Uint8Array<ArrayBuffer> {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -39,7 +40,7 @@ export async function verifyPartyServerGameIdentity(
 
     const value = JSON.parse(
       new TextDecoder().decode(decodeBase64Url(encodedPayload)),
-    ) as { userId?: unknown; handle?: unknown; botSeat?: unknown; guest?: unknown; exp?: unknown };
+    ) as { userId?: unknown; handle?: unknown; avatarPreset?: unknown; botSeat?: unknown; guest?: unknown; exp?: unknown };
     if (
       (typeof value.userId !== "string" && !(value.botSeat === true && value.guest === true)) ||
       typeof value.exp !== "number" ||
@@ -51,6 +52,7 @@ export async function verifyPartyServerGameIdentity(
     return {
       userId: typeof value.userId === "string" ? value.userId : undefined,
       handle: typeof value.handle === "string" ? value.handle : undefined,
+      ...(typeof value.avatarPreset === "string" && avatarPresets.some((preset) => preset === value.avatarPreset) && value.botSeat !== true ? { avatarPreset: value.avatarPreset } : {}),
       ...(value.botSeat === true ? { botSeat: true } : {}),
     };
   } catch {

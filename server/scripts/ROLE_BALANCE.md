@@ -1,0 +1,7 @@
+# Preliminary role balance check
+
+Run `pnpm --dir server balance:check scripts/role-balance-example.json` to see the report. Supply a JSON array of completed, comparable normal games with their **starting** built-in role IDs and a `town` or `mafia` winner. The example is synthetic, not evidence of actual balance. Exclude draws, neutral winners, abandoned games, custom games and bot-heavy games when preparing data; the input format cannot identify these itself. Do not include player identities.
+
+The report shows current power, match counts and the difference in Town win rates between games with and without each role, grouped by player count. The aggregate weights comparable groups by the number of games with the role. An unavailable comparison is `null`; roles with multiple copies are counted once per match. Small or missing groups are not actionable. These are observational comparisons, not proposed power values: other roles, player skill, matchmaking and role-selection bias can explain differences. Neutral roles do not necessarily aim for a Town or Mafia win. Do not apply the result automatically. A future model should account for the whole roster, uncertainty, player skill and independent neutral outcomes, and be evaluated on held-out games before changing the generator.
+
+Stored match participants can contain final rather than initial roles, and existing records do not reliably distinguish all the categories above. This tool therefore requires explicitly curated input instead of silently treating historical records as eligible.

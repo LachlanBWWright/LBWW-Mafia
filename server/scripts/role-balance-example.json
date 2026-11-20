@@ -1,0 +1,4 @@
+[
+  { "roles": ["doctor", "mafia"], "winner": "town" },
+  { "roles": ["judge", "mafia"], "winner": "mafia" }
+]

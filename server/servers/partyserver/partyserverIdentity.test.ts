@@ -11,6 +11,12 @@ function createTicket(payload: Record<string, unknown>, secret: string): string 
 }
 
 describe("verifyPartyServerGameIdentity", () => {
+  it("accepts a signed known account avatar and ignores unknown presets", async () => {
+    const valid = createTicket({ userId: "user-1", avatarPreset: "fox", exp: Date.now() + 60_000 }, "secret");
+    const invalid = createTicket({ userId: "user-1", avatarPreset: "unknown", exp: Date.now() + 60_000 }, "secret");
+    expect((await verifyPartyServerGameIdentity(valid, "secret"))?.avatarPreset).toBe("fox");
+    expect((await verifyPartyServerGameIdentity(invalid, "secret"))?.avatarPreset).toBeUndefined();
+  });
   it("accepts a valid, unexpired identity ticket", async () => {
     const result = await verifyPartyServerGameIdentity(
       createTicket(

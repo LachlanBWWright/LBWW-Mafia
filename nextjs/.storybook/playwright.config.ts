@@ -7,6 +7,7 @@ export default defineConfig({
     "screenshots.spec.ts",
     "match-experience.spec.ts",
     "ai-characters.spec.ts",
+    "social-experience.spec.ts",
   ],
   fullyParallel: false,
   workers: Number(process.env.VISUAL_TEST_WORKERS ?? 2),

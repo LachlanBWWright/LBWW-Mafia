@@ -1,5 +1,7 @@
 import { DayTime } from "../communication/events";
+import { MessageKey } from "../communication/messages";
 import { initialLobbyState, type LobbyState } from "../game/lobbyState";
+import { defaultVisitCapability } from "../game/playerActionRules";
 export const nightMatch: LobbyState = {
   ...initialLobbyState,
   playerName: "Mira",
@@ -73,6 +75,24 @@ export const dayMatch: LobbyState = {
           : "pending",
     voteTarget: player.name === "Mira" ? "Theo" : undefined,
   })),
+};
+export const unreadMatch: LobbyState = {
+  ...nightMatch,
+  messages: Array.from({ length: 40 }, (_, index) => ({ id: index + 1, text: `Theo: Message ${index + 1}`, sender: "Theo", kind: "chat" as const })),
+};
+export const announcementMatch: LobbyState = {
+  ...nightMatch,
+  visitCapability: defaultVisitCapability,
+  messages: [
+    { id: 1, kind: "system", messageKey: MessageKey.DayNStarted, text: "Day 2 has started." },
+    { id: 2, kind: "chat", sender: "Theo", text: "Theo: What happened last night?" },
+    { id: 3, kind: "system", messageKey: MessageKey.VoteCastSingleVote, text: "Theo has voted for Nadia." },
+    { id: 4, kind: "system", messageKey: MessageKey.PlayerVotedOutByTown, text: "Nadia was voted out of the town." },
+    { id: 5, kind: "system", messageKey: MessageKey.NightNStarted, text: "Night 2 has started." },
+    { id: 6, kind: "role", messageKey: MessageKey.InvestigatorResult, text: "Your investigation returned a result." },
+    { id: 7, kind: "system", messageKey: MessageKey.PlayerDiedHidden, text: "Sam has died." },
+    { id: 8, kind: "system", messageKey: MessageKey.FactionWon, text: "The Town won!" },
+  ],
 };
 export const hiddenMatch: LobbyState = {
   ...dayMatch,

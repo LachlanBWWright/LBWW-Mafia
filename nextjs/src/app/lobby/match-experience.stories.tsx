@@ -1,4 +1,5 @@
 import { useReducer } from "react";
+import { expect, userEvent, within } from "storybook/test";
 import LobbyClient from "./LobbyClient";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import {
@@ -7,6 +8,8 @@ import {
   hiddenMatch,
   recapMatch,
   reconnectMatch,
+  unreadMatch,
+  announcementMatch,
   fixtureLobbyActions,
 } from "@mernmafia/shared/testing/matchFixtures";
 import {
@@ -14,6 +17,8 @@ import {
   type LobbyState,
 } from "@mernmafia/shared/game/lobbyState";
 import { LobbyView } from "./LobbyView";
+import { customizedMatch } from "@mernmafia/shared/testing/customizationFixtures";
+import { iconMatch } from "@mernmafia/shared/testing/iconFixtures";
 const noop = () => undefined;
 function MatchExperience({ lobby: initialLobby }: { lobby: LobbyState }) {
   const [state, dispatch] = useReducer(lobbyReducer, initialLobby);
@@ -110,10 +115,24 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const NightAction: Story = {};
+export const IconsInGame: Story = { args: { lobby: iconMatch } };
+export const InteractiveUx: Story = { args: { lobby: { ...nightMatch, matchId: "ux-story" } } };
+export const UnreadChat: Story = { args: { lobby: unreadMatch } };
+export const ChatAnnouncements: Story = { args: { lobby: announcementMatch } };
+export const ChatSuggestions: Story = {
+  args: { lobby: { ...nightMatch, messageDraft: "" } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const message = canvas.getByRole("textbox", { name: "Message" });
+    await userEvent.type(message, "/do");
+    await expect(canvas.getByRole("option", { name: /Doctor/ })).toBeVisible();
+  },
+};
 export const Voting: Story = { args: { lobby: dayMatch } };
 export const HiddenVotes: Story = { args: { lobby: hiddenMatch } };
 export const Reconnecting: Story = { args: { lobby: reconnectMatch } };
 export const Recap: Story = { args: { lobby: recapMatch } };
+export const CustomSetup: Story = { args: { lobby: customizedMatch } };
 
 export const Practice: Story = {
   render: () => <LobbyClient roomId="practice" initialPractice />,
@@ -135,5 +154,34 @@ export const LongRoster: Story = {
         })),
       ],
     },
+  },
+};
+
+export const Revoting: Story = {
+  args: {
+    lobby: {
+      ...dayMatch,
+      action: { vote: "Mira", outcome: "submitted" },
+      setup: {
+        ...customizedMatch.setup!,
+        rules: {
+          ...customizedMatch.setup!.rules,
+          voting: { ...customizedMatch.setup!.rules.voting, allowRevote: true },
+        },
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText("Your vote: Mira", { exact: true }),
+    ).toBeVisible();
+    await userEvent.click(
+      canvas.getByRole("button", { name: /^Abstain$/ }),
+    );
+    await expect(canvas.getByText("Abstained", { exact: true })).toBeVisible();
+    await expect(
+      canvas.queryByRole("button", { name: /^Abstain$/ }),
+    ).not.toBeInTheDocument();
   },
 };

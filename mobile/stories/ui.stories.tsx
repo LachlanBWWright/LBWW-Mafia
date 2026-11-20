@@ -6,6 +6,8 @@ import {
   hiddenMatch,
   recapMatch,
   reconnectMatch,
+  unreadMatch,
+  announcementMatch,
 } from "../../shared/testing/matchFixtures";
 import {
   AccountPrivacyStory as AccountPrivacyCapture,
@@ -22,6 +24,12 @@ import {
 import { AccountSecurity } from "../components/AccountSecurity";
 import { CreateLobbyForm } from "../screens/CreateLobbyScreen";
 import { MessageThread } from "../components/MessageThread";
+import { PlayerAvatar } from "../components/PlayerAvatar";
+import { RoleIcon } from "../components/RoleIcon";
+import { ActionIcon } from "../components/ActionIcon";
+import { allRoles } from "../../shared/game/rolesList";
+import { actionExamples, iconExampleNames, iconMatch } from "../../shared/testing/iconFixtures";
+import { avatarOptions } from "../../shared/trpc/accountFeatures";
 import React, { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-native";
 import { Text, View } from "react-native";
@@ -119,6 +127,21 @@ function Gallery() {
 }
 
 export const ComponentGallery: Story = { render: () => <Gallery /> };
+
+export const IconPlaceholders: Story = {
+  render: () => <View className="gap-6">
+    <Text accessibilityRole="header" className="text-2xl font-semibold text-foreground">Game icon placeholders</Text>
+    <View className="gap-3"><Text accessibilityRole="header" className="text-lg font-semibold text-foreground">Account avatars</Text><View className="flex-row flex-wrap gap-3">{avatarOptions.map((option) => <View key={option.id} className="w-[46%] flex-row items-center gap-2"><PlayerAvatar name={option.name} preset={option.id} /><Text className="text-sm text-foreground">{option.name}</Text></View>)}</View></View>
+    <View className="gap-3"><Text accessibilityRole="header" className="text-lg font-semibold text-foreground">Anonymous player portraits</Text><View className="flex-row flex-wrap gap-3">{iconExampleNames.map((name) => <View key={name} className="w-[46%] flex-row items-center gap-2"><PlayerAvatar name={name} anonymous /><Text className="text-sm text-foreground">{name}</Text></View>)}</View></View>
+    <View className="gap-3"><Text accessibilityRole="header" className="text-lg font-semibold text-foreground">Roles</Text><View className="flex-row flex-wrap gap-3">{allRoles.map((role) => <View key={role.name} className="w-[46%] flex-row items-center gap-2"><RoleIcon role={role.name} /><Text className="text-sm text-foreground">{role.name}</Text></View>)}</View></View>
+    <View className="gap-3"><Text accessibilityRole="header" className="text-lg font-semibold text-foreground">Actions</Text><View className="flex-row flex-wrap gap-4">{actionExamples.map(({ action, label }) => <View key={action} className="flex-row items-center gap-2"><ActionIcon action={action} /><Text className="text-sm text-foreground">{label}</Text></View>)}</View></View>
+  </View>,
+};
+
+export const MatchIconsInGame: Story = { render: () => <MatchExperienceStory lobby={iconMatch} /> };
+export const MatchInteractiveUx: Story = { render: () => <MatchExperienceStory lobby={{ ...nightMatch, matchId: "ux-story" }} /> };
+export const MatchUnreadChat: Story = { render: () => <MatchExperienceStory lobby={unreadMatch} /> };
+export const MatchChatAnnouncements: Story = { render: () => <MatchExperienceStory lobby={announcementMatch} initialTab="chat" /> };
 
 export const ButtonStory: StoryObj<typeof Button> = {
   name: "Button Controls",

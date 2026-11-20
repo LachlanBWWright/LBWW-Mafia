@@ -4,6 +4,7 @@ import type {
   MatchTimelineEntry,
 } from "@mernmafia/shared/game/matchExperience";
 import type { LobbyConfig } from "@mernmafia/shared/game/lobbyConfig";
+import { resolveGameRules, freezeGameSetup } from "@mernmafia/shared/game/gameCustomization";
 import { RoleHandler } from "./initRoles/roleHandler.js";
 import { User } from "../user/user.js";
 import { Player } from "../player/player.js";
@@ -15,6 +16,7 @@ import {
   JoinRoomResultCode,
   ServerEvent,
   type GameEndResult,
+  type GameSnapshot,
   type JoinRoomResult,
 } from "@mernmafia/shared/communication/events";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
@@ -25,6 +27,8 @@ import { RoleGroup } from "../roles/roleGroup.js";
 import { CombatLevel } from "../roles/combatLevel.js";
 import { clientPhaseMatchesRoomPhase, GamePhase } from "./gamePhase.js";
 import { names } from "../player/names/namesList.js";
+import { MAX_PLAYERS } from "@mernmafia/shared/game/gameNames";
+import { LobbyBots } from "./systems/lobbyBots.js";
 import { GameSystems } from "./systems/gameSystems.js";
 import { RoomMessenger } from "./roomMessenger.js";
 import { PhaseScheduler } from "./systems/phaseScheduler.js";
@@ -39,10 +43,8 @@ import {
 
 const DEFAULT_END_DAY_COUNT = 3;
 const SESSION_LENGTH_PER_PLAYER_MS = 4000;
-const DAY_START_TIME_LEFT_SECONDS = 5;
 const DAY_START_DELAY_MS = 5000;
 const NIGHT_START_DELAY_MS = 15000;
-const NIGHT_TIME_LEFT_SECONDS = 15;
 const DAY_END_EXTRA_SECONDS = 10;
 const MAX_GAME_DAYS = 25;
 const DRAW_TRIGGER_DAYS = 3;
@@ -57,12 +59,38 @@ function createRoomName(): string {
   );
 }
 
+function privateRandomIndex(limit: number): number {
+  const ceiling = Math.floor(0x100000000 / limit) * limit;
+  const bytes = new Uint32Array(1);
+  do crypto.getRandomValues(bytes); while (bytes[0]! >= ceiling);
+  return bytes[0]! % limit;
+}
+
 export class Room {
   readonly name: string;
   readonly size: number;
   readonly messenger: RoomMessenger;
+  readonly lobbyBots = new LobbyBots(this);
   phaseVersion = 0;
   private round = 0;
+  readonly lobbyConfig?: LobbyConfig;
+  private messageCounts = new Map<string, number>();
+  private lastWordsSent = new Set<string>();
+  private finishPhase?: () => void;
+
+  get rules() {
+    const rules = resolveGameRules(this.lobbyConfig ?? {});
+    if (!this.lobbyConfig?.rules) return {
+      ...rules,
+      timing: {
+        ...rules.timing,
+        firstDaySeconds: DAY_START_DELAY_MS / 1000,
+        daySeconds: this.sessionLength / 1000 + DAY_END_EXTRA_SECONDS,
+        nightSeconds: NIGHT_START_DELAY_MS / 1000,
+      },
+    };
+    return rules;
+  }
   private randomSource: () => number = Math.random;
   private readonly roomEmitter?: GameEmitter;
   private readonly phaseScheduler = new PhaseScheduler(() => this.gameHasEnded);
@@ -84,7 +112,7 @@ export class Room {
   endDay = DEFAULT_END_DAY_COUNT;
   confesserVotedOut = false;
 
-  private dayNumber = 0;
+  dayNumber = 0;
   private phaseEndsAt = 0;
   startedAt = new Date();
   timeline: MatchTimelineEntry[] = [];
@@ -98,14 +126,72 @@ export class Room {
     size: number,
     name?: string,
     emitter?: GameEmitter,
-    readonly lobbyConfig?: LobbyConfig,
+    lobbyConfig?: LobbyConfig,
     private readonly backend?: BackendContext,
   ) {
+    if (!Number.isInteger(size) || size < 1 || size > MAX_PLAYERS)
+      throw new RangeError(`Room size must be between 1 and ${MAX_PLAYERS}.`);
+    this.lobbyConfig = lobbyConfig ? freezeGameSetup(lobbyConfig) : undefined;
     this.name = name ?? createRoomName();
     this.size = size;
     this.roomEmitter = emitter;
     this.sessionLength = this.size * SESSION_LENGTH_PER_PLAYER_MS;
-    this.messenger = new RoomMessenger(this.name);
+    this.messenger = new RoomMessenger(this.name, emitter);
+  }
+
+  private publicRolePool(): string[] {
+    const selection = this.lobbyConfig?.roleSelection;
+    return [...new Set(selection?.algorithm === "explicit-slots" ? selection.explicitSlots ?? [] : selection?.roles.map(role => role.role) ?? [])];
+  }
+
+  private acceptMessage(socketId: string): boolean {
+    const limit = this.rules.communication.messageLimit;
+    const identity = [...this.userList, ...this.spectatorList].find(user => user.socketId === socketId)?.username ?? socketId;
+    const count = this.messageCounts.get(identity) ?? 0;
+    if (limit > 0 && count >= limit) return false;
+    this.messageCounts.set(identity, count + 1);
+    return true;
+  }
+
+  private removePreviousDayVote(player: Player): void {
+    if (!player.hasVoted || !player.voteTarget) return;
+    const previous = this.playerList.find(entry => entry.username === player.voteTarget);
+    if (previous) previous.votesReceived = Math.max(0, previous.votesReceived - 1);
+  }
+
+  private completePhase(): void {
+    const finish = this.finishPhase;
+    this.finishPhase = undefined;
+    if (!finish || this.gameHasEnded) return;
+    this.phaseScheduler.cancelAll();
+    finish();
+  }
+
+  private maybeEndPhaseEarly(): void {
+    if (!this.rules.timing.earlyEnd || !this.finishPhase) return;
+    const living = this.playerList.filter(player => player.isAlive);
+    const complete = living.every(player => {
+      const selection = this.selections.get(player.username);
+      if (this.time === GamePhase.Day) return player.hasVoted && (!(player.role.dayVisitSelf || player.role.dayVisitOthers || player.role.dayVisitFaction) || selection?.visit !== undefined);
+      const role = player.role;
+      const visits = role.canSubmitNightAction?.() ?? (role.nightVisitSelf || role.nightVisitOthers || role.nightVisitFaction);
+      return (!role.nightVote || player.hasVoted) && (!visits || selection?.visit !== undefined);
+    });
+    if (complete) this.completePhase();
+  }
+
+  announceDeath(player: Player, verb = "died"): void {
+    const reveal = this.rules.reveal.onDeath;
+    const detail = reveal === "role" ? player.role.name : reveal === "faction" ? player.role.group : undefined;
+    if (verb === "died") {
+      this.messenger.emitToRoom(ServerEvent.ReceiveMessage, reveal === "role"
+        ? { key: MessageKey.PlayerHasDied, params: { playerName: player.username, roleName: player.role.name.toLowerCase() } }
+        : reveal === "faction"
+          ? { key: MessageKey.PlayerDiedFaction, params: { playerName: player.username, factionName: player.role.group } }
+          : { key: MessageKey.PlayerDiedHidden, params: { playerName: player.username } });
+    }
+    this.recordTimeline(`${player.username} ${verb}${detail ? ` (${detail})` : ""}.`);
+    if (reveal === "role") this.messenger.emitToRoom(ServerEvent.UpdatePlayerRole, { name: player.username, role: player.role.name });
   }
 
   /** Selects this room's transport before game logic emits any events. */
@@ -209,7 +295,7 @@ export class Room {
    */
   addUser(
     playerSocket: GamePlayerSocket,
-    identity?: { userId?: string; handle?: string; botSeat?: boolean },
+    identity?: { userId?: string; handle?: string; avatarPreset?: string; botSeat?: boolean },
   ): JoinRoomResult {
     this.activateEmitter();
     const socketId = playerSocket.id;
@@ -230,12 +316,15 @@ export class Room {
     const username =
       preferredName && !takenNames.includes(preferredName)
         ? preferredName
-        : names.find((n) => !takenNames.includes(n));
+        : names.find((n) => !takenNames.includes(n)) ??
+          Array.from({ length: 78 }, (_, index) =>
+            `Guest ${index < 26 ? "" : String.fromCharCode(64 + Math.floor(index / 26))}${String.fromCharCode(65 + index % 26)}`,
+          ).find((name) => !takenNames.includes(name));
     if (!username) {
       return { status: "rejected", code: JoinRoomResultCode.GenericError };
     }
 
-    const user = new User(playerSocket, username, identity?.userId);
+    const user = new User(playerSocket, username, identity?.userId, identity?.avatarPreset);
     user.isBot = identity?.botSeat === true;
     const position = this.userList.push(user) - 1;
     playerSocket.data.position = position;
@@ -261,7 +350,8 @@ export class Room {
     }
 
     this.broadcastSnapshots();
-    return { status: "joined", username };
+    if (!user.isBot) this.lobbyBots.fillSeats();
+    return { status: "joined", username: user.username };
   }
 
   addSpectator(
@@ -338,7 +428,8 @@ export class Room {
     const faction = this.factionList.find((entry) =>
       entry.memberList.includes(player!),
     );
-    io.to(socketId).emit(ServerEvent.GameSnapshot, {
+    const snapshot: GameSnapshot = {
+      setup: { rules: this.rules, voteVisibility: this.lobbyConfig?.voteVisibility ?? "public", rolePool: this.rules.reveal.rolePool && this.lobbyConfig && this.lobbyConfig.roleSelection.algorithm !== "normal" ? this.publicRolePool() : undefined, customRoles: this.lobbyConfig?.customRoles },
       capacity: this.size,
       participation: spectator
         ? "spectator"
@@ -363,6 +454,7 @@ export class Room {
         );
         return {
           name: entry.username,
+          ...(!this.started && entry.avatarPreset ? { avatarPreset: entry.avatarPreset } : {}),
           connected: entry.connected,
           isBot: entry.isBot,
           ...(this.time === GamePhase.Day &&
@@ -379,10 +471,11 @@ export class Room {
               }
             : {}),
           isAlive: this.started ? other?.isAlive : undefined,
+          faction: other && !other.isAlive && this.rules.reveal.onDeath === "faction" ? other.role.group : undefined,
           role:
             other &&
             (this.gameHasEnded ||
-              !other.isAlive ||
+              (!other.isAlive && this.rules.reveal.onDeath === "role") ||
               other === player ||
               faction?.memberList.includes(other))
               ? other.role.name
@@ -396,9 +489,9 @@ export class Room {
             dayVisitSelf: role.dayVisitSelf,
             dayVisitOthers: role.dayVisitOthers,
             dayVisitFaction: role.dayVisitFaction,
-            nightVisitSelf: role.nightVisitSelf,
-            nightVisitOthers: role.nightVisitOthers,
-            nightVisitFaction: role.nightVisitFaction,
+            nightVisitSelf: role.nightVisitSelf && (role.canSubmitNightAction?.() ?? true),
+            nightVisitOthers: role.nightVisitOthers && (role.canSubmitNightAction?.() ?? true),
+            nightVisitFaction: role.nightVisitFaction && (role.canSubmitNightAction?.() ?? true),
             nightVote: role.nightVote,
           }
         : undefined,
@@ -410,13 +503,21 @@ export class Room {
       timeLeft: Math.max(0, Math.ceil((this.phaseEndsAt - Date.now()) / 1000)),
       canTalk:
         !this.gameHasEnded &&
-        (Boolean(spectator) || !player || !player.isAlive || !role?.silenced),
+        (spectator || (player && !player.isAlive) ? this.rules.communication.observerChat || Boolean(player && this.rules.communication.lastWords && !this.lastWordsSent.has(player.username)) : !role?.silenced),
       canVote:
         !this.gameHasEnded &&
         !this.confesserVotedOut &&
         !spectator &&
         (!player || player.isAlive),
-    });
+    };
+    io.to(socketId).emit(ServerEvent.GameSnapshot, snapshot);
+    this.lobbyBots.onSnapshot(socketId, snapshot);
+  }
+
+  dispose(): void {
+    this.lobbyBots.dispose();
+    this.phaseScheduler.cancelAll();
+    this.finishPhase = undefined;
   }
 
   broadcastSnapshots(): void {
@@ -510,6 +611,9 @@ export class Room {
     this.systems = null;
     this.confesserVotedOut = false;
     this.endDay = DEFAULT_END_DAY_COUNT;
+    this.lastWordsSent.clear();
+    this.messageCounts.clear();
+    this.finishPhase = undefined;
     this.round++;
     this.startedAt = new Date();
     void this.startGame();
@@ -577,9 +681,10 @@ export class Room {
       const player = this.playerList.find((p) => p.user === u);
       return {
         name: u.username,
+        ...(!this.started && u.avatarPreset ? { avatarPreset: u.avatarPreset } : {}),
         isAlive: this.started ? (player?.isAlive ?? false) : undefined,
         role:
-          this.started && player && !player.isAlive
+          this.started && player && !player.isAlive && (this.gameHasEnded || this.rules.reveal.onDeath === "role")
             ? player.role.name
             : undefined,
       };
@@ -598,7 +703,16 @@ export class Room {
       (entry) => entry.socketId === playerSocket.id,
     );
     const eliminated = this.getPlayerFromSocket(playerSocket);
+    if (eliminated && !eliminated.isAlive && this.rules.communication.lastWords && !this.lastWordsSent.has(eliminated.username)) {
+      this.lastWordsSent.add(eliminated.username);
+      io.to(this.name).emit(ServerEvent.ReceiveChatMessage, `${eliminated.username} (last words): ${message}`);
+      this.recordConversation(message, eliminated.username);
+      this.broadcastSnapshots();
+      return;
+    }
     if (observer || (eliminated && !eliminated.isAlive)) {
+      if (!this.rules.communication.observerChat) return;
+      if (!this.acceptMessage(playerSocket.id)) return;
       const username = observer?.username ?? eliminated!.username;
       for (const user of [
         ...this.spectatorList,
@@ -619,6 +733,7 @@ export class Room {
     }
 
     if (this.isActionInWrongPhase(phase)) return;
+    if (!this.acceptMessage(playerSocket.id)) return;
     this.handleGameMessage(playerSocket, message);
   }
 
@@ -672,11 +787,12 @@ export class Room {
       return;
     if (recipient === null) {
       if (
-        foundPlayer.hasVoted ||
+        (foundPlayer.hasVoted && !this.rules.voting.allowRevote) ||
         this.confesserVotedOut ||
         this.time !== GamePhase.Day
       )
         return;
+      this.removePreviousDayVote(foundPlayer);
       foundPlayer.hasVoted = true;
       foundPlayer.voteTarget = null;
       this.selections.set(foundPlayer.username, {
@@ -686,11 +802,12 @@ export class Room {
         outcome: "submitted",
       });
       this.broadcastSnapshots();
+      this.maybeEndPhaseEarly();
       return;
     }
     if (!foundRecipient || !foundRecipient.isAlive) return;
 
-    if (foundPlayer.hasVoted) {
+    if (foundPlayer.hasVoted && !(this.time === GamePhase.Day && this.rules.voting.allowRevote)) {
       io.to(playerSocket.id).emit(ServerEvent.ReceiveMessage, {
         key: MessageKey.CannotChangeVote,
       });
@@ -721,6 +838,7 @@ export class Room {
       });
       this.systems?.roleCommands.runNightVote(foundPlayer, foundRecipient);
       this.sendSnapshot(playerSocket.id);
+      this.maybeEndPhaseEarly();
       return;
     }
 
@@ -743,6 +861,7 @@ export class Room {
       foundPlayer.username,
       foundRecipient.username,
     );
+    this.removePreviousDayVote(foundPlayer);
     foundPlayer.hasVoted = true;
     foundRecipient.votesReceived++;
     foundPlayer.voteTarget = foundRecipient.username;
@@ -776,6 +895,7 @@ export class Room {
       );
     }
     this.broadcastSnapshots();
+    this.maybeEndPhaseEarly();
   }
 
   handleWhisper(
@@ -788,6 +908,7 @@ export class Room {
     if (this.gameHasEnded || !this.started || this.isActionInWrongPhase(phase))
       return;
 
+    if (!this.rules.communication.whispers) return;
     const foundPlayer = this.getPlayerFromSocket(playerSocket);
     const foundRecipient = this.getPlayerAt(recipient);
     if (
@@ -812,6 +933,7 @@ export class Room {
       return;
     }
 
+    if (!this.acceptMessage(playerSocket.id)) return;
     this.recordAction(
       ActionKind.Whisper,
       foundPlayer.username,
@@ -929,6 +1051,7 @@ export class Room {
         visit: null,
       });
       this.actionFeedback(foundPlayer, "Day action cancelled.", "submitted");
+      this.maybeEndPhaseEarly();
       return;
     }
 
@@ -957,6 +1080,7 @@ export class Room {
         : "No day action selected.",
       "submitted",
     );
+    this.maybeEndPhaseEarly();
   }
 
   private handleNightVisit(
@@ -983,6 +1107,7 @@ export class Room {
         visit: null,
       });
       this.actionFeedback(foundPlayer, "Night action cancelled.", "submitted");
+      this.maybeEndPhaseEarly();
       return;
     }
 
@@ -1011,11 +1136,55 @@ export class Room {
         : "No night action selected.",
       "submitted",
     );
+    this.maybeEndPhaseEarly();
   }
 
   async startGame() {
     this.activateEmitter();
     if (this.gameHasEnded) return;
+
+    // Shuffle seats and assign a different name to each participant, including
+    // when the room uses every name and waiting-room handles overlap the pool.
+    const candidates: string[] = [...names];
+    for (let index = candidates.length - 1; index > 0; index--) {
+      const other = privateRandomIndex(index + 1);
+      [candidates[index], candidates[other]] = [candidates[other], candidates[index]];
+    }
+    for (let index = this.userList.length - 1; index > 0; index--) {
+      const other = privateRandomIndex(index + 1);
+      [this.userList[index], this.userList[other]] = [this.userList[other], this.userList[index]];
+    }
+    const owners = Array<number>(candidates.length).fill(-1);
+    const assign = (userIndex: number, seen: Set<number>): boolean => {
+      for (let index = 0; index < candidates.length; index++) {
+        if (seen.has(index) || candidates[index]!.toLowerCase() === this.userList[userIndex]!.username.toLowerCase()) continue;
+        seen.add(index);
+        if (owners[index] === -1 || assign(owners[index]!, seen)) {
+          owners[index] = userIndex;
+          return true;
+        }
+      }
+      return false;
+    };
+    for (let index = 0; index < this.userList.length; index++) {
+      if (!assign(index, new Set())) throw new Error("Unable to assign anonymous names.");
+    }
+    const assigned = owners.flatMap((owner, index) => owner < 0 ? [] : [{ user: this.userList[owner]!, name: candidates[index]! }]);
+    for (const { user, name } of assigned) user.username = name;
+    const occupied = new Set(this.userList.map((user) => user.username.toLowerCase()));
+    for (const spectator of this.spectatorList) {
+      if (occupied.has(spectator.username.toLowerCase())) {
+        let number = 1;
+        while (occupied.has(`spectator ${number}`)) number++;
+        spectator.username = `Spectator ${number}`;
+      }
+      occupied.add(spectator.username.toLowerCase());
+    }
+    this.timeline = [];
+    this.conversationHistory = [];
+    this.actionHistory = [];
+    this.messageCounts.clear();
+    this.selections.clear();
 
     const roleHandler = new RoleHandler(this.userList.length, [], () =>
       this.random(),
@@ -1089,11 +1258,15 @@ export class Room {
   startFirstDaySession(sessionLength: number) {
     this.activateEmitter();
     if (this.gameHasEnded) return;
+    this.phaseScheduler.cancelAll();
+    this.finishPhase = undefined;
     this.phaseVersion++;
     this.time = GamePhase.Day;
     this.dayNumber = 1;
     this.recordTimeline("Day 1 began.");
-    this.phaseEndsAt = Date.now() + DAY_START_DELAY_MS;
+    const duration = this.lobbyConfig?.rules ? this.rules.timing.firstDaySeconds * 1000 : DAY_START_DELAY_MS;
+    this.messageCounts.clear();
+    this.phaseEndsAt = Date.now() + duration;
     this.broadcastSnapshots();
     io.to(this.name).emit(ServerEvent.ReceiveMessage, {
       key: MessageKey.Day1Started,
@@ -1102,9 +1275,9 @@ export class Room {
       phaseVersion: this.phaseVersion,
       time: DayTime.Day,
       dayNumber: 1,
-      timeLeft: DAY_START_TIME_LEFT_SECONDS,
+      timeLeft: duration / 1000,
     });
-    this.phaseScheduler.schedule(DAY_START_DELAY_MS, () => {
+    this.phaseScheduler.schedule(duration, () => {
       this.activateEmitter();
       if (this.gameHasEnded) return;
       for (const player of this.playerList) {
@@ -1120,6 +1293,8 @@ export class Room {
   startDaySession(dayNumber: number, sessionLength: number) {
     this.activateEmitter();
     if (this.gameHasEnded) return;
+    this.phaseScheduler.cancelAll();
+    this.finishPhase = undefined;
     this.phaseVersion++;
     this.time = GamePhase.Day;
     this.dayNumber = dayNumber;
@@ -1131,8 +1306,9 @@ export class Room {
         outcome: previous?.outcome,
       });
     }
-    this.phaseEndsAt =
-      Date.now() + sessionLength + DAY_END_EXTRA_SECONDS * 1000;
+    const duration = this.lobbyConfig?.rules ? this.rules.timing.daySeconds * 1000 : sessionLength + DAY_END_EXTRA_SECONDS * 1000;
+    this.messageCounts.clear();
+    this.phaseEndsAt = Date.now() + duration;
 
     if (this.shouldEndGameForNoDeath(dayNumber)) {
       this.endGameNobodyDied();
@@ -1149,7 +1325,7 @@ export class Room {
       phaseVersion: this.phaseVersion,
       time: DayTime.Day,
       dayNumber,
-      timeLeft: Math.floor(sessionLength / 1000 + DAY_END_EXTRA_SECONDS),
+      timeLeft: Math.floor(duration / 1000),
     });
     io.to(this.name).emit(ServerEvent.ReceiveMessage, {
       key: MessageKey.DayNStarted,
@@ -1158,7 +1334,7 @@ export class Room {
 
     const livingPlayerList = this.getLivingPlayers();
     const votesRequired =
-      Math.floor(livingPlayerList.length / 2) + VOTE_QUORUM_OFFSET;
+      this.rules.voting.method === "plurality" ? 1 : Math.floor(livingPlayerList.length / 2) + VOTE_QUORUM_OFFSET;
 
     io.to(this.name).emit(ServerEvent.ReceiveMessage, {
       key: MessageKey.VotesRequired,
@@ -1166,16 +1342,8 @@ export class Room {
     });
 
     this.broadcastSnapshots();
-    this.phaseScheduler.schedule(
-      sessionLength + DAY_END_EXTRA_SECONDS * 1000,
-      () =>
-        this.processDayEnd(
-          dayNumber,
-          sessionLength,
-          livingPlayerList,
-          votesRequired,
-        ),
-    );
+    this.finishPhase = () => this.processDayEnd(dayNumber, sessionLength, livingPlayerList, votesRequired);
+    this.phaseScheduler.schedule(duration, () => this.completePhase());
   }
 
   private shouldEndGameForNoDeath(dayNumber: number): boolean {
@@ -1242,7 +1410,9 @@ export class Room {
     if (this.confesserVotedOut) {
       return { kind: "no-elimination" };
     }
-    return resolveDayVote(livingPlayerList, votesRequired);
+    const outcome = resolveDayVote(livingPlayerList, votesRequired);
+    if (outcome.kind === "tie" && this.rules.voting.tie === "random") return {kind: "eliminated", player: outcome.candidates[this.randomIndex(outcome.candidates.length)]!, votes: outcome.votes};
+    return outcome;
   }
 
   private applyDayVoteOutcome(
@@ -1265,13 +1435,7 @@ export class Room {
     });
     this.messenger.emitToPlayer(player, ServerEvent.BlockMessages);
     player.isAlive = false;
-    this.recordTimeline(
-      `${player.username} was voted out (${player.role.name}).`,
-    );
-    this.messenger.emitToRoom(ServerEvent.UpdatePlayerRole, {
-      name: player.username,
-      role: player.role.name,
-    });
+    this.announceDeath(player, "was voted out");
   }
 
   private prepareForNight(dayNumber: number): void {
@@ -1292,26 +1456,35 @@ export class Room {
   startNightSession(nightNumber: number, sessionLength: number) {
     this.activateEmitter();
     if (this.gameHasEnded) return;
+    this.phaseScheduler.cancelAll();
+    this.finishPhase = undefined;
     this.phaseVersion++;
     this.time = GamePhase.Night;
     this.dayNumber = nightNumber;
     this.selections.clear();
+    for (const player of this.playerList) {
+      player.hasVoted = false;
+      player.voteTarget = null;
+    }
     this.recordTimeline(`Night ${nightNumber} began.`);
-    this.phaseEndsAt = Date.now() + NIGHT_START_DELAY_MS;
+    const duration = this.lobbyConfig?.rules ? this.rules.timing.nightSeconds * 1000 : NIGHT_START_DELAY_MS;
+    this.messageCounts.clear();
+    this.phaseEndsAt = Date.now() + duration;
     io.to(this.name).emit(ServerEvent.UpdateDayTime, {
       phaseVersion: this.phaseVersion,
       time: DayTime.Night,
       dayNumber: nightNumber,
-      timeLeft: NIGHT_TIME_LEFT_SECONDS,
+      timeLeft: duration / 1000,
     });
 
     this.broadcastSnapshots();
-    this.phaseScheduler.schedule(NIGHT_START_DELAY_MS, () => {
+    this.finishPhase = () => {
       this.activateEmitter();
       if (this.gameHasEnded) return;
       this.processNightActions(nightNumber);
       this.checkForWinningFaction(nightNumber, sessionLength);
-    });
+    };
+    this.phaseScheduler.schedule(duration, () => this.completePhase());
   }
 
   private processNightActions(nightNumber: number): void {

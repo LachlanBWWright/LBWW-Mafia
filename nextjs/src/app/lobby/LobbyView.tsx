@@ -1,5 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createLobbyLink } from "@mernmafia/shared/game/lobbyLinks";
+import { gameThemeColors } from "@mernmafia/shared/game/gameSetupPresentation";
+import { GameSetupSummary } from "./GameSetupSummary";
 import type { LobbyState } from "@mernmafia/shared/game/lobbyState";
 import type { LobbyActions } from "@mernmafia/shared/game/useGameLobby";
 import {
@@ -10,8 +13,10 @@ import { ObserverNotice } from "./ObserverNotice";
 import { PrivateNotesPanel } from "./PrivateNotesPanel";
 import { LobbyGroupPanel } from "~/components/lobby-group";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
+import { ChatComposer } from "./ChatComposer";
 import { PlayerRow } from "./PlayerRow";
+import { LobbyDetails } from "./LobbyDetails";
+import { LobbyInvites } from "./LobbyInvites";
 import { AiCharactersPanel } from "./AiCharactersPanel";
 import {
   ActionPanel,
@@ -24,6 +29,7 @@ import { DayTime } from "@mernmafia/shared/communication/events";
 import {
   canConfigureAiCharacters,
   phaseActionHint,
+  matchActionLabel,
   voteSummary,
 } from "@mernmafia/shared/game/matchExperience";
 import "./match.css";
@@ -36,6 +42,7 @@ export type LobbyViewProps = {
   onSpectate: () => void;
   noteOwnerId?: string;
   spectating?: boolean;
+  reducedMotion?: boolean;
 };
 
 export function LobbyView({
@@ -46,13 +53,14 @@ export function LobbyView({
   onSpectate,
   noteOwnerId,
   spectating = false,
+  reducedMotion = false,
 }: LobbyViewProps) {
   const observer =
     lobby.participation === "spectator" || lobby.participation === "eliminated";
   const alive =
     lobby.players.find((player) => player.name === lobby.playerName)
       ?.isAlive !== false;
-  const votes = voteSummary(lobby.players, lobby.voteVisibility);
+  const votes = voteSummary(lobby.players, lobby.voteVisibility, lobby.setup?.rules.voting.method);
   const actionHint = phaseActionHint({
     time: lobby.time,
     capability: lobby.visitCapability,
@@ -66,11 +74,33 @@ export function LobbyView({
     ended: !!lobby.ended,
     groupAvailable: false,
   };
+  const [shareStatus, setShareStatus] = useState("");
+  const [highlighted, setHighlighted] = useState<string>();
+  const [roleOpen, setRoleOpen] = useState(false);
+  const [roleReturnToChat, setRoleReturnToChat] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [noteTarget, setNoteTarget] = useState<string>();
+  const [noteNames, setNoteNames] = useState<string[]>([]);
+  const playersRef = useRef<HTMLElement>(null);
+  const roleRef = useRef<HTMLDivElement>(null);
+  const notesRef = useRef<HTMLDetailsElement>(null);
   const [tabSelection, setTabSelection] = useState<LobbyTabSelection>();
-  const [muted, setMuted] = useState(false);
   const tab = resolveLobbyTab(tabSelection, tabContext);
   const setTab = (nextTab: "chat" | "players") =>
     setTabSelection({ ...tabContext, tab: nextTab });
+  const showPlayer = (name: string) => {
+    const index = lobby.players.findIndex((player) => player.name === name);
+    if (index < 0) return;
+    setHighlighted(name);
+    setTab("players");
+    requestAnimationFrame(() => playersRef.current?.querySelector(`[data-player-index="${index}"]`)?.scrollIntoView({ block: "nearest" }));
+  };
+  const showNotes = (name: string) => {
+    setNoteTarget(name);
+    setNotesOpen(true);
+    setTab("players");
+    requestAnimationFrame(() => notesRef.current?.scrollIntoView({ block: "nearest" }));
+  };
   if (!lobby.playerName)
     return (
       <main className="mx-auto max-w-lg px-4 py-16 text-center">
@@ -96,9 +126,18 @@ export function LobbyView({
       </main>
     );
   return (
-    <main className="bg-background flex h-[calc(100dvh-3.5rem-1px)] w-full min-w-0 flex-col overflow-hidden">
+    <main
+      data-game-theme={lobby.setup?.rules.presentation.theme}
+      data-reduced-motion={reducedMotion ? "true" : undefined}
+      style={{
+        backgroundColor: gameThemeColors(lobby.setup?.rules.presentation.theme)
+          ?.background,
+      }}
+      className="bg-background text-foreground flex h-[calc(100dvh-3.5rem-1px)] w-full min-w-0 flex-col overflow-hidden"
+    >
       <div className="shrink-0 px-4 sm:px-6">
-        <PhaseHeader lobby={lobby} practice={practice} />
+        <PhaseHeader lobby={lobby} practice={practice} onRolePress={() => { setRoleReturnToChat(tab === "chat"); setRoleOpen(true); setTab("players"); requestAnimationFrame(() => roleRef.current?.scrollIntoView({ block: "nearest" })); }} />
+        <GameSetupSummary setup={lobby.setup} started={lobby.started} />
       </div>
       <div className="flex shrink-0 gap-2 border-b px-4 py-2 lg:hidden">
         <Button
@@ -126,30 +165,17 @@ export function LobbyView({
           aria-label="Room chat"
           className={`${tab !== "chat" ? "hidden lg:flex" : "flex"} min-h-0 min-w-0 flex-col`}
         >
-          <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2 sm:px-6">
-            <h2 className="text-sm font-semibold">
-              {observer ? "Spectator chat" : "Room chat"}
-            </h2>
-            <div className="flex items-center gap-1">
+          {!lobby.started || practice ? (
+            <div className="flex justify-end px-4 pt-2 sm:px-6">
               <Button
-                variant="ghost"
                 size="sm"
-                aria-pressed={muted}
-                onClick={() => setMuted(!muted)}
+                variant="ghost"
+                onClick={() => onPracticeChange(!practice)}
               >
-                {muted ? "Unmute bots" : "Mute bots"}
+                {practice ? "Return to lobby" : "Practice match"}
               </Button>
-              {!lobby.started || practice ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onPracticeChange(!practice)}
-                >
-                  {practice ? "Return to lobby" : "Practice match"}
-                </Button>
-              ) : null}
             </div>
-          </header>
+          ) : null}
           <ObserverNotice lobby={lobby} />
           {!lobby.connected ? (
             <p
@@ -165,6 +191,7 @@ export function LobbyView({
               className="flex items-center justify-between gap-3 border-b py-2 text-sm"
             >
               <p>{lobby.recoveryNotice}</p>
+              <Button size="sm" variant="ghost" onClick={() => { setTab("chat"); requestAnimationFrame(() => { const log = document.querySelector('[role="log"][aria-label="Game chat"]'); if (log) log.scrollTop = log.scrollHeight; }); }}>View recent messages</Button>
               <Button size="sm" variant="ghost" onClick={lobby.dismissRecovery}>
                 Dismiss
               </Button>
@@ -172,53 +199,64 @@ export function LobbyView({
           ) : null}
 
           <div className="flex min-h-0 flex-1 flex-col px-4 sm:px-6">
-            <ChatLog messages={lobby.messages} muted={muted} />
-          </div>
-          <div className="flex shrink-0 gap-3 border-t px-4 py-4 sm:px-6">
-            <Input
-              className="h-11 min-w-0 flex-1"
-              aria-label="Message"
-              maxLength={150}
-              placeholder={
-                lobby.canTalk
-                  ? observer
-                    ? "Message spectators…"
-                    : "Message the room…"
-                  : "Chat unavailable this phase"
+            <ChatLog
+              key={`${lobby.matchId}:${!!lobby.started}`}
+              messages={lobby.messages}
+              playerNames={lobby.players.map((player) => player.name)}
+              onPlayerSelect={showPlayer}
+              anonymous={!!lobby.started}
+              muted={false}
+              compact={
+                lobby.setup?.rules.presentation.announcementStyle === "concise"
               }
-              value={lobby.messageDraft}
-              onChange={(e) => lobby.setMessageDraft(e.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.nativeEvent.isComposing)
-                  lobby.sendMessage();
-              }}
-              disabled={!lobby.canTalk || !lobby.connected}
             />
-            <Button
-              className="h-11 px-5"
-              onClick={lobby.sendMessage}
-              disabled={
-                !lobby.connected || !lobby.canTalk || !lobby.messageDraft.trim()
-              }
-            >
-              Send
-            </Button>
           </div>
+          <ChatComposer value={lobby.messageDraft} onChange={lobby.setMessageDraft} onSend={lobby.sendMessage} players={lobby.players} ownRole={lobby.currentUserRole} disabled={!lobby.canTalk || !lobby.connected} placeholder={lobby.canTalk ? observer ? "Message spectators…" : "Message the room…" : "Chat unavailable this phase"} />
         </section>
         <aside
+          ref={playersRef}
           aria-label="Players and game controls"
           className={`${tab !== "players" ? "hidden lg:flex" : "flex"} bg-card/40 min-h-0 min-w-0 flex-col lg:border-s`}
         >
-          <div className="flex min-h-14 shrink-0 items-center justify-between gap-2 border-b px-4">
+          <div className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
             <div>
               <h2 className="font-semibold">
-                Players ({lobby.players.length})
+                Players ({lobby.players.length}
+                {!lobby.started && lobby.capacity != null
+                  ? `/${lobby.capacity}`
+                  : ""}
+                )
               </h2>
             </div>
+            {!practice && !lobby.started ? (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  void navigator.clipboard
+                    .writeText(createLobbyLink(window.location.origin, roomId))
+                    .then(() => setShareStatus("Lobby link copied."))
+                    .catch(() => setShareStatus("Unable to copy lobby link."));
+                }}
+              >
+                Share lobby
+              </Button>
+            ) : null}
             {canConfigureAiCharacters(lobby, practice) ? (
               <AiCharactersPanel roomId={roomId} />
             ) : null}
           </div>
+          {!practice && !lobby.started ? (
+            <LobbyDetails roomId={roomId} />
+          ) : null}
+          {!practice && !lobby.started && noteOwnerId ? (
+            <LobbyInvites roomId={roomId} />
+          ) : null}
+          {shareStatus ? (
+            <p role="status" className="px-4 py-1 text-sm">
+              {shareStatus}
+            </p>
+          ) : null}
           {!observer && lobby.started ? (
             <div className="shrink-0 px-4">
               <ActionPanel
@@ -230,18 +268,23 @@ export function LobbyView({
               />
             </div>
           ) : null}
-          <div className="themed-scrollbar min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <div className="[scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] min-h-0 flex-1 overflow-y-auto px-4 pb-4">
             <MatchRecapPanel lobby={lobby} onReady={lobby.readyForRematch} />
             {lobby.time === DayTime.Day && lobby.started && !lobby.ended ? (
               <p className="text-muted-foreground py-3 text-xs">
                 {votes
-                  ? `${votes.required} votes to eliminate`
+                  ? votes.required ? `${votes.required} votes to eliminate` : "Plurality vote"
                   : "Votes hidden"}
               </p>
             ) : null}
             <div>
               {lobby.players.map((player, index) => (
                 <PlayerRow
+                  started={lobby.started}
+                  highlighted={highlighted === player.name}
+                  hasNote={noteNames.includes(player.name)}
+                  onNotes={showNotes}
+                  votesRequired={votes?.required}
                   key={player.name}
                   player={player}
                   index={index}
@@ -255,7 +298,9 @@ export function LobbyView({
                     !!lobby.started &&
                     !lobby.ended &&
                     lobby.canVote &&
-                    lobby.action.vote === undefined
+                    (lobby.action.vote === undefined ||
+                      (lobby.time === DayTime.Day &&
+                        !!lobby.setup?.rules.voting.allowRevote))
                   }
                   canAct={
                     lobby.connected &&
@@ -272,6 +317,7 @@ export function LobbyView({
                   }
                   recentSpeaker={lobby.messages.at(-1)?.sender === player.name}
                   messageDraft={lobby.messageDraft}
+                  whispersEnabled={lobby.setup?.rules.communication.whispers}
                   onVote={lobby.voteForPlayer}
                   onVisit={lobby.visitPlayer}
                   onWhisper={lobby.whisperToPlayer}
@@ -279,17 +325,21 @@ export function LobbyView({
               ))}
             </div>
 
-            <RoleReference
+            <div ref={roleRef}><RoleReference
               name={lobby.currentUserRole}
               capability={lobby.visitCapability}
-            />
+              customRoles={lobby.setup?.customRoles}
+              open={roleOpen}
+              onToggle={setRoleOpen}
+            />{roleOpen && roleReturnToChat ? <Button className="lg:hidden" variant="ghost" size="sm" onClick={() => { setRoleOpen(false); setRoleReturnToChat(false); setTab("chat"); }}>Back to chat</Button> : null}</div>
 
-            <details className="border-b py-3">
+            <details ref={notesRef} open={notesOpen} onToggle={(event) => setNotesOpen(event.currentTarget.open)} className="border-b py-3">
               <summary className="cursor-pointer text-sm font-semibold">
                 Private notes
               </summary>
               <div className="pt-3">
-                <PrivateNotesPanel lobby={lobby} ownerId={noteOwnerId} />
+                {noteTarget ? <Button size="sm" variant="ghost" onClick={() => setNoteTarget(undefined)}>Show all players</Button> : null}
+                <PrivateNotesPanel lobby={lobby} ownerId={noteOwnerId} focusPlayer={noteTarget} onBoardChange={setNoteNames} />
               </div>
             </details>
             {!practice && noteOwnerId ? (
@@ -311,7 +361,7 @@ export function LobbyView({
           </div>
         </aside>
       </div>
-      <div className="flex items-center justify-between gap-3 border-t px-4 py-2 text-sm lg:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-2 text-sm lg:hidden">
         <p role="status" className="min-w-0">
           {observer
             ? "Spectator chat"
@@ -320,8 +370,8 @@ export function LobbyView({
               : (lobby.action.feedback ?? actionHint)}
         </p>
         {tab === "chat" && lobby.started && !lobby.ended && !observer ? (
-          <Button size="sm" variant="outline" onClick={() => setTab("players")}>
-            Your action
+          <Button size="sm" variant="outline" onClick={() => { const target = lobby.action.visit ?? lobby.action.vote; if (target) showPlayer(target); else setTab("players"); }}>
+            {matchActionLabel(lobby)}
           </Button>
         ) : null}
       </div>

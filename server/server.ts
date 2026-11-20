@@ -3,12 +3,14 @@ import { createSocketIoServer, addSocketListeners } from "./servers/socket";
 import { setGameEmitter } from "./servers/emitter";
 import { createSupabaseRealtimeServer } from "./servers/supabase/supabaseServer";
 import { httpServer } from "./servers/httpServer";
+import { MAX_PLAYERS } from "@mernmafia/shared/game/gameNames";
 
 /**
  * Server entry point. Initializes Socket.IO backend and starts HTTP server.
  * Sets up game event listeners and message handlers.
  */
-const DEFAULT_ROOM_SIZE = parseInt(process.env.ROOM_SIZE || "13", 10);
+const configuredRoomSize = Number(process.env.ROOM_SIZE || "13");
+const DEFAULT_ROOM_SIZE = Number.isInteger(configuredRoomSize) && configuredRoomSize >= 2 && configuredRoomSize <= MAX_PLAYERS ? configuredRoomSize : 13;
 const DEFAULT_HTTP_PORT = 8000;
 const SOCKET_BACKEND =
   process.env.SOCKET_BACKEND?.toLowerCase() === "supabase"

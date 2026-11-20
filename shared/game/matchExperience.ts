@@ -1,5 +1,7 @@
 import { DayTime, type PlayerList } from "../communication/events";
+import type { MessageKey } from "../communication/messages";
 import { allRoles } from "./rolesList";
+import { describeCustomRole, type CustomRole } from "./customRoles";
 import {
   shouldShowVisitAction,
   type VisitCapability,
@@ -41,12 +43,17 @@ export type LobbyMessage = {
   kind?: "chat" | "whisper" | "system" | "role" | "spectator";
   sender?: string;
   isBot?: boolean;
+  messageKey?: MessageKey;
 };
-export function roleReference(name?: string) {
+export function roleReference(name?: string, customRoles: readonly CustomRole[] = []) {
   const role = allRoles.find(
     (entry) => entry.name.toLowerCase() === name?.toLowerCase(),
   );
-  if (!role) return undefined;
+  if (!role) {
+    const custom = customRoles.find((entry) => entry.name.toLowerCase() === name?.toLowerCase());
+    if (!custom) return undefined;
+    return { name: custom.name, objective: custom.alignment === "town" ? "Help Town eliminate Mafia and other hostile factions." : "Help Mafia eliminate Town and other hostile factions.", description: [custom.description, describeCustomRole(custom)].filter(Boolean).join(" ") };
+  }
   const objective =
     role.faction === "town"
       ? "Help Town eliminate Mafia and other hostile factions."
@@ -58,6 +65,7 @@ export function roleReference(name?: string) {
 export function voteSummary(
   players: PlayerList[],
   visibility?: "public" | "hidden",
+  method: "majority" | "plurality" = "majority",
 ) {
   if (visibility === "hidden") return undefined;
   const living = players.filter((player) => player.isAlive !== false);
@@ -66,7 +74,7 @@ export function voteSummary(
     ...living.map((player) => player.votesReceived ?? 0),
   );
   return {
-    required: Math.floor(living.length / 2) + 1,
+    required: method === "majority" ? Math.floor(living.length / 2) + 1 : undefined,
     leaders: highest
       ? living
           .filter((player) => player.votesReceived === highest)
@@ -159,4 +167,21 @@ export function canConfigureAiCharacters(
     lobby.participation !== "spectator" &&
     lobby.participation !== "eliminated"
   );
+}
+
+/** Name the decision behind the compact action shortcut on both clients. */
+export function matchActionLabel(lobby: {
+  time: DayTime;
+  canVote: boolean;
+  currentUserRole?: string;
+  visitCapability: VisitCapability;
+  action: ActionSelection;
+}) {
+  if (lobby.action.visit) return "View action";
+  if (lobby.canVote && (lobby.time === DayTime.Day || lobby.visitCapability.nightVote)) {
+    return lobby.action.vote !== undefined ? "View vote" : "Choose a vote";
+  }
+  if (!shouldShowVisitAction(lobby.time, lobby.visitCapability)) return "View players";
+  if (lobby.time === DayTime.Night && lobby.currentUserRole === "Doctor") return "Choose who to protect";
+  return "Choose a target";
 }

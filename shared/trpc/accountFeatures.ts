@@ -101,8 +101,11 @@ export type AccountFeatureServices = {
     userId: string,
     input: FeaturePreferences,
   ): Promise<FeaturePreferences>;
-  hostedLobbies(userId: string): Promise<{ roomId: string; createdAt: Date }[]>;
+  hostedLobbies(
+    userId: string,
+  ): Promise<{ roomId: string; createdAt: Date; name?: string }[]>;
   invitations(userId: string): Promise<LobbyInvitation[]>;
+  sentInvitations(userId: string, roomId: string): Promise<LobbyInvitation[]>;
   invite(
     userId: string,
     input: { recipientId: string; roomId: string },

@@ -65,6 +65,7 @@ export function createDesktopController({
           return {};
         case "retry":
           runtime.retryUsage();
+          runner.retry?.();
           return {};
         case "disconnect":
           stop();

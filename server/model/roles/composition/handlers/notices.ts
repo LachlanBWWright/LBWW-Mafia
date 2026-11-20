@@ -37,7 +37,7 @@ function emitToPlayer(
  */
 export function dispatchNotice(role: GameRole, notice: GameNotice): void {
   if (notice.target === "actor") {
-    emitToPlayer(role.player, notice.event, notice.message);
+    role.room.messenger.emitToPlayer(role.player, notice.event, notice.message);
     if (
       notice.event === ServerEvent.ReceiveMessage &&
       typeof notice.message !== "string" &&

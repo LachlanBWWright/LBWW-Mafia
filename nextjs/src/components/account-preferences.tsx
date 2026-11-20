@@ -5,15 +5,12 @@ import superjson from "superjson";
 import type { AppRouter } from "@mernmafia/shared/trpc/appRouter";
 import {
   avatarPresets,
-  avatarOptions,
   type FeaturePreferences,
 } from "@mernmafia/shared/trpc/accountFeatures";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-const avatarEmoji: Record<string, string> = Object.fromEntries(
-  avatarOptions.map((option) => [option.id, option.symbol]),
-);
+import { PlayerAvatar } from "./player-avatar";
 export function AccountPreferences({
   initialPreferences,
   initialBlocked = [],
@@ -100,7 +97,7 @@ export function AccountPreferences({
               disabled={busy}
               onClick={() => update("avatarPreset", id)}
             >
-              <span aria-hidden>{avatarEmoji[id]}</span>{" "}
+              <PlayerAvatar name={id} preset={id} />
               {id[0]!.toUpperCase() + id.slice(1)}
             </Button>
           ))}

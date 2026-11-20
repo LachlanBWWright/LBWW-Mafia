@@ -1,13 +1,10 @@
-import { avatarOptions } from "../../shared/trpc/accountFeatures";
+import { PlayerAvatar } from "./PlayerAvatar";
 import React, { useEffect, useState } from "react";
 import { Image, Text, View } from "react-native";
 import type { PlayerStats, AccountProfile } from "../../shared/trpc/appRouter";
 import type { PlayerAchievement } from "../../shared/trpc/accountFeatures";
 import { trpcClient } from "../lib/trpc";
 import { SectionHeader } from "./ui";
-const emoji: Record<string, string> = Object.fromEntries(
-  avatarOptions.map((option) => [option.id, option.symbol]),
-);
 export function PlayerInsights({
   initialStats,
   initialAchievements,
@@ -54,12 +51,7 @@ export function PlayerInsights({
       {profile ? (
         <View className="flex-row items-center gap-3">
           {profile.avatarPreset ? (
-            <Text
-              accessibilityLabel={`${profile.avatarPreset} avatar`}
-              className="text-4xl"
-            >
-              {emoji[profile.avatarPreset]}
-            </Text>
+            <PlayerAvatar name={profile.name ?? "Player"} preset={profile.avatarPreset} />
           ) : profile.image ? (
             <Image
               source={{ uri: profile.image }}

@@ -12,6 +12,7 @@ export async function getActiveIdentity(
       id: users.id,
       name: users.name,
       handle: users.handle,
+      avatarPreset: users.avatarPreset,
       isAdmin: users.isAdmin,
     })
     .from(users)
@@ -34,6 +35,7 @@ export async function getActiveIdentity(
     id: user.id,
     name: user.name,
     handle: user.handle,
+    avatarPreset: user.avatarPreset,
     isAdmin: user.isAdmin || roles.includes("administrator"),
     roles: roles.length ? roles : [user.isAdmin ? "administrator" : "player"],
   };

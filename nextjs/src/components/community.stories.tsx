@@ -9,7 +9,7 @@ const meta = {
   title: "Features/Community",
   component: CommunityView,
   args: {
-    query: "",
+    query: "mira",
     onQueryChange: fn(),
     onSearch: fn(),
     onAction,

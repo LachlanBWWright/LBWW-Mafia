@@ -22,26 +22,7 @@ export function AiCharactersPanel(props: {
     () => Boolean(window.mafiaDesktop),
     () => false,
   );
-  if (!native && !props.connectionClient)
-    return (
-      <div className="max-w-sm space-y-1">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled
-          aria-describedby="chatgpt-browser-unavailable"
-        >
-          <Plus aria-hidden /> Add AI characters
-        </Button>
-        <p
-          id="chatgpt-browser-unavailable"
-          className="text-muted-foreground text-xs"
-        >
-          ChatGPT AI characters are available in the desktop and mobile apps.
-          Browser sign-in is not supported yet.
-        </p>
-      </div>
-    );
+  if (!native && !props.connectionClient) return null;
   return <NativeAiCharactersPanel {...props} />;
 }
 

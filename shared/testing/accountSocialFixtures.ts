@@ -34,7 +34,7 @@ export const invitationFixtures: LobbyInvitation[] = [
     roomId: "friday-mafia",
     status: "pending",
     createdAt: new Date("2026-10-07T09:00:00Z"),
-    expiresAt: new Date("2026-10-07T09:30:00Z"),
+    expiresAt: new Date("2099-10-07T09:30:00Z"),
   },
 ];
 export const reportFixtures: PlayerReport[] = [

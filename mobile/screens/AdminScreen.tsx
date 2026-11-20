@@ -1,3 +1,4 @@
+import { AdminGames } from "../components/AdminGames";
 import { PlayerReports } from "../components/PlayerReports";
 import React, { useState } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -128,12 +129,7 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
 
   if (!isAdmin) {
     return (
-      <Screen
-        navigation={navigation}
-        activeRoute="Admin"
-        title="Admin"
-        subtitle="User search and admin toggles are available only to authorized users."
-      >
+      <Screen navigation={navigation} activeRoute="Admin" title="Admin">
         <EmptyState
           title="You are not authorized."
           description="Sign in with an administrator account to manage users."
@@ -143,13 +139,9 @@ export function AdminScreen({ navigation }: AdminScreenProps) {
   }
 
   return (
-    <Screen
-      navigation={navigation}
-      activeRoute="Admin"
-      title="Admin"
-      subtitle="User search and admin toggles are available only to authorized users."
-    >
+    <Screen navigation={navigation} activeRoute="Admin" title="Admin">
       <View className="gap-4">
+        <AdminGames />
         <SearchCard
           query={query}
           setQuery={setQuery}

@@ -13,6 +13,7 @@ import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { createProtectedStore } from "./protectedStore.mjs";
+import { createChatGPTRuntime } from "../tools/ai-bots/chatgpt/runtime.mjs";
 
 async function fixture(t) {
   const { rm } = await import("node:fs/promises");
@@ -47,6 +48,48 @@ const grant = {
   accessToken: "private-access",
   refreshToken: "private-refresh",
 };
+
+test("restarting the encrypted-store runtime saves and reuses replacement refresh tokens", async (t) => {
+  const f = await fixture(t);
+  await f.store.save({
+    ...grant,
+    expiresAt: 1,
+    scopes: ["resource.invoke", "chatgpt.tokens.use.direct"],
+  });
+  const hostId = await f.store.hostId();
+  let now = 1_000_000;
+  const refreshTokens = [];
+  const request = async (url, init) => {
+    if (url.endsWith("/oauth/token")) {
+      refreshTokens.push(init.body.get("refresh_token"));
+      assert.equal(init.body.get("client_id"), grant.clientId);
+      return Response.json({
+        access_token: "replacement-access",
+        refresh_token: `replacement-${refreshTokens.length}`,
+        token_type: "Bearer",
+        expires_in: 3600,
+      });
+    }
+    return Response.json({ models: [] });
+  };
+  for (let restart = 0; restart < 2; restart += 1) {
+    const store = createProtectedStore(f.directory, f.encryption);
+    const runtime = createChatGPTRuntime({ store, request, now: () => now });
+    try {
+      assert.equal((await runtime.connection()).connected, true);
+      assert.equal(await store.hostId(), hostId);
+      await runtime.models();
+      assert.equal(
+        (await store.load()).refreshToken,
+        `replacement-${restart + 1}`,
+      );
+    } finally {
+      runtime.close();
+    }
+    now += 3_600_000;
+  }
+  assert.deepEqual(refreshTokens, ["private-refresh", "replacement-1"]);
+});
 
 test("missing credentials remain disconnected even with a locked keychain", async (t) => {
   const f = await fixture(t);

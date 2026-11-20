@@ -5,7 +5,8 @@ import { roleSections } from "@mernmafia/shared/game/rolesList";
 import { RoleFaction } from "@mernmafia/shared/game/rolesTypes";
 import type { RoleCatalogEntry } from "@mernmafia/shared/game/rolesTypes";
 import { StackParamList } from "../App";
-import { Card, Screen } from "../components/ui";
+import { Screen } from "../components/ui";
+import { RoleIcon } from "../components/RoleIcon";
 
 type RolesScreenProps = NativeStackScreenProps<StackParamList, "Roles">;
 
@@ -23,23 +24,26 @@ function RoleSection({
       <Text className="text-[22px] font-extrabold text-foreground">
         <Text className={accentClassName}>{title}</Text> Roles
       </Text>
-      <View className="gap-3">
+      <View className="border-t border-border">
         {roles.map((role) => (
-          <Card key={role.name}>
+          <View key={role.name} className="border-b border-border py-3">
             <View className="gap-1.5">
-              <View className="gap-1">
+              <View className="flex-row items-center gap-2">
+                <RoleIcon role={role.name} />
+                <View className="gap-1">
                 <Text className="text-base font-extrabold text-foreground">
                   {role.name}
                 </Text>
-                <Text className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Text className="text-xs text-muted-foreground">
                   {role.category}
                 </Text>
+                </View>
               </View>
               <Text className="text-sm leading-[19px] text-muted-foreground">
                 {role.summary}
               </Text>
             </View>
-          </Card>
+          </View>
         ))}
       </View>
     </View>
@@ -58,7 +62,6 @@ export function RolesScreen({ navigation }: RolesScreenProps) {
       navigation={navigation}
       activeRoute="Roles"
       title="Game Roles"
-      subtitle="Learn each role's abilities, faction, and place in the game."
     >
       <View className="gap-5">
         {roleSections.map((section) => (

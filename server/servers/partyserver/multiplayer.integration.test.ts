@@ -185,7 +185,7 @@ describe("PartyServer multiplayer integration", () => {
           phase,
         ]);
         await sendEvent(playerIndex, ClientEvent.HandleVote, [
-          phase === DayTime.Night ? playerIndex : targetIndex(),
+          phase === DayTime.Night ? null : targetIndex(),
           phase,
         ]);
         await sendEvent(playerIndex, ClientEvent.HandleVisit, [

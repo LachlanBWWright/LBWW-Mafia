@@ -1,5 +1,6 @@
 import { roleFactionsByName } from "./rolesList";
 import { RoleFaction } from "./rolesTypes";
+import type { LobbyState } from "./lobbyState";
 
 /** Enum representing the two game phases as seen by clients (capitalized, used in wire protocol). */
 export enum DayTime {
@@ -119,6 +120,21 @@ export const shouldShowVisitAction = (
  * @returns True if the phase is Day
  */
 export const shouldShowDayOnlyActions = (time: DayTime) => time === DayTime.Day;
+
+/** Whether an abstention would change the player's current daytime vote. */
+export function canAbstain(lobby: LobbyState): boolean {
+  return (
+    lobby.participation !== "spectator" &&
+    lobby.participation !== "eliminated" &&
+    !!lobby.started &&
+    !lobby.ended &&
+    lobby.time === DayTime.Day &&
+    lobby.canVote &&
+    lobby.players.find((player) => player.name === lobby.playerName)?.isAlive !== false &&
+    (lobby.action.vote === undefined ||
+      (lobby.action.vote !== null && !!lobby.setup?.rules.voting.allowRevote))
+  );
+}
 
 /**
  * Determines if a player can vote for the elimination of a target.

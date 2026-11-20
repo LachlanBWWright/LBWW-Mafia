@@ -1,7 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-test.describe.configure({ mode: "serial" });
-
 async function openWindows(
   context: BrowserContext,
   count = 3,
@@ -37,19 +35,14 @@ function aliveRows(page: Page) {
   return page.locator('[aria-label$="is alive"]');
 }
 
-function enabledAction(page: Page, name: string) {
-  return page.locator(`button[aria-label^="${name}"]:not([disabled])`).first();
-}
-
 async function selectMatchTab(page: Page, name: "Chat" | "Players") {
   const tab = page.getByRole("button", { name, exact: true });
   if (await tab.isVisible()) await tab.click();
 }
 
 test("three browser windows join one real room and synchronize live chat", async ({
-  browser,
+  context,
 }) => {
-  const context = await browser.newContext();
   const pages = await openWindows(context);
 
   try {
@@ -74,9 +67,8 @@ test("three browser windows join one real room and synchronize live chat", async
 });
 
 test("two windows exchange a targeted whisper and can complete a tied vote", async ({
-  browser,
+  context,
 }) => {
-  const context = await browser.newContext();
   const pages = await openWindows(context);
 
   try {
@@ -87,9 +79,12 @@ test("two windows exchange a targeted whisper and can complete a tied vote", asy
     if (!firstPage || !secondPage || !thirdPage) {
       throw new Error("expected three browser windows");
     }
+    const playerNames = await Promise.all(pages.map(async (page) =>
+      (await page.getByLabel("Your player name").innerText()).split("·")[0]!.trim(),
+    ));
     await firstPage.getByLabel("Message", { exact: true }).fill(draft);
     await selectMatchTab(firstPage, "Players");
-    await enabledAction(firstPage, "Whisper to ").click();
+    await firstPage.getByRole("button", { name: `Whisper to ${playerNames[1]}`, exact: true }).click();
     await selectMatchTab(firstPage, "Chat");
 
     await expect(firstPage.getByText(new RegExp(draft))).toBeVisible();
@@ -115,16 +110,12 @@ test("two windows exchange a targeted whisper and can complete a tied vote", asy
 
     // Each voter selects a different target. The real room should advance to
     // Night without eliminating anyone because the vote is tied.
-    const voteTargets = [1, 2, 0];
     await Promise.all(
       pages.map(async (page, voter) => {
-        const target = voteTargets[voter];
+        const target = playerNames[(voter + 1) % playerNames.length];
         if (target === undefined) throw new Error("missing vote target");
         await selectMatchTab(page, "Players");
-        await aliveRows(page)
-          .nth(target)
-          .getByRole("button", { name: /^Vote for / })
-          .click();
+        await page.getByRole("button", { name: `Vote for ${target}`, exact: true }).click();
         await selectMatchTab(page, "Chat");
       }),
     );
@@ -149,10 +140,9 @@ test("two windows exchange a targeted whisper and can complete a tied vote", asy
 });
 
 test("a disconnected browser window is reflected in the remaining windows", async ({
-  browser,
+  context,
 }) => {
   test.setTimeout(45_000);
-  const context = await browser.newContext();
   const pages = await openWindows(context, 2);
 
   try {
@@ -171,9 +161,8 @@ test("a disconnected browser window is reflected in the remaining windows", asyn
 });
 
 test("a browser can reload and reconnect to the same live room", async ({
-  browser,
+  context,
 }) => {
-  const context = await browser.newContext();
   const pages = await openWindows(context, 2);
 
   try {

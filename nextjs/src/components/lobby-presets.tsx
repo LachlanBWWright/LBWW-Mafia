@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
+import { isUnauthorizedPresetError } from "./game-customization/form-helpers";
 import superjson from "superjson";
 import type { AppRouter } from "@mernmafia/shared/trpc/appRouter";
 import type { LobbyPreset } from "@mernmafia/shared/trpc/accountFeatures";
@@ -26,6 +27,7 @@ export function LobbyPresets({
     [name, setName] = useState(""),
     [status, setStatus] = useState(""),
     [busy, setBusy] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
   useEffect(() => {
     if (initialPresets) return;
     let active = true;
@@ -34,8 +36,11 @@ export function LobbyPresets({
       .then((p) => {
         if (active) setPresets(p);
       })
-      .catch(() => {
-        if (active) setStatus("Unable to load saved presets.");
+      .catch((error: unknown) => {
+        if (!active) return;
+        if (isUnauthorizedPresetError(error)) {
+          setSignInRequired(true);
+        } else setStatus("Unable to load saved presets.");
       });
     return () => {
       active = false;
@@ -59,6 +64,16 @@ export function LobbyPresets({
       aria-label="Saved lobby presets"
     >
       <h2 className="font-semibold">Saved presets</h2>
+      {signInRequired ? (
+        <p className="text-sm">
+          <a
+            className="underline underline-offset-4"
+            href="/signin?callbackUrl=%2Flobby%2Fcreate"
+          >
+            Sign in to save and load presets
+          </a>
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-end gap-2">
         <div className="grid gap-2">
           <Label htmlFor="preset-name">Preset name</Label>
@@ -72,7 +87,7 @@ export function LobbyPresets({
         </div>
         <Button
           variant="outline"
-          disabled={busy || !name.trim()}
+          disabled={busy || signInRequired || !name.trim()}
           onClick={() =>
             void run(async () => {
               const preset = await client.features.savePreset.mutate({

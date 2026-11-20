@@ -8,17 +8,19 @@ export function LobbyPresets({
   getConfig,
   onApply,
   initialPresets,
+  signedIn = true,
 }: {
   getConfig: () => LobbyConfig;
   onApply: (config: LobbyConfig) => void;
   initialPresets?: LobbyPreset[];
+  signedIn?: boolean;
 }) {
   const [presets, setPresets] = useState(initialPresets ?? []),
     [name, setName] = useState(""),
     [status, setStatus] = useState(""),
     [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (initialPresets) return;
+    if (initialPresets || !signedIn) return;
     let active = true;
     void trpcClient.features.presets
       .query()
@@ -31,7 +33,7 @@ export function LobbyPresets({
     return () => {
       active = false;
     };
-  }, [initialPresets]);
+  }, [initialPresets, signedIn]);
   async function run(action: () => Promise<void>) {
     if (busy) return;
     setBusy(true);
@@ -44,6 +46,7 @@ export function LobbyPresets({
       setBusy(false);
     }
   }
+  if (!signedIn) return <Text className="text-muted-foreground">Sign in to save and load presets.</Text>;
   return (
     <View className="gap-3 border-b border-border pb-5">
       <SectionHeader title="Saved presets" />

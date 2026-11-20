@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { getVisibleNavigationItems, navigationItems } from "./navigation";
+import { getVisibleNavigationItems, getNavigationGroups, navigationItems } from "./navigation";
 
 describe("web and mobile navigation contract", () => {
+  it("keeps every permitted destination in exactly one navigation group", () => {
+    for (const [authenticated, admin] of [[false, false], [true, false], [true, true]]) {
+      const groups = getNavigationGroups(authenticated!, admin!);
+      expect(groups.primary.map((item) => item.key)).toEqual(authenticated ? ["Home", "Community", "Messages"] : ["Home"]);
+      expect([...groups.primary, ...groups.secondary].map((item) => item.key).sort()).toEqual(getVisibleNavigationItems(authenticated!, admin!).map((item) => item.key).sort());
+    }
+  });
   it("has unique destinations and stable labels", () => {
     const keys = navigationItems.map((item) => item.key);
     const paths = navigationItems.map((item) => item.path);
@@ -19,6 +26,7 @@ describe("web and mobile navigation contract", () => {
         .map((item) => item.key),
     ).toEqual([
       "CreateLobby",
+      "Campaigns",
       "Community",
       "Notifications",
       "Messages",
@@ -42,20 +50,23 @@ describe("web and mobile navigation contract", () => {
     expect(keysFor(false, false)).toEqual([
       "Home",
       "Lobby",
+      "PublicLobbies",
       "Roles",
       "History",
-      "About",
+      "Sandbox",
     ]);
     expect(keysFor(true, false)).toEqual([
       "Home",
       "Lobby",
+      "PublicLobbies",
       "CreateLobby",
       "Roles",
       "History",
+      "Campaigns",
+      "Sandbox",
       "Community",
       "Notifications",
       "Messages",
-      "About",
       "Profile",
       "Settings",
     ]);

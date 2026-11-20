@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
-import { CheckCircle2, MessageSquare } from "lucide-react-native";
+import { visitActionIcon } from "../../shared/game/actionIcon";
+import { ActionIcon } from "./ActionIcon";
 import {
   canPerformVisit,
   canVoteTarget,
@@ -11,15 +12,24 @@ import { voteSummary } from "../../shared/game/matchExperience";
 import type { PlayerList } from "../../shared/communication/events";
 import type { LobbyState, LobbyActions } from "../lib/useGameLobby";
 import { Button } from "./ui";
+import { RoleIcon } from "./RoleIcon";
+import { PlayerAvatar } from "./PlayerAvatar";
+import { NotebookPen } from "lucide-react-native";
 type Lobby = LobbyState & LobbyActions;
 export function GamePlayerRow({
   player,
   index,
   lobby,
+  hasNote = false,
+  onNotes,
+  highlighted = false,
 }: {
   player: PlayerList;
   index: number;
   lobby: Lobby;
+  hasNote?: boolean;
+  onNotes?: (name: string) => void;
+  highlighted?: boolean;
 }) {
   const self = player.name === lobby.playerName;
   const alive =
@@ -45,7 +55,8 @@ export function GamePlayerRow({
     });
   const canVote =
     enabled &&
-    lobby.action.vote === undefined &&
+    (lobby.action.vote === undefined ||
+      (lobby.time === "Day" && !!lobby.setup?.rules.voting.allowRevote)) &&
     canVoteTarget({
       time: lobby.time,
       isSelf: self,
@@ -55,6 +66,7 @@ export function GamePlayerRow({
       nightVote: lobby.visitCapability.nightVote,
     });
   const canWhisper =
+    lobby.setup?.rules.communication.whispers !== false &&
     enabled &&
     lobby.canTalk &&
     canWhisperTarget({
@@ -65,21 +77,27 @@ export function GamePlayerRow({
     });
   const selected =
     lobby.action.visit === player.name || lobby.action.vote === player.name;
-  const votes = voteSummary(lobby.players, lobby.voteVisibility);
+  const votes = voteSummary(lobby.players, lobby.voteVisibility, lobby.setup?.rules.voting.method);
   return (
     <View
-      className={`gap-2 border-b border-border px-2 py-3 ${selected ? "bg-primary/10" : player.isAlive === false ? "bg-destructive/5" : ""}`}
+      className={`gap-2 border-b border-border px-2 py-3 ${highlighted ? "bg-accent" : selected ? "bg-primary/10" : player.isAlive === false ? "bg-destructive/5" : ""}`}
     >
       <View className="flex-row items-center justify-between gap-2">
-        <View className="flex-1">
+        <PlayerAvatar name={player.name} preset={player.avatarPreset} anonymous={lobby.started} />
+        <View className="min-w-0 flex-1">
           <Text
             className={`text-sm font-semibold ${player.isAlive === false ? "text-muted-foreground" : "text-foreground"}`}
           >
             {player.name}
             {self ? " (You)" : ""}
           </Text>
-          {player.role ? (
-            <Text className="text-xs text-muted-foreground">{player.role}</Text>
+          {player.role || player.faction ? (
+            <View className="flex-row items-center gap-1">
+            {player.role ? <RoleIcon role={player.role} size={14} /> : null}
+            <Text className="text-xs text-muted-foreground">
+              {player.role ?? player.faction}
+            </Text>
+            </View>
           ) : null}
           <Text className="text-xs text-muted-foreground">
             {player.isAlive === false
@@ -98,14 +116,16 @@ export function GamePlayerRow({
               className={`text-xs ${votes?.leaders.includes(player.name) ? "font-semibold text-primary" : "text-muted-foreground"}`}
             >
               {player.votesReceived} vote{player.votesReceived === 1 ? "" : "s"}
+              {votes?.required ? ` / ${votes.required} needed` : ""}
               {votes?.leaders.includes(player.name) ? " · Leading" : ""}
             </Text>
           ) : null}
         </View>
         <View className="flex-row gap-2">
+          {onNotes && lobby.started ? <Button accessibilityLabel={`${hasNote ? "Edit" : "Add"} private note for ${player.name}`} variant="ghost" className="min-h-11 w-11 px-0" onPress={() => onNotes(player.name)}><View className="flex-row items-center"><NotebookPen size={17} color="#A8B4D9" />{hasNote ? <View className="h-1.5 w-1.5 rounded-full bg-primary" /> : null}</View></Button> : null}
           {showVisit ? (
             <Button
-              accessibilityLabel={`Visit ${player.name}`}
+              accessibilityLabel={`${roleVisitLabel(lobby.currentUserRole, lobby.time)} ${player.name}`}
               variant={
                 lobby.action.visit === player.name ? "primary" : "outline"
               }
@@ -113,7 +133,10 @@ export function GamePlayerRow({
               onPress={() => lobby.visitPlayer(index)}
               disabled={!canVisit}
             >
-              {roleVisitLabel(lobby.currentUserRole, lobby.time)}
+              <View className="flex-row items-center gap-1">
+                <ActionIcon action={visitActionIcon(lobby.currentUserRole, lobby.time)} size={15} color={lobby.action.visit === player.name ? "#0b1020" : "#e9eeff"} />
+                <Text className="text-sm font-bold text-foreground">{roleVisitLabel(lobby.currentUserRole, lobby.time)}</Text>
+              </View>
             </Button>
           ) : null}
           {lobby.time === "Day" || lobby.visitCapability.nightVote ? (
@@ -126,7 +149,7 @@ export function GamePlayerRow({
               onPress={() => lobby.voteForPlayer(index)}
               disabled={!canVote}
             >
-              <CheckCircle2 size={19} color="#E9EEFF" />
+              <ActionIcon action="vote" size={19} />
             </Button>
           ) : null}
           {lobby.time === "Day" ? (
@@ -137,7 +160,7 @@ export function GamePlayerRow({
               onPress={() => lobby.whisperToPlayer(index)}
               disabled={!canWhisper}
             >
-              <MessageSquare size={19} color="#E9EEFF" />
+              <ActionIcon action="whisper" size={19} />
             </Button>
           ) : null}
         </View>

@@ -1,3 +1,4 @@
+import { customRoleSchema, customRoleSelectionId, describeCustomRole } from "@mernmafia/shared/game/customRoles";
 import type { Player } from "../../player/player.js";
 import type { Room } from "../../rooms/room.js";
 import { RoleFaction } from "@mernmafia/shared/game/rolesTypes";
@@ -537,4 +538,80 @@ export class CustomRoleCompileError extends Error {
     super("Unsupported custom role definition.");
     this.issues = issues;
   }
+}
+
+/** Compile the public authoring format into the same lifecycle used by catalogue roles. */
+export function compileAuthoredRole(input: unknown): RoleDefinition {
+  const authored = customRoleSchema.parse(input);
+  const definition = toRoleDefinition({
+    kind: "custom",
+    metadata: {
+      name: authored.name,
+      faction: authored.alignment === "town" ? RoleFaction.Town : RoleFaction.Mafia,
+      category: `${authored.alignment}-custom`,
+      summary: describeCustomRole(authored),
+      description: authored.description,
+      capabilities: {
+        dayVisitSelf: false, dayVisitOthers: false, dayVisitFaction: false,
+        nightVisitSelf: authored.target === "any", nightVisitOthers: true,
+        nightVisitFaction: true, nightVote: authored.alignment === "mafia",
+      },
+    },
+    behaviors: [{ kind: "no-action" }],
+  });
+  const states = new WeakMap<RoleInstance, { uses: number; lastNight: number; target: string }>();
+  function state(role: RoleInstance) { return states.get(role) ?? { uses: 0, lastNight: -100, target: "" }; }
+  function eligible(role: RoleInstance, target: Player, checkBlocked = true): boolean {
+    const current = state(role);
+    return role.player.isAlive && target.isAlive && (!checkBlocked || !role.roleblocked) &&
+      (authored.target === "any" || target !== role.player) &&
+      (authored.charges === undefined || current.uses < authored.charges) &&
+      role.room.dayNumber > current.lastNight + authored.cooldownNights &&
+      (!authored.noRepeatTarget || current.target !== target.id || current.lastNight !== role.room.dayNumber - 1);
+  }
+  const active = nightActionRoleDefinition({
+    ...definition,
+    id: customRoleSelectionId(authored),
+    canSubmitNightAction: role => role.room.playerList.some(player => eligible(role, player, false)),
+    night: { self: authored.target === "any", others: true, faction: true },
+    traits: [...definition.traits, ...(authored.effect === "block" || authored.effect === "redirect" ? [RoleTrait.Roleblocker] : [])],
+    onNightCommand: ({ role, recipient }) => {
+      if (!eligible(role, recipient)) {
+        dispatchNotice(role, actorNotice({ key: MessageKey.InvalidChoice }));
+        return rejected;
+      }
+      role.visiting = recipient.role;
+      return accepted;
+    },
+    handlers: {
+      onNightVisit: [({ role }) => {
+        const factionAttack = role.consumeFactionAction("attack");
+        if (factionAttack?.kind === "attack") {
+          const victim = registerNightVisit(role);
+          if (victim) { applyDamageMinimum(victim, factionAttack.damage); addAttacker(victim, role); }
+          return;
+        }
+        const selected = role.visiting;
+        if (!selected || !eligible(role, selected.player)) return;
+        const current = state(role);
+        states.set(role, { uses: current.uses + 1, lastNight: role.room.dayNumber, target: selected.player.id });
+        const target = registerNightVisit(role)!;
+        if (authored.effect === "protect") applyDefenceMinimum(target, CombatLevel.Low);
+        if (authored.effect === "attack") { applyDamageMinimum(target, CombatLevel.Low); addAttacker(target, role); }
+        if (authored.effect === "block") roleblockTarget(target, role);
+        if (authored.effect === "redirect" && target.visiting) target.visiting = role;
+        if (authored.effect === "investigate") {
+          const accurate = role.room.random() * 100 < authored.investigationAccuracy;
+          const factionName = accurate ? target.group : target.group === RoleGroup.Town ? RoleGroup.Mafia : RoleGroup.Town;
+          dispatchNotice(role, actorNotice({ key: MessageKey.JudgeAlignmentResult, params: { targetName: target.player.username, factionName } }));
+        }
+      }],
+    },
+  });
+  // Mafia participation is independent of the authored ability's charge/cooldown budget.
+  if (authored.alignment === "mafia") {
+    active.capabilities.nightVote = true;
+    active.handlers.onNightVote.push(...createGenericMafiaVoteHandler().onNightVote);
+  }
+  return active;
 }

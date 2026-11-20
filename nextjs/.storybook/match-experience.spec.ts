@@ -3,6 +3,25 @@ import { expect, test, type Page } from "@playwright/test";
 const story = (name: string) =>
   `/iframe.html?id=game-match-experience--${name}&viewMode=story`;
 
+test("custom setup keeps every rule reachable without hiding game controls", async ({
+  page,
+}) => {
+  await page.goto(story("custom-setup"));
+  const setup = page
+    .locator("details")
+    .filter({ has: page.getByText("Game setup", { exact: true }) });
+  await expect(setup).toHaveAttribute("open", "");
+  const lastRule = setup.locator("li").last();
+  await lastRule.scrollIntoViewIfNeeded();
+  await expect(lastRule).toBeInViewport();
+  await expect(
+    page.getByRole("textbox", { name: "Message", exact: true }),
+  ).toBeInViewport();
+  await setup.getByText("Game setup", { exact: true }).click();
+  await expect(setup).not.toHaveAttribute("open");
+  await expect(lastRule).toBeHidden();
+});
+
 async function showPlayers(page: Page) {
   await expect(page.getByRole("main")).toBeVisible();
   const players = page.getByRole("button", { name: "Players", exact: true });
@@ -44,6 +63,7 @@ test("game-match-experience practice teaches protection, voting, and replay", as
   await expect(
     page.getByRole("heading", { name: "Day 2", exact: true }),
   ).toBeVisible();
+  await expect(page.getByTestId("phase-announcement")).toHaveText("Day 2 begins");
   await page
     .getByRole("button", { name: "Vote for Theo", exact: true })
     .click();
@@ -109,7 +129,7 @@ test("day voting shows public totals without exposing eliminated targets", async
     controls.getByText("2 votes to eliminate", { exact: true }),
   ).toBeVisible();
   await expect(
-    controls.getByText("2 votes · Leading", { exact: true }),
+    controls.getByText("2 votes / 2 needed · Leading", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Vote for Theo", exact: true }),
@@ -225,7 +245,7 @@ test("narrow layouts switch between chat and controls without losing the selecte
   );
 });
 
-test("bot muting hides only bot discussion and can be reversed", async ({
+test("bot and player messages remain visible without a mute control", async ({
   page,
 }) => {
   await page.goto(story("night-action"));
@@ -233,18 +253,87 @@ test("bot muting hides only bot discussion and can be reversed", async ({
   await expect(
     chat.getByText("Let's compare our votes.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Mute bots", exact: true }).click();
-  await expect(
-    chat.getByText("Let's compare our votes.", { exact: true }),
-  ).toHaveCount(0);
   await expect(
     chat.getByText("Who did you watch last night?", { exact: true }),
   ).toBeVisible();
-  await expect(chat.getByText("Night 2 began.", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Unmute bots", exact: true }).click();
   await expect(
-    chat.getByText("Let's compare our votes.", { exact: true }),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Mute bots", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("chat suggestions insert at the cursor and Enter selects before sending", async ({ page }) => {
+  await page.goto(story("night-action"));
+  const message = page.getByRole("textbox", { name: "Message" });
+  await message.fill("Ask /doct later");
+  await message.press("Home");
+  for (let index = 0; index < 7; index++) await message.press("ArrowRight");
+  await expect(page.getByRole("option", { name: /Doctor/ })).toBeVisible();
+  await message.press("Enter");
+  await expect(message).toHaveValue("Ask Doctor later");
+  await message.fill("/vo");
+  await expect(page.getByRole("option", { name: /Vote/ })).toBeVisible();
+  await message.press("Escape");
+  await expect(page.getByRole("listbox", { name: "Chat suggestions" })).toHaveCount(0);
+  await message.fill("/v");
+  await message.fill("/vo");
+  await message.press("Enter");
+  await expect(message).toHaveValue("Vote ");
+  await message.press("Enter");
+  await expect(message).toHaveValue("");
+  await expect(page.getByRole("log", { name: "Game chat" }).getByText("Vote", { exact: true })).toBeVisible();
+});
+
+test("important chat events are distinct and respect reduced motion", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(story("chat-announcements"));
+  for (const event of ["phase-day", "phase-night", "death", "result", "outcome"]) {
+    await expect(page.locator(`[data-event="${event}"]`).first()).toHaveCount(1);
+  }
+  const vote = page.locator('[data-event="vote"]');
+  await expect(vote).toHaveCount(1);
+  const event = page.locator('[data-event="death"]').first();
+  await event.evaluate((element) => element.setAttribute("data-new-event", "true"));
+  await expect(event).toHaveCSS("animation-name", "none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.getByRole("main").evaluate((element) => element.setAttribute("data-reduced-motion", "true"));
+  await expect(event).toHaveCSS("animation-name", "none");
+});
+
+test("chat names, role reference and player notes navigate without sharing notes", async ({ page }) => {
+  await page.goto(story("interactive-ux"));
+  const chat = page.getByRole("log", { name: "Game chat" });
+  await chat.getByRole("button", { name: "Theo", exact: true }).click();
+  const row = page.getByTestId("player-row").filter({ hasText: "Theo" });
+  await expect(row).toHaveAttribute("data-highlighted", "true");
+  await row.getByRole("button", { name: "Add private note for Theo" }).click();
+  const notes = page.getByRole("region", { name: "Private notes" });
+  await notes.getByLabel("Claim", { exact: true }).fill("Doctor");
+  await expect(row.getByRole("button", { name: "Edit private note for Theo" })).toBeVisible();
+  await expect(chat.getByText("Doctor", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Doctor", exact: true }).click();
+  await expect(page.getByText("Help Town eliminate Mafia and other hostile factions.")).toBeVisible();
+});
+
+test("chat preserves scroll position and offers a jump to new messages", async ({ page }) => {
+  await page.goto(story("unread-chat"));
+  const chat = page.getByRole("log", { name: "Game chat" });
+  await expect(chat.getByText("Message 40", { exact: true })).toBeVisible();
+  await chat.evaluate((element) => { element.scrollTop = 0; element.dispatchEvent(new Event("scroll")); });
+  await page.getByRole("textbox", { name: "Message" }).fill("A new message");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("button", { name: "1 new message ↓" })).toBeVisible();
+  await page.getByRole("button", { name: "1 new message ↓" }).click();
+  await expect(page.getByRole("button", { name: "1 new message ↓" })).toHaveCount(0);
+  await expect(chat.getByText("A new message", { exact: true })).toBeVisible();
+});
+
+test("small screens can return to chat after checking their role", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(story("interactive-ux"));
+  await page.getByRole("button", { name: "Doctor", exact: true }).click();
+  await expect(page.getByText("Help Town eliminate Mafia and other hostile factions.")).toBeVisible();
+  await page.getByRole("button", { name: "Back to chat", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible();
 });
 
 test("an open ballot accepts one vote and prevents a second submission", async ({

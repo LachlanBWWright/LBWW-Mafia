@@ -289,10 +289,22 @@ export function createChatGPTRuntime({
               : model.slug,
         }));
     },
-    async generate({ model, instructions, input }) {
+    async generate({
+      model,
+      instructions,
+      input,
+      signal: callerSignal,
+      maxOutputTokens,
+    }) {
       const expected = generation;
-      const signal = controller.signal;
+      const signal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(90_000),
+        ...(callerSignal ? [callerSignal] : []),
+      ]);
+      signal.throwIfAborted();
       const current = await activeCredentials();
+      signal.throwIfAborted();
       checkedGeneration(expected);
       const response = await request(`${resource}/responses`, {
         method: "POST",
@@ -301,7 +313,7 @@ export function createChatGPTRuntime({
           authorization: `Bearer ${current.accessToken}`,
           "content-type": "application/json",
         },
-        signal: AbortSignal.any([signal, AbortSignal.timeout(90_000)]),
+        signal,
         body: JSON.stringify({
           model,
           instructions,
@@ -310,6 +322,9 @@ export function createChatGPTRuntime({
             : [{ role: "user", content: String(input) }],
           store: false,
           stream: true,
+          ...(maxOutputTokens !== undefined
+            ? { max_output_tokens: maxOutputTokens }
+            : {}),
         }),
       });
       checkedGeneration(expected);
@@ -323,7 +338,7 @@ export function createChatGPTRuntime({
         throw caught;
       }
       try {
-        const text = await completedText(response);
+        const text = await completedText(response, signal);
         checkedGeneration(expected);
         return text;
       } catch (caught) {

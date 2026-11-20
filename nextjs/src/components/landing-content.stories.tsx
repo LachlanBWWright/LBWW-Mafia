@@ -21,14 +21,16 @@ export const Landing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByRole("heading", { name: "Example discussion" }),
+      canvas.getByRole("heading", { name: "LBWW Mafia" }),
     ).toBeVisible();
     await expect(
-      canvas.getByRole("link", { name: "Join Game" }),
+      canvas.getByRole("link", { name: "Quick Join" }),
     ).toHaveAttribute("href", "/lobby");
+    await expect(
+      canvas.getByRole("link", { name: "Public Lobbies" }),
+    ).toHaveAttribute("href", "/lobbies");
     await expect(
       canvas.getByRole("link", { name: "Create Lobby" }),
     ).toHaveAttribute("href", "/lobby/create");
-    await expect(canvas.getByText("Mira voted for Theo.")).toBeVisible();
   },
 };

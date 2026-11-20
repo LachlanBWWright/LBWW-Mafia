@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { LobbyGroupPanel } from "./lobby-group";
-import { avatarOptions } from "@mernmafia/shared/trpc/accountFeatures";
+import { PlayerAvatar } from "./player-avatar";
 
 import { useCallback, useEffect, useState } from "react";
 import type { SocialUser } from "@mernmafia/shared/trpc/appRouter";
@@ -22,6 +22,8 @@ const makeClient = () =>
 
 type CommunityViewProps = {
   users: SocialUser[];
+  connections?: SocialUser[];
+  onMessage?: (user: SocialUser) => void;
   query: string;
   onQueryChange: (query: string) => void;
   onSearch: () => void;
@@ -34,6 +36,8 @@ type CommunityViewProps = {
 
 export function CommunityView({
   users,
+  connections = users,
+  onMessage,
   query,
   onQueryChange,
   onSearch,
@@ -61,70 +65,120 @@ export function CommunityView({
           />
           <Button>Search</Button>
         </form>
-        {users.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No players found.</p>
-        ) : null}
-        {users.map((user) => (
-          <div
-            key={user.id}
-            className="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-0"
-          >
-            <div>
-              <p className="flex items-center gap-2 font-medium">
-                <span
-                  className={`h-2 w-2 rounded-full ${user.isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
-                  role="img"
-                  aria-label={user.isOnline ? "Online" : "Offline"}
-                />
+        {[
+          {
+            title: "Friend requests",
+            people: connections.filter(
+              (user) => user.relationship === "incoming",
+            ),
+            empty: "No pending friend requests.",
+          },
+          {
+            title: "Friends",
+            people: connections.filter(
+              (user) => user.relationship === "friend",
+            ),
+            empty: "No friends yet.",
+          },
+          ...(query.trim()
+            ? [
                 {
-                  avatarOptions.find(
-                    (avatar) => avatar.id === user.avatarPreset,
-                  )?.symbol
-                }{" "}
-                {user.name ?? "Player"}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {user.handle ? `@${user.handle}` : "No public handle"} ·{" "}
-                {user.isOnline ? "Online" : "Offline"} · {user.relationship}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {user.relationship === "none" ? (
-                <Button size="sm" onClick={() => onAction(user, "request")}>
-                  Add friend
-                </Button>
-              ) : null}
-              {user.relationship === "incoming" ? (
-                <Button size="sm" onClick={() => onAction(user, "respond")}>
-                  Accept
-                </Button>
-              ) : null}
-              {user.relationship === "friend" && onInvite ? (
-                <Button size="sm" onClick={() => onInvite(user)}>
-                  Invite
-                </Button>
-              ) : null}
-              <ReportPlayer userId={user.id} name={user.name ?? "Player"} />
-              {user.relationship === "friend" ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onAction(user, "remove")}
-                >
-                  Remove
-                </Button>
-              ) : null}
-              {user.relationship !== "blocked" ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onAction(user, "block")}
-                >
-                  Block
-                </Button>
-              ) : null}
-            </div>
-          </div>
+                  title: "Search results",
+                  people: users.filter(
+                    (user) =>
+                      user.relationship !== "friend" &&
+                      user.relationship !== "incoming",
+                  ),
+                  empty: "No players found.",
+                },
+              ]
+            : []),
+        ].map((group) => (
+          <section key={group.title} className="space-y-2">
+            <h2 className="font-semibold">{group.title}</h2>
+            {group.people.length === 0 ? (
+              <p className="text-muted-foreground text-sm">{group.empty}</p>
+            ) : null}
+            {group.people.map((user) => (
+              <div
+                key={user.id}
+                className="flex flex-wrap items-center justify-between gap-3 border-b py-3 last:border-0"
+              >
+                <div className="flex items-center gap-2">
+                  <PlayerAvatar name={user.name ?? "Player"} preset={user.avatarPreset} />
+                  <div>
+                  <p className="flex items-center gap-2 font-medium">
+                    <span
+                      className={`h-2 w-2 rounded-full ${user.isOnline ? "bg-emerald-500" : "bg-muted-foreground/40"}`}
+                      role="img"
+                      aria-label={user.isOnline ? "Online" : "Offline"}
+                    />
+                    {user.name ?? "Player"}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {user.handle ? `@${user.handle}` : "No public handle"} ·{" "}
+                    {user.isOnline ? "Online" : "Offline"} · {user.relationship}
+                  </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {user.relationship === "none" ? (
+                    <Button size="sm" onClick={() => onAction(user, "request")}>
+                      Add friend
+                    </Button>
+                  ) : null}
+                  {user.relationship === "incoming" ? (
+                    <Button size="sm" onClick={() => onAction(user, "respond")}>
+                      Accept
+                    </Button>
+                  ) : null}
+                  {user.relationship === "friend" && onInvite ? (
+                    <Button size="sm" onClick={() => onInvite(user)}>
+                      Invite
+                    </Button>
+                  ) : null}
+                  {user.relationship === "friend" && onMessage ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onMessage(user)}
+                    >
+                      Message
+                    </Button>
+                  ) : null}
+                  <details>
+                    <summary className="cursor-pointer px-2 py-1 text-sm">
+                      More
+                    </summary>
+                    <div className="flex flex-wrap gap-2">
+                      <ReportPlayer
+                        userId={user.id}
+                        name={user.name ?? "Player"}
+                      />
+                      {user.relationship === "friend" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onAction(user, "remove")}
+                        >
+                          Remove friend
+                        </Button>
+                      ) : null}
+                      {user.relationship !== "blocked" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onAction(user, "block")}
+                        >
+                          Block
+                        </Button>
+                      ) : null}
+                    </div>
+                  </details>
+                </div>
+              </div>
+            ))}
+          </section>
         ))}
       </CardContent>
     </Card>
@@ -137,23 +191,35 @@ export function Community() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [inviteUser, setInviteUser] = useState<SocialUser | null>(null);
-  const [hostedRooms, setHostedRooms] = useState<{ roomId: string }[]>([]);
+  const [hostedRooms, setHostedRooms] = useState<
+    { roomId: string; name?: string }[]
+  >([]);
   const [room, setRoom] = useState("");
   const [busy, setBusy] = useState(false);
   const [users, setUsers] = useState<SocialUser[]>([]);
-  const load = useCallback(
-    () => client.social.search.query({ query }).then(setUsers),
-    [client, query],
-  );
+  const [connections, setConnections] = useState<SocialUser[]>([]);
+  const load = useCallback(async () => {
+    const [found, friends] = await Promise.all([
+      client.social.search.query({ query }),
+      client.social.friends.query(),
+    ]);
+    setUsers(found);
+    setConnections(friends);
+  }, [client, query]);
 
   useEffect(() => {
     void client.features.hostedLobbies
       .query()
       .then(setHostedRooms)
       .catch(() => undefined);
-    void client.social.search
-      .query({ query: "" })
-      .then(setUsers)
+    void Promise.all([
+      client.social.search.query({ query: "" }),
+      client.social.friends.query(),
+    ])
+      .then(([found, friends]) => {
+        setUsers(found);
+        setConnections(friends);
+      })
       .catch(() => setStatus("Unable to load players."));
   }, [client]);
 
@@ -196,6 +262,10 @@ export function Community() {
     <>
       <CommunityView
         users={users}
+        connections={connections}
+        onMessage={(user) =>
+          router.push(`/messages?user=${encodeURIComponent(user.id)}`)
+        }
         query={query}
         onQueryChange={setQuery}
         onSearch={() =>
@@ -229,18 +299,16 @@ export function Community() {
               <option value="">Choose a lobby</option>
               {hostedRooms.map((item) => (
                 <option key={item.roomId} value={item.roomId}>
-                  {item.roomId}
+                  {item.name ?? "Private lobby"}
                 </option>
               ))}
             </select>
           </label>
-          <Input
-            aria-label="Lobby ID"
-            placeholder="Your lobby ID"
-            value={room}
-            onChange={(event) => setRoom(event.target.value)}
-            maxLength={128}
-          />
+          {!hostedRooms.length ? (
+            <p className="text-muted-foreground text-sm">
+              Create a lobby before inviting friends.
+            </p>
+          ) : null}
           <Button disabled={busy || !room.trim()}>
             {busy ? "Sending…" : "Send invitation"}
           </Button>

@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   platform: { OS: "android" },
   appState: vi.fn(),
   pause: vi.fn(),
+  retryRunner: vi.fn(),
   startSeats: vi.fn(),
   runnerPorts: null as null | {
     WebSocket: new (url: string) => BotSocket;
@@ -62,7 +63,7 @@ vi.mock("react-native", () => ({
 vi.mock("../../shared/ai/partyRunner.mjs", () => ({
   createBotRunner: (ports: typeof state.runnerPorts) => {
     state.runnerPorts = ports;
-    return { setPaused: state.pause, startBotSeats: state.startSeats };
+    return { setPaused: state.pause, startBotSeats: state.startSeats, retry: state.retryRunner };
   },
 }));
 
@@ -205,6 +206,42 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+it("restores SecureStore credentials and persists rotating tokens across native runtime restarts", async () => {
+  state.storage.set(
+    "mafia.chatgpt.credentials",
+    JSON.stringify({ ...credentials(), expiresAt: 1 }),
+  );
+  const first = await client(false);
+  const signal = new AbortController().signal;
+  expect((await first.status(signal)).connected).toBe(true);
+  await first.models(signal);
+  expect(state.storage.get("mafia.chatgpt.credentials")).toContain(
+    '"refreshToken":"new-refresh"',
+  );
+  vi.resetModules();
+  vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3_600_000);
+  try {
+    const restarted = await client(false);
+    expect((await restarted.status(signal)).connected).toBe(true);
+    await restarted.models(signal);
+    const refreshes = state.fetch.mock.calls.filter(([url]) =>
+      String(url).endsWith("/oauth/token"),
+    );
+    expect(refreshes).toHaveLength(2);
+    expect(
+      new URLSearchParams(refreshes[0]![1].body).get("refresh_token"),
+    ).toBe("private-refresh");
+    expect(
+      new URLSearchParams(refreshes[1]![1].body).get("refresh_token"),
+    ).toBe("new-refresh");
+    expect(state.storage.get("mafia.chatgpt.credentials")).toContain(
+      '"clientId":"oaiapp_test"',
+    );
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
 describe("React Native platform integration", () => {
   it.each(["cancel", "reject"])(
     "cancels an Android authorization when browser launch returns %s",
@@ -266,6 +303,7 @@ describe("React Native platform integration", () => {
     expect((await bridge.status(signal)).usagePaused).toBe(true);
     await expect(bridge.join(join, signal)).rejects.toThrow("ChatGPT plan");
     await bridge.retry(signal);
+    expect(state.retryRunner).toHaveBeenCalledOnce();
     expect((await bridge.status(signal)).usagePaused).toBe(false);
     await bridge.cancel(signal);
   });

@@ -17,15 +17,21 @@ import { chunkedPrivateNotesStorage } from "../../shared/game/privateNotesStorag
 export function PrivateNotesPanel({
   lobby,
   ownerId = "guest",
+  focusPlayer,
+  onBoardChange,
 }: {
   lobby: PrivateNotesLobby;
   ownerId?: string;
+  focusPlayer?: string;
+  onBoardChange?: (names: string[]) => void;
 }) {
   return (
     <PrivateNotesEditor
       key={JSON.stringify([lobby.matchId, lobby.playerName, ownerId])}
       lobby={lobby}
       ownerId={ownerId}
+      focusPlayer={focusPlayer}
+      onBoardChange={onBoardChange}
     />
   );
 }
@@ -33,9 +39,13 @@ export function PrivateNotesPanel({
 function PrivateNotesEditor({
   lobby,
   ownerId,
+  focusPlayer,
+  onBoardChange,
 }: {
   lobby: PrivateNotesLobby;
   ownerId: string;
+  focusPlayer?: string;
+  onBoardChange?: (names: string[]) => void;
 }) {
   const matchId = lobby.matchId ?? "";
   const [value, setValue] = useState<PrivateNotes>(() =>
@@ -71,6 +81,7 @@ function PrivateNotesEditor({
       .then((saved) => {
         if (active) {
           setValue(saved);
+          onBoardChange?.(saved.board.filter((row) => row.claim || row.confirmedFact || row.suspicion !== "unknown").map((row) => row.name));
           setReady(true);
         }
       })
@@ -85,7 +96,7 @@ function PrivateNotesEditor({
     return () => {
       active = false;
     };
-  }, [matchId, lobby.playerName, ownerId, repository]);
+  }, [matchId, lobby.playerName, ownerId, repository, onBoardChange]);
   const enabled =
     ready &&
     value.matchId === matchId &&
@@ -94,6 +105,7 @@ function PrivateNotesEditor({
   const save = (next: PrivateNotes) => {
     if (!enabled) return;
     setValue(next);
+    onBoardChange?.(next.board.filter((row) => row.claim || row.confirmedFact || row.suspicion !== "unknown").map((row) => row.name));
     void repository
       .save(next)
       .then(() => {
@@ -107,6 +119,7 @@ function PrivateNotesEditor({
   };
   const clear = () => {
     setValue(emptyPrivateNotes(matchId, lobby.playerName, ownerId));
+    onBoardChange?.([]);
     void repository
       .clear(matchId, lobby.playerName, ownerId)
       .then(() => {
@@ -143,7 +156,7 @@ function PrivateNotesEditor({
             onChangeText={(notes) => save({ ...value, notes })}
           />
           <Text className="font-bold text-foreground">Suspicion board</Text>
-          {lobby.players.map(({ name }) => {
+          {lobby.players.filter(({ name }) => !focusPlayer || name === focusPlayer).map(({ name }) => {
             const row = enabled
               ? value.board.find((item) => item.name === name)
               : undefined;

@@ -1,3 +1,7 @@
+import adminGamesMeta, * as adminGamesStories from "../stories/admin-games.stories";
+import campaignMeta, * as campaignStories from "../stories/persistent-lobbies.stories";
+import sandboxMeta, * as sandboxStories from "../stories/role-sandbox.stories";
+import * as customizationStories from "../stories/game-customization.stories";
 import landingMeta from "../stories/landing.stories";
 import aiMeta, * as aiStories from "../stories/ai-characters.stories";
 import React from "react";
@@ -6,11 +10,70 @@ import spectatorMeta, * as spectatorStories from "../stories/spectators.stories"
 import partyMeta, * as partyStories from "../stories/party.stories";
 import { ScrollView, View } from "react-native";
 import * as uiStories from "../stories/ui.stories";
+import { MatchExperienceStory } from "../components/MatchExperienceStory";
+import { nightMatch } from "../../shared/testing/matchFixtures";
 import privateNotesMeta, * as privateNotesStories from "../stories/private-notes.stories";
 import matchAnalysisMeta, * as matchAnalysisStories from "../stories/match-analysis.stories";
 
 const stories = {
-  "screens-home--landing": { render: landingMeta.component, args: landingMeta.args },
+  "features-admin-games--controls": {
+    render: adminGamesStories.Controls.render,
+    args: {},
+  },
+  "features-admin-games--unavailable": {
+    render: adminGamesStories.Unavailable.render,
+    args: {},
+  },
+  "features-admin-games--rooms": {
+    render: adminGamesMeta.component,
+    args: adminGamesMeta.args,
+  },
+  "features-admin-games--empty": {
+    render: adminGamesMeta.component,
+    args: adminGamesStories.Empty.args,
+  },
+  "game-setup--house-rules": {
+    render: setupMeta.component,
+    args: setupMeta.args,
+  },
+  "features-persistent-lobbies--game-night": {
+    render: campaignMeta.component,
+    args: { ...campaignMeta.args, ...campaignStories.GameNight.args },
+  },
+  "features-persistent-lobbies--member": {
+    render: campaignMeta.component,
+    args: { ...campaignMeta.args, ...campaignStories.Member.args },
+  },
+  "features-persistent-lobbies--empty": {
+    render: campaignMeta.component,
+    args: { ...campaignMeta.args, ...campaignStories.Empty.args },
+  },
+  "features-persistent-lobbies--saving": {
+    render: campaignMeta.component,
+    args: { ...campaignMeta.args, ...campaignStories.Saving.args },
+  },
+  "features-role-sandbox--scenario": {
+    render: sandboxMeta.component,
+    args: sandboxStories.Scenario.args,
+  },
+  "features-role-sandbox--rejected": {
+    render: sandboxMeta.component,
+    args: sandboxStories.Rejected.args,
+  },
+  "features-role-sandbox--unavailable": {
+    render: sandboxMeta.component,
+    args: sandboxStories.Unavailable.args,
+  },
+
+  "game-customization--rules": customizationStories.Rules,
+  "game-customization--custom-roles": customizationStories.CustomRoles,
+  "game-customization--packs": customizationStories.Packs,
+  "game-customization--signed-out-presets":
+    customizationStories.SignedOutPresets,
+  "screens-home--landing": {
+    render: landingMeta.component,
+    args: landingMeta.args,
+  },
   "features-ai-characters--plan-disabled": {
     render: aiMeta.component,
     args: { ...aiMeta.args, ...aiStories.PlanDisabled.args },
@@ -80,6 +143,19 @@ const stories = {
   },
   "mobile-ui-kit--match-practice": uiStories.MatchPractice,
   "mobile-ui-kit--match-night": uiStories.MatchNight,
+  "mobile-ui-kit--match-icons-in-game": uiStories.MatchIconsInGame,
+  "mobile-ui-kit--match-interactive-ux": uiStories.MatchInteractiveUx,
+  "mobile-ui-kit--match-unread-chat": uiStories.MatchUnreadChat,
+  "mobile-ui-kit--match-chat-announcements": uiStories.MatchChatAnnouncements,
+  "mobile-ui-kit--icon-placeholders": uiStories.IconPlaceholders,
+  "mobile-ui-kit--match-waiting": {
+    args: {},
+    render: () => (
+      <MatchExperienceStory
+        lobby={{ ...nightMatch, started: false, capacity: 8 }}
+      />
+    ),
+  },
   "mobile-ui-kit--match-voting": uiStories.MatchVoting,
   "mobile-ui-kit--match-hidden-votes": uiStories.MatchHiddenVotes,
   "mobile-ui-kit--match-recap": uiStories.MatchRecap,
@@ -125,12 +201,15 @@ export function StoryCapture({ storyId }: { storyId: string }) {
         <View className="flex-1 bg-background p-4">
           <Render {...((story.args ?? {}) as Record<string, unknown>)} />
         </View>
-      ) : <ScrollView
-        className="flex-1 bg-background"
-        contentContainerStyle={{ padding: 16 }}
-      >
-        <Render {...((story.args ?? {}) as Record<string, unknown>)} />
-      </ScrollView>}
+      ) : (
+        <ScrollView
+          className="flex-1 bg-background"
+          contentContainerStyle={{ padding: 16 }}
+        >
+          <Render {...((story.args ?? {}) as Record<string, unknown>)} />
+        </ScrollView>
+      )}
     </SafeAreaProvider>
   );
 }
+import setupMeta from "../stories/game-setup.stories";

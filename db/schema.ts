@@ -157,6 +157,14 @@ export const activeRoom = createTable("active_room", () => ({
     .default(sql`now()`),
 }));
 
+/** Retains quick-join rooms after the active directory advances. */
+export const quickJoinRooms = createTable("quick_join_room", () => ({
+  roomId: varchar("room_id", { length: 36 }).primaryKey(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(sql`now()`),
+}));
+
 export const customLobbies = createTable(
   "custom_lobby",
   () => ({
@@ -520,9 +528,99 @@ export const partyInvitations = createTable(
   (t) => [index("party_invitation_recipient_idx").on(t.recipientId)],
 );
 
+/** Private campaign groups and participant-only completed-match discussion. */
+export const campaigns = createTable("campaign", () => ({
+  id: varchar("id", { length: 36 }).primaryKey(),
+  name: varchar("name", { length: 80 }).notNull(),
+  ownerId: varchar("owner_id", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  hostId: varchar("host_id", { length: 255 })
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  shareCode: varchar("share_code", { length: 32 }).notNull().unique(),
+}));
+export const campaignMembers = createTable(
+  "campaign_member",
+  () => ({
+    campaignId: varchar("campaign_id", { length: 36 })
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at", { withTimezone: true })
+      .notNull()
+      .default(sql`now()`),
+  }),
+  (t) => [primaryKey({ columns: [t.campaignId, t.userId] })],
+);
+export const campaignRounds = createTable(
+  "campaign_round",
+  () => ({
+    campaignId: varchar("campaign_id", { length: 36 })
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+  }),
+  (t) => [primaryKey({ columns: [t.campaignId, t.matchId] })],
+);
+export const campaignVotes = createTable(
+  "campaign_vote",
+  () => ({
+    campaignId: varchar("campaign_id", { length: 36 })
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    packCode: text("pack_code").notNull(),
+  }),
+  (t) => [primaryKey({ columns: [t.campaignId, t.userId] })],
+);
+export const replayAnnotations = createTable(
+  "replay_annotation",
+  () => ({
+    id: varchar("id", { length: 36 }).primaryKey(),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    authorId: varchar("author_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventIndex: integer("event_index").notNull(),
+    text: varchar("text", { length: 1000 }).notNull(),
+  }),
+  (t) => [index("replay_annotation_match_idx").on(t.matchId)],
+);
+export const replayNominations = createTable(
+  "replay_nomination",
+  () => ({
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    nomineeId: varchar("nominee_id", { length: 255 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventIndex: integer("event_index").notNull(),
+  }),
+  (t) => [primaryKey({ columns: [t.matchId, t.userId] })],
+);
+
 // helper object for easier schema imports
 export const schema = {
   createTable,
+  campaigns,
+  campaignMembers,
+  campaignRounds,
+  campaignVotes,
+  replayAnnotations,
+  replayNominations,
   parties,
   partyMembers,
   partyInvitations,
@@ -541,6 +639,7 @@ export const schema = {
   verificationTokens,
   matches,
   activeRoom,
+  quickJoinRooms,
   customLobbies,
   matchParticipants,
   userRoles,

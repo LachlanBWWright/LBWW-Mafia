@@ -10,6 +10,7 @@ import { useAppState } from "../context/AppStateContext";
 import { Button, EmptyState, LoadingCard, Screen } from "../components/ui";
 
 import { trpcClient } from "../lib/trpc";
+import { MatchDiscussionPanel } from "../components/MatchDiscussion";
 import { MatchReplayView, MatchBalanceView } from "../components/MatchAnalysis";
 import type {
   MatchReplay,
@@ -252,7 +253,7 @@ export function HistoryScreen({ navigation }: HistoryScreenProps) {
                   description={replayError}
                 />
               ) : replay ? (
-                <MatchReplayView replay={replay} />
+                <><MatchReplayView replay={replay} /><MatchDiscussionPanel key={replay.id} replay={replay} /></>
               ) : null}
             </View>
           ) : null}

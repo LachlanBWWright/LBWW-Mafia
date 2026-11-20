@@ -1,4 +1,8 @@
+import { resolveGameRules } from "../game/gameRules";
+import { customRoleSchema } from "../game/customRoles";
+import { gameRulesSchema } from "../game/gameRules";
 import { z } from "zod";
+import { avatarPresets } from "../trpc/accountFeatures";
 import {
   ClientEvent,
   DayTime,
@@ -56,7 +60,9 @@ export const playerNamePayloadSchema = z.object({
 export const playerListPayloadSchema = z.array(
   z.object({
     name: z.string(),
+    avatarPreset: z.enum(avatarPresets).optional(),
     isAlive: z.boolean().optional(),
+    faction: z.string().optional(),
     role: z.string().optional(),
     connected: z.boolean().optional(),
     isBot: z.boolean().optional(),
@@ -92,6 +98,7 @@ const timelineEntrySchema = z.object({
   text: z.string(),
 });
 export const gameSnapshotSchema = z.object({
+  setup: z.object({ rules: gameRulesSchema.transform((rules) => resolveGameRules({ rules })), voteVisibility: z.enum(["public", "hidden"]), rolePool: z.array(z.string()).optional(), customRoles: z.array(customRoleSchema).max(16).optional() }).optional(),
   participation: z.enum(["player", "eliminated", "spectator"]).optional(),
   spectatorCount: z.number().int().nonnegative().optional(),
   capacity: z.number().int().positive().optional(),

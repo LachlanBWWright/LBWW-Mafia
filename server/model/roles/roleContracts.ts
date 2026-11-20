@@ -55,6 +55,7 @@ export interface RoleCommandHandlers {
   nightVisitOthers: boolean;
   nightVisitFaction: boolean;
   nightVote: boolean;
+  canSubmitNightAction?(): boolean;
   handleMessage(message: string): void;
   handleDayAction(recipient: Player): boolean | void;
   cancelDayAction(): void;

@@ -1,3 +1,6 @@
+import { rotateActiveRoom } from "./roomDirectory";
+import { listAdminGames } from "./adminGames";
+import { gameCommunityServices } from "./gameCommunity";
 import { partyServices } from "./parties";
 import { matchAnalysisServices } from "./matchAnalysis";
 import { anonymizeHistory } from "@mernmafia/shared/game/accountAnonymization";
@@ -917,25 +920,9 @@ const getCurrentRoom = async (): Promise<{ roomId: string }> => {
   return { roomId: rows[0]?.roomId ?? roomId };
 };
 
-/**
- * Rotates the active game room ID.
- * Generates a new random UUID and updates the singleton active room record.
- *
- * @returns>} The new active room ID
- */
-const rotateActiveRoom = async (): Promise<{ roomId: string }> => {
-  const roomId = crypto.randomUUID();
-  await db
-    .insert(activeRoom)
-    .values({ id: 1, roomId })
-    .onConflictDoUpdate({
-      target: activeRoom.id,
-      set: { roomId, updatedAt: sql`now()` },
-    });
-  return { roomId };
-};
-
 export const trpcServices: RouterServices = {
+  listAdminGames,
+  community: gameCommunityServices,
   parties: partyServices,
   analysis: matchAnalysisServices,
   features: accountFeatureServices,

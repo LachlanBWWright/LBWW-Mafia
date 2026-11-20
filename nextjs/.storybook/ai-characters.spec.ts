@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("browser setup is disabled with an explanation and never contacts a companion", async ({
+test("browser setup is hidden and never contacts a companion", async ({
   page,
 }) => {
   let requests = 0;
@@ -12,12 +12,7 @@ test("browser setup is disabled with an explanation and never contacts a compani
   );
   await expect(
     page.getByRole("button", { name: "Add AI characters", exact: true }),
-  ).toBeDisabled();
-  await expect(
-    page.getByText(
-      "ChatGPT AI characters are available in the desktop and mobile apps. Browser sign-in is not supported yet.",
-    ),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(requests).toBe(0);
 });

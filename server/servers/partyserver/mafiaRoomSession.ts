@@ -20,6 +20,7 @@ import {
   parseWhisperPayload,
 } from "../socketValidation.js";
 import { verifyPartyServerGameIdentity } from "./partyserverIdentity.js";
+import { MAX_PLAYERS } from "@mernmafia/shared/game/gameNames";
 
 const DEFAULT_ROOM_SIZE = 13;
 
@@ -135,8 +136,8 @@ export default class MafiaRoomSession {
    * @param room - The PartyServer room instance
    */
   constructor(readonly room: MafiaRoomAdapter) {
-    this.roomSize =
-      Number(room.env.ROOM_SIZE ?? DEFAULT_ROOM_SIZE) || DEFAULT_ROOM_SIZE;
+    const configuredSize = Number(room.env.ROOM_SIZE ?? DEFAULT_ROOM_SIZE);
+    this.roomSize = Number.isInteger(configuredSize) && configuredSize >= 2 && configuredSize <= MAX_PLAYERS ? configuredSize : DEFAULT_ROOM_SIZE;
     this.debugMode = String(room.env.DEBUG ?? "").toLowerCase() === "true";
 
     if (room.storage?.setAlarm) {
@@ -190,14 +191,30 @@ export default class MafiaRoomSession {
         `Bearer ${this.room.env.BACKEND_SECRET}` &&
       typeof this.room.env.BACKEND_SECRET === "string"
     ) {
+      await this.initializeRoom();
       const pending = await this.room.storage?.get<{ attempts: number }>(
         "pending-history",
       );
       return Response.json({
         roomId: this.room.id,
         connections: this.playerSockets.size,
+        players: this.gameRoom.userList.length,
+        capacity: this.roomSize,
+        started: this.gameRoom.started,
+        ended: this.gameRoom.gameHasEnded,
+        closed: this.closed,
         reservedSeats: this.reservedSeats.size,
         phaseVersion: this.gameRoom.phaseVersion,
+        phase: this.gameRoom.time,
+        day: this.gameRoom.dayNumber,
+        roster: this.gameRoom.userList.map((user) => ({
+          name: user.username,
+          connected: user.connected,
+          isBot: user.isBot,
+          alive:
+            this.gameRoom.playerList.find((player) => player.user === user)
+              ?.isAlive ?? null,
+        })),
         historyPending: Boolean(pending),
         historyAttempts: pending?.attempts ?? 0,
       });
@@ -216,6 +233,7 @@ export default class MafiaRoomSession {
       typeof this.room.env.BACKEND_SECRET === "string"
     ) {
       this.closed = true;
+      this.gameRoom.dispose();
       await this.room.storage?.put("closed", true);
       for (const seat of this.reservedSeats.values()) clearTimeout(seat.timer);
       this.reservedSeats.clear();
@@ -293,7 +311,8 @@ export default class MafiaRoomSession {
       return;
     }
 
-    const parsed = partyserverClientEventEnvelopeSchema.safeParse(parsedUnknown);
+    const parsed =
+      partyserverClientEventEnvelopeSchema.safeParse(parsedUnknown);
     if (!parsed.success) return;
 
     const playerSocket = this.playerSockets.get(sender.id);

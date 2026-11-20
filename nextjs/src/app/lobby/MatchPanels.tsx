@@ -1,6 +1,6 @@
 "use client";
-import { memo, useEffect, useRef } from "react";
-import { Moon, Sun } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { Moon, Sun, Skull, Sparkles, Trophy } from "lucide-react";
 import { DayTime } from "@mernmafia/shared/communication/events";
 import {
   formatClock,
@@ -12,24 +12,43 @@ import {
 } from "@mernmafia/shared/game/matchExperience";
 import {
   chatMessagePresentation,
+  chatEventStyle,
   lobbyPhaseLabel,
 } from "@mernmafia/shared/game/lobbyPresentation";
 import type { LobbyState } from "@mernmafia/shared/game/lobbyState";
 import { Button } from "~/components/ui/button";
-import type { VisitCapability } from "@mernmafia/shared/game/playerActionRules";
+import { canAbstain, type VisitCapability } from "@mernmafia/shared/game/playerActionRules";
+import { RoleIcon } from "~/components/role-icon";
+import { PlayerAvatar } from "~/components/player-avatar";
+import { ActionIcon } from "~/components/action-icon";
 
 export function PhaseHeader({
   lobby,
   practice = false,
+  onRolePress,
 }: {
   lobby: LobbyState;
   practice?: boolean;
+  onRolePress?: () => void;
 }) {
   const night = lobby.time === DayTime.Night;
   const Icon = night ? Moon : Sun;
+  const phase = lobby.started && !lobby.ended ? `${lobby.matchId ?? ""}:${lobby.time}:${lobby.dayNumber}` : "";
+  const previousPhase = useRef(phase);
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    const previous = previousPhase.current;
+    previousPhase.current = phase;
+    if (!phase) { const clear = setTimeout(() => setAnnouncement(""), 0); return () => clearTimeout(clear); }
+    if (!previous || previous === phase) return;
+    const show = setTimeout(() => setAnnouncement(`${lobby.time} ${lobby.dayNumber} begins`), 0);
+    const hide = setTimeout(() => setAnnouncement(""), 2400);
+    return () => { clearTimeout(show); clearTimeout(hide); };
+  }, [phase, lobby.time, lobby.dayNumber]);
   return (
+    <>
     <header
-      className={`phase-header flex items-center justify-between gap-4 border-b px-1 py-4 ${night ? "border-indigo-400/30" : "border-amber-400/30"}`}
+      className={`phase-header relative flex items-center justify-between gap-4 border-b border-l-2 px-3 py-2 ${night ? "border-indigo-400/50 bg-indigo-400/5" : "border-amber-400/50 bg-amber-400/5"}`}
     >
       <div className="flex items-center gap-3">
         <Icon
@@ -37,15 +56,15 @@ export function PhaseHeader({
           aria-hidden
         />
         <div>
-          <h1 className="phase-heading text-2xl font-semibold tracking-tight">
+          <h1 aria-live="polite" className="phase-heading text-xl font-semibold tracking-tight">
             {lobbyPhaseLabel(lobby)}
           </h1>
           <p
             aria-label="Your player name"
-            className="text-muted-foreground text-sm"
+            className="text-muted-foreground flex items-center gap-1 text-sm"
           >
             {lobby.playerName}
-            {lobby.currentUserRole ? ` · ${lobby.currentUserRole}` : ""}
+            {lobby.currentUserRole ? <><span aria-hidden>·</span><RoleIcon role={lobby.currentUserRole} size={14} />{onRolePress ? <button type="button" className="hover:underline focus-visible:outline focus-visible:outline-2" onClick={onRolePress}>{lobby.currentUserRole}</button> : lobby.currentUserRole}</> : null}
             {practice ? " · Practice" : ""}
           </p>
         </div>
@@ -60,6 +79,8 @@ export function PhaseHeader({
         </span>
       ) : null}
     </header>
+    {announcement ? <div data-testid="phase-announcement" aria-hidden className="border-border bg-muted/40 border-b px-3 py-1 text-sm font-semibold">{announcement}</div> : null}
+    </>
   );
 }
 export function ActionPanel({
@@ -100,33 +121,32 @@ export function ActionPanel({
             onClick={cancel}
             disabled={!lobby.connected}
           >
-            Cancel action
+            <ActionIcon action="cancel" /> Cancel action
           </Button>
         ) : null}
       </div>
       <p
         role="status"
-        className={`text-sm ${!lobby.ended && (lobby.action.outcome === "blocked" || lobby.action.outcome === "rejected") ? "text-destructive" : "text-muted-foreground"}`}
+        className={`text-sm ${!lobby.ended && (lobby.action.outcome === "blocked" || lobby.action.outcome === "rejected") ? "border-destructive text-destructive border-l-2 pl-2 font-medium" : "text-muted-foreground"}`}
       >
         {lobby.ended ? hint : (lobby.action.feedback ?? hint)}
       </p>
       {!lobby.ended && lobby.action.vote !== undefined ? (
         <p className="text-sm">
-          {lobby.action.vote === null
+          <span>{lobby.action.vote === null
             ? "Abstained"
-            : `Your vote: ${lobby.action.vote}`}
+            : `Your vote: ${lobby.action.vote}`}</span>
+          <span> · {lobby.time === DayTime.Day && lobby.setup?.rules.voting.allowRevote ? "Can change" : "Final"}</span>
         </p>
-      ) : lobby.started &&
-        !lobby.ended &&
-        lobby.time === DayTime.Day &&
-        lobby.canVote ? (
+      ) : null}
+      {canAbstain(lobby) ? (
         <Button
           size="sm"
           variant="outline"
           onClick={abstain}
           disabled={!lobby.connected}
         >
-          Abstain
+          <ActionIcon action="abstain" /> Abstain
         </Button>
       ) : null}
       {practice && !lobby.ended ? (
@@ -147,14 +167,20 @@ export function ActionPanel({
 export function RoleReference({
   name,
   capability,
+  open,
+  onToggle,
+  customRoles,
 }: {
   name?: string;
   capability?: VisitCapability;
+  open?: boolean;
+  onToggle?: (open: boolean) => void;
+  customRoles?: NonNullable<LobbyState["setup"]>["customRoles"];
 }) {
-  const role = roleReference(name);
+  const role = roleReference(name, customRoles);
   if (!role) return null;
   return (
-    <details className="border-border border-b py-3">
+    <details open={open} onToggle={(event) => onToggle?.(event.currentTarget.open)} className="border-border border-b py-3">
       <summary className="cursor-pointer text-sm font-semibold">
         Your role: {role.name}
       </summary>
@@ -182,7 +208,7 @@ export function MatchRecapPanel({
   if (!lobby.recap) return null;
   const ready = lobby.readyPlayers?.includes(lobby.playerName) ?? false;
   return (
-    <section className="space-y-4 border-b py-4" aria-label="Match recap">
+    <section className="match-recap space-y-4 border-b border-l-2 border-l-amber-500 py-4 pl-3" aria-label="Match recap">
       <div>
         <h2 className="text-xl font-semibold">
           {lobby.recap.winner === "draw"
@@ -242,37 +268,53 @@ export function MatchRecapPanel({
 export const ChatLog = memo(function ChatLog({
   messages,
   muted,
+  compact = false,
+  onPlayerSelect,
+  playerNames = [],
+  anonymous = true,
 }: {
   messages: LobbyMessage[];
   muted: boolean;
+  compact?: boolean;
+  onPlayerSelect?: (name: string) => void;
+  playerNames?: readonly string[];
+  anonymous?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [initialMessages] = useState(() => new Set(messages.map((message) => message.id)));
   const nearBottom = useRef(true);
+  const [paused, setPaused] = useState(false);
+  const [seen, setSeen] = useState(0);
   const filtered = visibleMessages(messages, muted);
+  const unread = paused ? filtered.filter((message) => message.id > seen).length : 0;
   useEffect(() => {
     if (nearBottom.current && ref.current)
       ref.current.scrollTop = ref.current.scrollHeight;
   }, [messages, muted]);
   return (
+    <div className="relative flex min-h-0 flex-1 flex-col">
     <div
       ref={ref}
       onScroll={() => {
         const el = ref.current;
-        if (el)
-          nearBottom.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        if (el) {
+          const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          if (nearBottom.current && !bottom) setSeen(filtered.at(-1)?.id ?? 0);
+          if (bottom !== nearBottom.current) setPaused(!bottom);
+          nearBottom.current = bottom;
+        }
       }}
       role="log"
       aria-label="Game chat"
       aria-relevant="additions"
       aria-live="polite"
-      className="themed-scrollbar min-h-0 flex-1 overflow-y-auto py-3"
+      className="[scrollbar-width:thin] [scrollbar-color:var(--border)_transparent] min-h-0 flex-1 overflow-y-auto py-3"
     >
       {!filtered.length ? (
         <p className="text-muted-foreground py-6 text-center text-sm">
           {muted && messages.length
             ? "Bot chatter is muted."
-            : "The conversation starts here."}
+            : "No messages yet."}
         </p>
       ) : (
         filtered.map((message, index) => {
@@ -280,16 +322,22 @@ export const ChatLog = memo(function ChatLog({
             message,
             filtered[index - 1],
           );
+          const event = chatEventStyle(message);
+          const prominent = event !== "ordinary" && event !== "vote";
+          const Icon = event === "phase-day" ? Sun : event === "phase-night" ? Moon : event === "death" ? Skull : event === "outcome" ? Trophy : Sparkles;
           return (
             <div
               key={message.id}
-              className={`${grouped ? "pt-1" : "mt-3 pt-2"} ${message.kind === "system" ? "border-border text-muted-foreground border-t text-xs" : message.kind === "whisper" ? "border-primary/40 text-primary border-l-2 pl-3 text-sm" : message.kind === "role" || message.kind === "spectator" ? "text-primary text-sm" : "text-sm"}`}
+              data-event={event}
+              data-new-event={prominent && !initialMessages.has(message.id) ? "true" : undefined}
+              className={prominent ? `chat-event chat-event--${event}` : `${message.kind === "system" && compact ? "mt-1" : grouped ? "pt-1" : "mt-3 pt-2"} ${message.kind === "system" ? `border-border text-muted-foreground ${compact || event === "vote" ? "" : "border-t"} text-xs` : message.kind === "whisper" ? "border-primary/40 text-primary border-l-2 pl-3 text-sm" : message.kind === "role" || message.kind === "spectator" ? "text-primary text-sm" : "text-sm"}`}
             >
-              {message.kind === "chat" && message.sender ? (
+              {prominent ? <><Icon size={16} aria-hidden="true" /><p className="min-w-0 leading-5 break-words">{text}</p></> : message.kind === "chat" && message.sender ? (
                 <>
                   {!grouped ? (
-                    <p className="mb-1 font-semibold">
-                      {message.sender}
+                    <p className="mb-1 flex items-center gap-2 font-semibold">
+                      <PlayerAvatar name={message.sender} anonymous={anonymous} />
+                      {onPlayerSelect && playerNames.includes(message.sender) ? <button type="button" className="hover:underline focus-visible:outline focus-visible:outline-2" onClick={() => onPlayerSelect(message.sender!)}>{message.sender}</button> : message.sender}
                       {message.isBot ? (
                         <span className="text-muted-foreground ml-2 text-xs font-normal">
                           Bot
@@ -306,6 +354,8 @@ export const ChatLog = memo(function ChatLog({
           );
         })
       )}
+    </div>
+    {unread > 0 ? <button type="button" className="bg-secondary text-foreground absolute bottom-3 right-3 rounded-md border px-3 py-2 text-sm shadow" onClick={() => { if (ref.current) ref.current.scrollTop = ref.current.scrollHeight; nearBottom.current = true; setPaused(false); setSeen(filtered.at(-1)?.id ?? 0); }}>{unread} new {unread === 1 ? "message" : "messages"} ↓</button> : null}
     </div>
   );
 });

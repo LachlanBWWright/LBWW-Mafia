@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     JSON.stringify({
       userId: identity.id,
       handle: identity.handle ?? identity.name ?? undefined,
+      avatarPreset: identity.avatarPreset ?? undefined,
       exp: Date.now() + 60_000,
     }),
   ).toString("base64url");

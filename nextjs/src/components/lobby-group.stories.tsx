@@ -44,7 +44,7 @@ export const Leader: Story = {
     });
     await userEvent.click(
       canvas.getByRole("button", {
-        name: "Set this lobby as party destination",
+        name: "Bring party here",
       }),
     );
     await expect(onAction).toHaveBeenCalledWith({

@@ -4,8 +4,13 @@ import type { GameSocket } from "../communication/clientTypes";
 import { ClientEvent } from "../communication/events";
 import { initialLobbyState, type LobbyState } from "./lobbyState";
 import { createUseSharedGameLobby } from "./useGameLobby";
+import { resolveGameRules } from "./gameRules";
 
-function harness(participation: LobbyState["participation"], ended = false) {
+function harness(
+  participation: LobbyState["participation"],
+  ended = false,
+  patch: Partial<LobbyState> = {},
+) {
   const dispatch = vi.fn();
   const state: LobbyState = {
     ...initialLobbyState,
@@ -16,6 +21,7 @@ function harness(participation: LobbyState["participation"], ended = false) {
     messageDraft: "Keep this draft",
     canTalk: true,
     canVote: true,
+    ...patch,
   };
   const hooks = {
     useReducer: (() => [state, dispatch]) as unknown as typeof React.useReducer,
@@ -32,6 +38,43 @@ function harness(participation: LobbyState["participation"], ended = false) {
 }
 
 describe("observer action boundaries", () => {
+  it("submits a changed day vote only when the authoritative setup permits revoting", () => {
+    const immutable = harness("player", false, { action: { vote: "Alice" } });
+    immutable.actions.voteForPlayer(2);
+    expect(immutable.socket.emit).not.toHaveBeenCalled();
+    const editable = harness("player", false, {
+      action: { vote: "Alice" },
+      setup: {
+        rules: resolveGameRules({ rules: { voting: { allowRevote: true } } }),
+        voteVisibility: "public",
+      },
+    });
+    editable.actions.voteForPlayer(2);
+    expect(editable.socket.emit).toHaveBeenCalledWith(
+      ClientEvent.HandleVote,
+      2,
+      editable.actions.time,
+    );
+    editable.actions.voteForPlayer(null);
+    expect(editable.socket.emit).toHaveBeenCalledWith(
+      ClientEvent.HandleVote,
+      null,
+      editable.actions.time,
+    );
+  });
+  it("retains a draft when whispers are disabled by the lobby", () => {
+    const client = harness("player", false, {
+      setup: {
+        rules: resolveGameRules({
+          rules: { communication: { whispers: false } },
+        }),
+        voteVisibility: "public",
+      },
+    });
+    client.actions.whisperToPlayer(1);
+    expect(client.socket.emit).not.toHaveBeenCalled();
+    expect(client.dispatch).not.toHaveBeenCalled();
+  });
   it.each(["spectator", "eliminated"] as const)(
     "retains %s chat drafts when private gameplay actions are attempted",
     (participation) => {
@@ -107,8 +150,8 @@ describe("joins without CAPTCHA", () => {
           expect.any(Function),
         );
         expect(dispatch).toHaveBeenCalledWith({
-          type: "patch",
-          value: { joining: false, playerName: "Alex", joinStatus: "" },
+          type: "joined",
+          username: "Alex",
         });
       } finally {
         cleanups.forEach((cleanup) => {

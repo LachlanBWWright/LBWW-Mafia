@@ -1,24 +1,32 @@
+import { createLobbyLink } from "../../shared/game/lobbyLinks";
+import { LobbyDetails } from "./LobbyDetails";
+import { LobbyInvites } from "./LobbyInvites";
 import { ObserverNotice } from "./ObserverNotice";
+import { GameSetupSummary } from "./GameSetupSummary";
 import { PrivateNotesPanel } from "./PrivateNotesPanel";
 import { LobbyGroupPanel } from "./LobbyGroupPanel";
 import { authIdentity } from "../lib/authIdentity";
 import { GamePlayerRow } from "./GamePlayerRow";
+import { ChatComposer } from "./ChatComposer";
+import { ActionIcon } from "./ActionIcon";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Share,
   Text,
   View,
 } from "react-native";
 import {
   canConfigureAiCharacters,
   phaseActionHint,
+  matchActionLabel,
   voteSummary,
 } from "../../shared/game/matchExperience";
-import { shouldShowVisitAction } from "../../shared/game/playerActionRules";
-import { Button, EmptyState, Input } from "./ui";
+import { canAbstain, shouldShowVisitAction } from "../../shared/game/playerActionRules";
+import { Button, EmptyState } from "./ui";
 import { AiCharactersSetup } from "./AiCharactersPanel";
 import {
   ChatLog,
@@ -44,6 +52,7 @@ export type LobbyViewProps = {
   spectating?: boolean;
   authToken?: string;
   onFollowRoom?: (roomId: string) => void;
+  onLeaveLobby?: () => void;
   initialTab?: LobbyTab;
 };
 
@@ -57,6 +66,7 @@ export function LobbyView({
   spectating = false,
   authToken,
   onFollowRoom,
+  onLeaveLobby,
   initialTab,
 }: LobbyViewProps) {
   const observer =
@@ -67,13 +77,36 @@ export function LobbyView({
     groupAvailable: !practice && !!authToken,
   };
   const [selection, setSelection] = useState<LobbyTabSelection | undefined>(
-    () => initialTab ? { ...context, tab: initialTab } : undefined,
+    () => (initialTab ? { ...context, tab: initialTab } : undefined),
   );
   const tab = resolveLobbyTab(selection, context);
   const setTab = (value: LobbyTab) => setSelection({ ...context, tab: value });
   const canConfigureAi = canConfigureAiCharacters(lobby, practice);
   const [notesOpen, setNotesOpen] = useState(false);
-  const [muted, setMuted] = useState(false);
+  const [noteTarget, setNoteTarget] = useState<string>();
+  const [noteNames, setNoteNames] = useState<string[]>([]);
+  const [highlighted, setHighlighted] = useState<string>();
+  const [roleOpen, setRoleOpen] = useState(false);
+  const [roleReturnToChat, setRoleReturnToChat] = useState(false);
+  const [chatJump, setChatJump] = useState(0);
+  const playersScroll = useRef<ScrollView>(null);
+  const playerOffsets = useRef<Record<string, number>>({});
+  const pendingPlayer = useRef<string | undefined>(undefined);
+  const showPlayer = (name: string) => {
+    if (!lobby.players.some((player) => player.name === name)) return;
+    setHighlighted(name);
+    pendingPlayer.current = name;
+    setTab("players");
+    const offset = playerOffsets.current[name];
+    if (offset !== undefined) requestAnimationFrame(() => playersScroll.current?.scrollTo({ y: offset, animated: true }));
+  };
+  const showNotes = (name: string) => {
+    setNoteTarget(name);
+    setNotesOpen(true);
+    setTab("players");
+    requestAnimationFrame(() => playersScroll.current?.scrollTo({ y: 0, animated: true }));
+  };
+  const [shareError, setShareError] = useState("");
   const [haptics, setHaptics] = useState(false);
   const previousFeedback = useRef(lobby.action.feedback);
   useEffect(() => {
@@ -91,9 +124,11 @@ export function LobbyView({
       ).catch(() => undefined);
     previousFeedback.current = lobby.action.feedback;
   }, [lobby.action.feedback, lobby.action.outcome, haptics]);
-  const votes = voteSummary(lobby.players, lobby.voteVisibility);
+  const votes = voteSummary(lobby.players, lobby.voteVisibility, lobby.setup?.rules.voting.method);
   return (
-    <View className="flex-1">
+    <View
+      className={`flex-1 ${lobby.setup?.rules.presentation.theme === "noir" ? "bg-[#191715]" : lobby.setup?.rules.presentation.theme === "midnight" ? "bg-[#0e1830]" : ""}`}
+    >
       {!lobby.playerName ? (
         <EmptyState
           title={
@@ -127,7 +162,8 @@ export function LobbyView({
           keyboardVerticalOffset={90}
         >
           <View className="flex-1 gap-2">
-            <PhaseHeader lobby={lobby} practice={practice} />
+            <PhaseHeader lobby={lobby} practice={practice} onRolePress={() => { setRoleReturnToChat(tab === "chat"); setRoleOpen(true); setNotesOpen(false); setTab("players"); requestAnimationFrame(() => playersScroll.current?.scrollTo({ y: 0, animated: true })); }} />
+            <GameSetupSummary setup={lobby.setup} started={lobby.started} />
             <ObserverNotice lobby={lobby} />
             {!lobby.connected ? (
               <Text
@@ -152,6 +188,7 @@ export function LobbyView({
                 >
                   Dismiss
                 </Button>
+                <Button variant="ghost" size="sm" onPress={() => { setTab("chat"); setChatJump((value) => value + 1); }}>View recent messages</Button>
               </View>
             ) : null}
             {!lobby.started || practice ? (
@@ -187,60 +224,35 @@ export function LobbyView({
                 </Button>
               ))}
             </View>
-            {tab === "chat" ? (
-              <View className="flex-1 gap-2">
-                <View className="flex-row justify-between">
+              <View className="flex-1 gap-2" style={tab === "chat" ? undefined : { display: "none" }} accessibilityElementsHidden={tab !== "chat"} importantForAccessibility={tab === "chat" ? "auto" : "no-hide-descendants"}>
+                {Platform.OS !== "web" ? (
                   <Button
                     size="sm"
                     variant="ghost"
-                    accessibilityState={{ checked: muted }}
-                    onPress={() => setMuted(!muted)}
+                    accessibilityState={{ checked: haptics }}
+                    onPress={() => setHaptics(!haptics)}
                   >
-                    {muted ? "Unmute bots" : "Mute bots"}
+                    {haptics ? "Haptics on" : "Haptics off"}
                   </Button>
-                  {Platform.OS !== "web" ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      accessibilityState={{ checked: haptics }}
-                      onPress={() => setHaptics(!haptics)}
-                    >
-                      {haptics ? "Haptics on" : "Haptics off"}
-                    </Button>
-                  ) : null}
-                </View>
-                <ChatLog messages={lobby.messages} muted={muted} />
-                <View className="flex-row items-end gap-2 border-t border-border pt-2">
-                  <Input
-                    className="min-h-11 max-h-28 flex-1"
-                    accessibilityLabel="Message"
-                    value={lobby.messageDraft}
-                    onChangeText={lobby.setMessageDraft}
-                    placeholder={
-                      lobby.canTalk
-                        ? observer
-                          ? "Message spectators…"
-                          : "Message the room…"
-                        : "Chat unavailable this phase"
-                    }
-                    editable={lobby.canTalk && lobby.connected}
-                    multiline
-                    maxLength={150}
-                  />
-                  <Button
-                    onPress={lobby.sendMessage}
-                    disabled={
-                      !lobby.connected ||
-                      !lobby.canTalk ||
-                      !lobby.messageDraft.trim()
-                    }
-                  >
-                    Send
-                  </Button>
-                </View>
+                ) : null}
+                <ChatLog
+                  key={`${lobby.matchId}:${!!lobby.started}`}
+                  messages={lobby.messages}
+                  playerNames={lobby.players.map((player) => player.name)}
+                  onPlayerSelect={showPlayer}
+                  anonymous={!!lobby.started}
+                  jumpSignal={chatJump}
+                  muted={false}
+                  compact={
+                    lobby.setup?.rules.presentation.announcementStyle ===
+                    "concise"
+                  }
+                />
+                <ChatComposer value={lobby.messageDraft} onChange={lobby.setMessageDraft} onSend={lobby.sendMessage} players={lobby.players} ownRole={lobby.currentUserRole} disabled={!lobby.canTalk || !lobby.connected} placeholder={lobby.canTalk ? observer ? "Message spectators…" : "Message the room…" : "Chat unavailable this phase"} />
               </View>
-            ) : tab === "players" ? (
+            {tab === "players" ? (
               <ScrollView
+                ref={playersScroll}
                 className="flex-1"
                 keyboardShouldPersistTaps="handled"
                 contentContainerClassName="pb-3"
@@ -259,57 +271,108 @@ export function LobbyView({
                     Private notes{notesOpen ? " −" : " +"}
                   </Button>
                   <View className={notesOpen ? "pt-2" : "hidden"}>
+                    {noteTarget ? <Button size="sm" variant="ghost" onPress={() => setNoteTarget(undefined)}>Show all players</Button> : null}
                     <PrivateNotesPanel
                       lobby={lobby}
                       ownerId={authToken ? authIdentity(authToken) : undefined}
+                      focusPlayer={noteTarget}
+                      onBoardChange={setNoteNames}
                     />
                   </View>
                 </View>
                 <RoleReference
                   name={lobby.currentUserRole}
                   capability={lobby.visitCapability}
+                  customRoles={lobby.setup?.customRoles}
+                  expanded={roleOpen}
+                  onExpandedChange={setRoleOpen}
                 />
-                <View className="flex-row items-center justify-between gap-2 py-3">
+                {roleOpen && roleReturnToChat ? <Button variant="ghost" size="sm" onPress={() => { setRoleOpen(false); setRoleReturnToChat(false); setTab("chat"); }}>Back to chat</Button> : null}
+                <View className="flex-row flex-wrap items-center justify-between gap-2 py-3">
                   <Text className="font-semibold text-foreground">
-                    Players ({lobby.players.length})
+                    Players ({lobby.players.length}
+                    {!lobby.started && lobby.capacity != null
+                      ? `/${lobby.capacity}`
+                      : ""}
+                    )
                   </Text>
+                  {!practice && !lobby.started ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onPress={() => {
+                        const origin =
+                          process.env.EXPO_PUBLIC_WEBSITE_URL ??
+                          process.env.EXPO_PUBLIC_TRPC_URL?.replace(
+                            /\/api\/trpc\/?$/,
+                            "",
+                          ) ??
+                          "http://localhost:3000";
+                        try {
+                          const url = createLobbyLink(origin, roomId);
+                          void Share.share({ message: url, url }).catch(() =>
+                            setShareError("Unable to share lobby link."),
+                          );
+                        } catch {
+                          setShareError("Unable to share lobby link.");
+                        }
+                      }}
+                    >
+                      Share lobby
+                    </Button>
+                  ) : null}
                   {canConfigureAi ? (
                     <AiCharactersSetup roomId={roomId} />
                   ) : null}
                   {lobby.time === "Day" && lobby.started && !lobby.ended ? (
                     <Text className="text-xs text-muted-foreground">
                       {votes
-                        ? `${votes.required} votes to eliminate`
+                        ? votes.required ? `${votes.required} votes to eliminate` : "Plurality vote"
                         : "Votes hidden"}
                     </Text>
                   ) : null}
                 </View>
+                {!practice && !lobby.started ? (
+                  <LobbyDetails roomId={roomId} />
+                ) : null}
+                {!practice && !lobby.started && authToken ? (
+                  <LobbyInvites
+                    roomId={roomId}
+                    authToken={authToken}
+                    onClosed={() => onLeaveLobby?.()}
+                  />
+                ) : null}
+                {shareError ? (
+                  <Text accessibilityRole="alert" className="text-destructive">
+                    {shareError}
+                  </Text>
+                ) : null}
                 {lobby.players.map((player, index) => (
-                  <GamePlayerRow
-                    key={player.name}
+                  <View key={player.name} onLayout={(event) => { const y = event.nativeEvent.layout.y; playerOffsets.current[player.name] = y; if (pendingPlayer.current === player.name) { pendingPlayer.current = undefined; requestAnimationFrame(() => playersScroll.current?.scrollTo({ y, animated: true })); } }}><GamePlayerRow
                     player={player}
                     index={index}
                     lobby={lobby}
-                  />
+                    highlighted={highlighted === player.name}
+                    hasNote={noteNames.includes(player.name)}
+                    onNotes={showNotes}
+                  /></View>
                 ))}
               </ScrollView>
-            ) : (
+            ) : tab === "group" ? (
               <ScrollView
                 className="flex-1"
                 keyboardShouldPersistTaps="handled"
               >
                 <LobbyGroupPanel
                   roomId={roomId}
-                  onFollowRoom={(nextRoom) =>
-                    onFollowRoom?.(nextRoom)
-                  }
+                  onFollowRoom={(nextRoom) => onFollowRoom?.(nextRoom)}
                 />
               </ScrollView>
-            )}
+            ) : null}
             <View className="gap-2 border-t border-border pt-2">
               <Text
                 accessibilityRole="alert"
-                className={`text-xs ${lobby.action.outcome === "rejected" || lobby.action.outcome === "blocked" ? "text-destructive" : "text-muted-foreground"}`}
+                className={`text-xs ${!lobby.ended && (lobby.action.outcome === "rejected" || lobby.action.outcome === "blocked") ? "border-l-2 border-destructive pl-2 font-medium text-destructive" : "text-muted-foreground"}`}
               >
                 {observer
                   ? "Spectator chat"
@@ -328,9 +391,10 @@ export function LobbyView({
               </Text>
               {!lobby.ended && lobby.action.vote !== undefined ? (
                 <Text className="text-xs text-foreground">
-                  {lobby.action.vote === null
+                  <Text>{lobby.action.vote === null
                     ? "Abstained"
-                    : `Your vote: ${lobby.action.vote}`}
+                    : `Your vote: ${lobby.action.vote}`}</Text>
+                  <Text> · {lobby.time === "Day" && lobby.setup?.rules.voting.allowRevote ? "Can change" : "Final"}</Text>
                 </Text>
               ) : null}
               <View className="flex-row gap-2">
@@ -345,9 +409,9 @@ export function LobbyView({
                   <Button
                     size="sm"
                     variant="outline"
-                    onPress={() => setTab("players")}
+                  onPress={() => { const target = lobby.action.visit ?? lobby.action.vote; if (target) showPlayer(target); else setTab("players"); }}
                   >
-                    Your action
+                    {matchActionLabel(lobby)}
                   </Button>
                 ) : null}
                 {!observer &&
@@ -360,21 +424,17 @@ export function LobbyView({
                     onPress={lobby.cancelVisit}
                     disabled={!lobby.connected}
                   >
-                    Cancel action
+                    <View className="flex-row items-center gap-1"><ActionIcon action="cancel" /><Text className="text-sm font-bold text-foreground">Cancel action</Text></View>
                   </Button>
                 ) : null}
-                {lobby.started &&
-                !lobby.ended &&
-                lobby.time === "Day" &&
-                lobby.canVote &&
-                lobby.action.vote === undefined ? (
+                {canAbstain(lobby) ? (
                   <Button
                     size="sm"
                     variant="outline"
                     onPress={() => lobby.voteForPlayer(null)}
                     disabled={!lobby.connected}
                   >
-                    Abstain
+                    <View className="flex-row items-center gap-1"><ActionIcon action="abstain" /><Text className="text-sm font-bold text-foreground">Abstain</Text></View>
                   </Button>
                 ) : null}
                 {practice && lobby.time === "Night" && lobby.action.visit ? (

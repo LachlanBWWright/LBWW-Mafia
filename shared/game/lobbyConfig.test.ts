@@ -16,6 +16,13 @@ const parse = (
     roleSelection: { algorithm, roles, explicitSlots },
   });
 describe("custom lobby contract", () => {
+  it("accepts the normal game with no configured role pool", () => {
+    expect(parseLobbyForm("8", "normal", initialRoleForms(), "").success).toBe(
+      true,
+    );
+    expect(parseLobbyForm("20", "normal", initialRoleForms(), "").success).toBe(true);
+    expect(parseLobbyForm("21", "normal", initialRoleForms(), "").success).toBe(false);
+  });
   it("rejects unknown roles, duplicates, impossible capacities, and invalid counts", () => {
     expect(parse([{ role: "invented" }]).success).toBe(false);
     expect(parse([{ role: "doctor" }, { role: "doctor" }]).success).toBe(false);

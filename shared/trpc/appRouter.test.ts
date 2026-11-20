@@ -5,6 +5,11 @@ import { createAppRouter } from "./appRouter";
 let setUserAdminCalls = 0;
 let presenceCalls = 0;
 const mockServices = {
+  listAdminGames: async () => ({
+    games: [],
+    nextOffset: null,
+    checkedAt: "2026-11-07T00:00:00Z",
+  }),
   getRecentMatches: async () => [
     {
       id: 1,
@@ -127,5 +132,39 @@ describe("appRouter", () => {
     expect(await caller.messages.conversations()).toEqual([]);
     await caller.presence.heartbeat();
     expect(presenceCalls).toBe(1);
+  });
+});
+
+describe("admin game access", () => {
+  it("requires authentication and an administrator role", async () => {
+    await expect(
+      appRouter.createCaller({ sessionUser: null }).admin.games({ offset: 0 }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(
+      appRouter
+        .createCaller({
+          sessionUser: { id: "player", name: "Player", isAdmin: false },
+        })
+        .admin.games({ offset: 0 }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+  it("accepts administrator identities and validates room lookup", async () => {
+    const caller = appRouter.createCaller({
+      sessionUser: {
+        id: "admin",
+        name: "Admin",
+        isAdmin: false,
+        roles: ["administrator"],
+      },
+    });
+    expect(await caller.admin.games({ offset: 0 })).toMatchObject({
+      games: [],
+    });
+    await expect(
+      caller.admin.games({ offset: 0, roomId: "../private" }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.admin.games({ offset: -1 })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
   });
 });

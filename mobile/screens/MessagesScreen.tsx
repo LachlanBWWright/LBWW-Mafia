@@ -27,7 +27,7 @@ import {
 
 type Props = NativeStackScreenProps<StackParamList, "Messages">;
 
-export function MessagesScreen({ navigation }: Props) {
+export function MessagesScreen({ navigation, route }: Props) {
   const [conversations, setConversations] = useState<
     DirectConversationSummary[]
   >([]);
@@ -83,6 +83,21 @@ export function MessagesScreen({ navigation }: Props) {
     setError("");
     void loadThread(user);
   };
+  const openedUser = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const id = route.params?.userId;
+    if (!id || openedUser.current === id) return;
+    const friend = friends.find((item) => item.id === id);
+    if (!friend) return;
+    openedUser.current = id;
+    selectedId.current = friend.id;
+    setSelected(friend);
+    setMessages([]);
+    setHasOlder(true);
+    setDraft("");
+    setError("");
+    void loadThread(friend);
+  }, [route.params?.userId, friends, loadThread]);
   useEffect(
     () => runInForeground(() => void load(), MESSAGE_REFRESH_MS),
     [load],

@@ -13,9 +13,11 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { authIdentity } from "./lib/authIdentity";
 import { AppStateProvider, useAppState } from "./context/AppStateContext";
 import { LandingScreen } from "./screens/LandingScreen";
+import { PublicLobbiesScreen } from "./screens/PublicLobbiesScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
 import { RolesScreen } from "./screens/RolesScreen";
-import { AboutScreen } from "./screens/AboutScreen";
+import { CampaignsScreen } from "./screens/CampaignsScreen";
+import { RoleSandboxScreen } from "./screens/RoleSandboxScreen";
 import { HistoryScreen } from "./screens/HistoryScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { AdminScreen } from "./screens/AdminScreen";
@@ -31,16 +33,18 @@ import { StoryCapture } from "./visual/StoryCapture";
 
 export type StackParamList = {
   Home: undefined;
-  Lobby: { roomId?: string; spectator?: boolean } | undefined;
+  Lobby: { roomId?: string; spectator?: boolean; practice?: boolean } | undefined;
   CreateLobby: undefined;
+  PublicLobbies: undefined;
   Roles: undefined;
-  About: undefined;
   History: undefined;
+  Campaigns: undefined;
+  Sandbox: undefined;
   Profile: undefined;
   Admin: undefined;
   SignIn: undefined;
   Community: undefined;
-  Messages: undefined;
+  Messages: { userId?: string } | undefined;
   Notifications: undefined;
   Settings: undefined;
 };
@@ -98,10 +102,12 @@ function AppNavigation() {
       >
         <Stack.Screen name="Home" component={LandingScreen} />
         <Stack.Screen name="Lobby" component={LobbyScreen} />
+        <Stack.Screen name="PublicLobbies" component={PublicLobbiesScreen} />
         <Stack.Screen name="CreateLobby" component={CreateLobbyScreen} />
         <Stack.Screen name="Roles" component={RolesScreen} />
-        <Stack.Screen name="About" component={AboutScreen} />
         <Stack.Screen name="History" component={HistoryScreen} />
+        <Stack.Screen name="Campaigns" component={CampaignsScreen} />
+        <Stack.Screen name="Sandbox" component={RoleSandboxScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
         <Stack.Screen name="Admin" component={AdminScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />

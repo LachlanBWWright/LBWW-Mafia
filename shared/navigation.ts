@@ -2,6 +2,7 @@
 export const navigationItems = [
   { key: "Home", label: "Home", path: "/" },
   { key: "Lobby", label: "Lobby", path: "/lobby" },
+  { key: "PublicLobbies", label: "Public lobbies", path: "/lobbies" },
   {
     key: "CreateLobby",
     label: "Create",
@@ -10,6 +11,13 @@ export const navigationItems = [
   },
   { key: "Roles", label: "Roles", path: "/roles" },
   { key: "History", label: "History", path: "/history" },
+  {
+    key: "Campaigns",
+    label: "Persistent lobbies",
+    path: "/campaigns",
+    requiresAuth: true,
+  },
+  { key: "Sandbox", label: "Role sandbox", path: "/sandbox" },
   {
     key: "Community",
     label: "Community",
@@ -23,7 +31,6 @@ export const navigationItems = [
     requiresAuth: true,
   },
   { key: "Messages", label: "Messages", path: "/messages", requiresAuth: true },
-  { key: "About", label: "About", path: "/about" },
   { key: "Profile", label: "Profile", path: "/profile", requiresAuth: true },
   { key: "Settings", label: "Settings", path: "/settings", requiresAuth: true },
   {
@@ -47,4 +54,14 @@ export function getVisibleNavigationItems(
       (!("requiresAuth" in item && item.requiresAuth) || isAuthenticated) &&
       (!("adminOnly" in item) || !item.adminOnly || isAdmin),
   );
+}
+
+/** Persistent destinations and secondary menu use identical grouping on both clients. */
+export function getNavigationGroups(isAuthenticated: boolean, isAdmin: boolean) {
+  const visible = getVisibleNavigationItems(isAuthenticated, isAdmin);
+  const primaryKeys: readonly NavigationKey[] = ["Home", "Community", "Messages"];
+  return {
+    primary: visible.filter((item) => primaryKeys.includes(item.key)),
+    secondary: visible.filter((item) => !primaryKeys.includes(item.key)),
+  };
 }

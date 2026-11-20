@@ -6,6 +6,7 @@ import {
   type ConnectionContext,
 } from "partyserver";
 import MafiaRoomSession from "./mafiaRoomSession.js";
+import { roleSandboxRequest } from "./roleSandboxRequest.js";
 
 export interface Env extends Record<string, unknown> {
   Main: DurableObjectNamespace;
@@ -66,6 +67,8 @@ export class MafiaServer extends Server<Env> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (new URL(request.url).pathname === "/sandbox")
+      return roleSandboxRequest(request, env.NEXTJS_URL);
     return (
       (await routePartykitRequest(request, env)) ??
       new Response("Not found", { status: 404 })

@@ -11,6 +11,12 @@ type ScreenCase = {
 const screens: ScreenCase[] = [
   { name: "home", readyText: "LBWW Mafia" },
   {
+    name: "role-sandbox",
+    navigate: (page) => clickLink(page, "Role sandbox"),
+    readyText: "Role to test",
+    scrollCaptures: 3,
+  },
+  {
     name: "lobby-connection",
     navigate: (page) => clickLink(page, "Lobby"),
     readyText: "Connection unavailable",
@@ -20,12 +26,6 @@ const screens: ScreenCase[] = [
     navigate: (page) => clickLink(page, "Roles"),
     readyText: "Town Roles",
     scrollCaptures: 3,
-  },
-  {
-    name: "about",
-    navigate: (page) => clickLink(page, "About"),
-    readyText: "The Project",
-    scrollCaptures: 1,
   },
   {
     name: "history-signed-out",
@@ -40,11 +40,18 @@ const screens: ScreenCase[] = [
 ];
 
 async function clickLink(page: Page, label: string) {
-  await page.getByText(label, { exact: true }).last().click();
+  const destination = page.getByText(label, { exact: true }).last();
+  if (!(await destination.isVisible())) await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await destination.click();
 }
 
 function output(testInfo: TestInfo, name: string) {
-  return path.join("visual", "screenshots", testInfo.project.name, `${name}.png`);
+  return path.join(
+    "visual",
+    "screenshots",
+    testInfo.project.name,
+    `${name}.png`,
+  );
 }
 
 async function capture(page: Page, testInfo: TestInfo, name: string) {
@@ -54,25 +61,29 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
     animations: "disabled",
     caret: "hide",
   });
-  await expect(page).toHaveScreenshot(
-    [testInfo.project.name, `${name}.png`],
-    {
-      animations: "disabled",
-      caret: "hide",
-    },
-  );
+  await expect(page).toHaveScreenshot([testInfo.project.name, `${name}.png`], {
+    animations: "disabled",
+    caret: "hide",
+  });
 }
 
 async function scrollApp(page: Page, amount: number) {
   return page.evaluate((distance) => {
     const candidates = Array.from(document.querySelectorAll<HTMLElement>("*"))
       .filter((element) => element.scrollHeight > element.clientHeight + 1)
-      .sort((left, right) =>
-        (right.scrollHeight - right.clientHeight) - (left.scrollHeight - left.clientHeight));
+      .sort(
+        (left, right) =>
+          right.scrollHeight -
+          right.clientHeight -
+          (left.scrollHeight - left.clientHeight),
+      );
     const scroller = candidates[0];
     if (!scroller) return false;
     const previousScrollTop = scroller.scrollTop;
-    scroller.scrollTop = Math.min(scroller.scrollTop + distance, scroller.scrollHeight);
+    scroller.scrollTop = Math.min(
+      scroller.scrollTop + distance,
+      scroller.scrollHeight,
+    );
     scroller.dispatchEvent(new Event("scroll", { bubbles: true }));
     return scroller.scrollTop !== previousScrollTop;
   }, amount);
@@ -82,11 +93,16 @@ for (const screen of screens) {
   test(`capture ${screen.name}`, async ({ page }, testInfo) => {
     await page.goto("/");
     await screen.navigate?.(page);
-    await expect(page.getByText(screen.readyText, { exact: false }).last()).toBeVisible();
+    await expect(
+      page.getByText(screen.readyText, { exact: false }).last(),
+    ).toBeVisible();
     await capture(page, testInfo, screen.name);
 
     for (let index = 1; index <= (screen.scrollCaptures ?? 0); index += 1) {
-      const didScroll = await scrollApp(page, testInfo.project.name === "small-phone" ? 360 : 620);
+      const didScroll = await scrollApp(
+        page,
+        testInfo.project.name === "small-phone" ? 360 : 620,
+      );
       if (!didScroll) break;
       await page.waitForTimeout(100);
       await capture(page, testInfo, `${screen.name}-scroll-${index + 1}`);

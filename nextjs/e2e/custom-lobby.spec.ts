@@ -24,8 +24,18 @@ test("saved custom lobby rules determine the live player count and roles", async
     const first = await context.newPage();
     const second = await context.newPage();
     await first.goto(`/lobby?room=${roomId}`);
+    await expect(
+      first.getByRole("heading", { name: "Game setup" }),
+    ).toBeVisible();
+    await expect(first.getByLabel("Your player name")).toHaveCount(0);
+    await first
+      .getByRole("button", { name: "Join match", exact: true })
+      .click();
     await expect(first.getByLabel("Your player name")).not.toBeEmpty();
     await second.goto(`/lobby?room=${roomId}`);
+    await second
+      .getByRole("button", { name: "Join match", exact: true })
+      .click();
     await expect(second.getByLabel("Your player name")).not.toBeEmpty();
     await expect(first.locator('[aria-label$="is alive"]')).toHaveCount(2);
     await expect(second.locator('[aria-label$="is alive"]')).toHaveCount(2);

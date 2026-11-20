@@ -24,7 +24,7 @@ vi.mock("~/env", () => ({ env: mocks.env }));
 
 import { GET, POST } from "./route";
 
-const identity = { id: "account-7", name: "Mafia Player", handle: "player" };
+const identity = { id: "account-7", name: "Mafia Player", handle: "player", avatarPreset: "fox" };
 
 function unpackToken(token: string) {
   const [payload, signature] = token.split(".");
@@ -69,7 +69,7 @@ describe("game-seat tickets", () => {
     const body = (await response.json()) as { token: string };
     const claims = unpackToken(body.token);
 
-    expect(claims).toMatchObject({ userId: "account-7", handle: "player" });
+    expect(claims).toMatchObject({ userId: "account-7", handle: "player", avatarPreset: "fox" });
     expect(claims.botSeat).toBeUndefined();
     expect(claims.exp).toBeGreaterThan(Date.now());
     expect(claims.exp).toBeLessThanOrEqual(Date.now() + 60_000);

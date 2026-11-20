@@ -629,3 +629,35 @@ test("duplicate authorization is rejected and explicit cancellation stops its li
   assert.equal((await runtime.connection()).signingIn, false);
   assert.equal(cancellations, 1);
 });
+
+test("caller cancellation and output limits reach subscription inference without disconnecting the account", async (t) => {
+  let inferenceSignal;
+  const { runtime } = await fixture(t, {
+    request: async (url, init) => {
+      if (url.endsWith("/token"))
+        return Response.json({
+          access_token: "rotated",
+          refresh_token: "refresh",
+          token_type: "Bearer",
+          expires_in: 3600,
+          scope: "resource.invoke chatgpt.tokens.use.direct",
+        });
+      const body = JSON.parse(init.body);
+      assert.equal(body.max_output_tokens, 321);
+      inferenceSignal = init.signal;
+      return new Response(new ReadableStream({ start() {} }));
+    },
+  });
+  const controller = new AbortController();
+  const pending = runtime.generate({
+    model: "available",
+    input: "view",
+    signal: controller.signal,
+    maxOutputTokens: 321,
+  });
+  while (!inferenceSignal) await new Promise(setImmediate);
+  controller.abort();
+  await assert.rejects(pending, (error) => error.name === "AbortError");
+  assert.equal(inferenceSignal.aborted, true);
+  assert.equal((await runtime.connection()).connected, true);
+});

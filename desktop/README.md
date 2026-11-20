@@ -16,6 +16,8 @@ Before distribution, set `appUrl` and `socketUrl` in `desktop/config.json` to th
 
 Credentials are encrypted through Electron `safeStorage` and written atomically under the app's user-data `chatgpt` directory. Linux requires an available OS secret service; the insecure `basic_text` backend is refused. The renderer receives no access/refresh/ID tokens or generic inference method. Main-frame sender checks, allowed methods, configured game origin and bot-seat validation protect the bridge. Closing the desktop app stops its bot sockets and in-flight authorization/inference.
 
+Credential reads do not depend on an initialized in-memory cache: the shared runtime loads the encrypted desktop record or native SecureStore record directly and saves replacement refresh tokens before returning renewed access. Restart regressions cover successive runtime instances reusing those replacements on desktop and React Native. Browser visitors use the hosted game sign-in flow and do not store ChatGPT plan credentials. These offline tests do not replace live OS keychain, device restart or ChatGPT authorization acceptance.
+
 Run `pnpm run test:desktop` for controller/storage tests. With built Storybook served at `STORYBOOK_BASE_URL`, `node desktop/smoke.mjs` launches Electron against the native setup UI using an isolated user-data directory. It does not sign in or spend plan usage. Runtime and bot tests remain under `pnpm run test:chatgpt` and the server suites.
 
 Live ChatGPT authorization and a complete AI match remain release acceptance checks. The desktop stores one ChatGPT registration; disconnect and reconnect reuse that registration. Multi-account selection is future work.

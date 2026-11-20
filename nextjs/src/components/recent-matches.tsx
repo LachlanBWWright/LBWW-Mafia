@@ -6,6 +6,7 @@ import superjson from "superjson";
 import type { AppRouter } from "~/server/trpc/router";
 import type { RecentMatchSummary } from "@mernmafia/shared/trpc/appRouter";
 import { Button } from "~/components/ui/button";
+import { MatchDiscussionPanel } from "./match-discussion";
 import { MatchReplayView, MatchBalanceView } from "./match-analysis";
 import { matchOutcome } from "@mernmafia/shared/game/replayPresentation";
 import {
@@ -182,7 +183,7 @@ function RecentMatchesContent({
               ) : replayError ? (
                 <p role="alert">{replayError}</p>
               ) : replay ? (
-                <MatchReplayView replay={replay} />
+                <><MatchReplayView replay={replay} /><MatchDiscussionPanel key={replay.id} replay={replay} /></>
               ) : null}
             </div>
           ) : null}

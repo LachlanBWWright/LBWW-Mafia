@@ -1,4 +1,5 @@
-import type { GenerateInput } from "./runtime.mjs";
+import type { GenerationLimits } from "./generationLimits.mjs";
+import type { GenerateInput } from "./generation.mjs";
 export type BotOptions = {
   url: string;
   room: string;
@@ -20,9 +21,11 @@ export function createBotRunner(ports: {
   randomUUID(): string;
   generate(input: GenerateInput): Promise<string>;
   report?(message: string): void;
+  limits?: GenerationLimits;
 }): {
+  retry(): void;
   setPaused(value: boolean): void;
   startBotSeats(
     options: BotOptions,
-  ): Array<{ close(): void }> & { stop(): void };
+  ): Array<{ close(): void }> & { stop(): void; retry(): void };
 };

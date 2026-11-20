@@ -26,6 +26,8 @@ export const en: Translations = {
   [MessageKey.YouHaveDied]: "You have died!",
   [MessageKey.PlayerHasDied]:
     "{{playerName}} has died. Their role was {{roleName}}.",
+  [MessageKey.PlayerDiedHidden]: "{{playerName}} has died.",
+  [MessageKey.PlayerDiedFaction]: "{{playerName}} has died. Their faction was {{factionName}}.",
   [MessageKey.AttackedButSurvived]: "You were attacked, but you survived!",
   [MessageKey.CannotSpeakYouAreDead]: "You cannot speak, as you are dead.",
   [MessageKey.CannotSpeakDeadOrError]:

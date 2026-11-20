@@ -50,6 +50,20 @@
       "when": 1791859957525,
       "tag": "0006_fast_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792902430870,
+      "tag": "0007_campaign_discussion",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794009600000,
+      "tag": "0008_admin_game_rooms",
+      "breakpoints": true
     }
   ]
 }

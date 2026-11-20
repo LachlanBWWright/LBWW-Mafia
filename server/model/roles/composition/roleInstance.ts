@@ -37,6 +37,11 @@ export class RoleInstance extends Role {
     return this.traits.has(trait);
   }
 
+  canSubmitNightAction(): boolean {
+    return this.definition.canSubmitNightAction?.(this) ??
+      (this.nightVisitSelf || this.nightVisitOthers || this.nightVisitFaction);
+  }
+
   override initRole(): void {
     for (const handler of this.handlers.onInit) {
       handler({ role: this, room: this.room });

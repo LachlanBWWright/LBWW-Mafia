@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "@supabase/supabase-js": "^2.108.2"
+    "@supabase/supabase-js": "^2.118.0"
   },
   "peerDependencies": {
     "@trpc/server": "*",
@@ -12,6 +12,6 @@
     "zod": "*"
   },
   "devDependencies": {
-    "@types/react": "~19.2.14"
+    "@types/react": "~19.2.18"
   }
 }

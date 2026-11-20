@@ -13,6 +13,8 @@ import { Room } from "./room.js";
 import { GamePhase } from "./gamePhase.js";
 import type { LobbyConfig } from "@mernmafia/shared/game/lobbyConfig";
 import { MessageKey } from "@mernmafia/shared/communication/messages";
+import { gameNames, MAX_PLAYERS } from "@mernmafia/shared/game/gameNames";
+import { gameAvatarIndex } from "@mernmafia/shared/game/playerAvatar";
 
 afterEach(() => vi.useRealTimers());
 function game(
@@ -43,6 +45,7 @@ function game(
       botSeat: index === 2,
     }),
   );
+  sockets.sort((a, b) => room.userList.findIndex((user) => user.socketId === a.id) - room.userList.findIndex((user) => user.socketId === b.id));
   const latest = (id: string) =>
     calls
       .filter(
@@ -52,6 +55,64 @@ function game(
   return { room, sockets, calls, latest };
 }
 describe("match feedback and privacy", () => {
+  it("assigns all 20 distinct names and portraits even when every waiting handle uses the name pool", () => {
+    vi.useFakeTimers();
+    captureEmitter();
+    const room = new Room(MAX_PLAYERS, "full-roster");
+    const sockets = gameNames.map((name) => createTestSocket(`socket-${name}`));
+    sockets.forEach((socket, index) => room.addUser(socket, { userId: String(index), handle: gameNames[index] }));
+    expect(room.started).toBe(true);
+    expect(new Set(room.userList.map((user) => user.username)).size).toBe(MAX_PLAYERS);
+    expect(new Set(room.userList.map((user) => gameAvatarIndex(user.username))).size).toBe(MAX_PLAYERS);
+    expect(room.userList.every((user) => user.username !== gameNames[Number(user.userId)])).toBe(true);
+    expect(() => new Room(MAX_PLAYERS + 1)).toThrow(RangeError);
+    room.endGame({ outcome: GameOutcome.Draw });
+  });
+  it("assigns unique new identities at start and rematch while preserving reconnects", () => {
+    vi.useFakeTimers();
+    const calls = captureEmitter();
+    const room = new Room(3, "anonymous");
+    const sockets = ["a", "b", "c"].map(createTestSocket);
+    room.addUser(sockets[0], { userId: "1", handle: "Mira", avatarPreset: "fox" });
+    room.addUser(sockets[1], { userId: "2", handle: "Theo", avatarPreset: "owl" });
+    room.handleSentMessage(sockets[0], "waiting room secret", DayTime.Day);
+    const result = room.addUser(sockets[2], { userId: "3", handle: "Nadia" });
+    const gameNames = room.userList.map((user) => user.username);
+    const namesByAccount = new Map(room.userList.map((user) => [user.userId, user.username]));
+    expect(new Set(gameNames).size).toBe(3);
+    expect(gameNames.every((name) => !["Mira", "Theo", "Nadia"].includes(name))).toBe(true);
+    expect(result).toEqual({ status: "joined", username: room.userList.find((user) => user.socketId === sockets[2].id)!.username });
+    expect(room.conversationHistory.some((entry) => entry.content.includes("waiting room secret"))).toBe(false);
+    const snapshots = calls.filter((call) => call.event === ServerEvent.GameSnapshot && (call.args[0] as GameSnapshot).started).map((call) => call.args[0] as GameSnapshot);
+    expect(snapshots.every((snapshot) => snapshot.players.every((player) => !player.avatarPreset && !["Mira", "Theo", "Nadia"].includes(player.name)))).toBe(true);
+    const resumed = createTestSocket("resumed");
+    const name = room.userList.find((user) => user.socketId === sockets[0].id)!.username;
+    room.setConnected(sockets[0].id, false);
+    expect(room.resumeUser(sockets[0].id, resumed)).toEqual({ status: "joined", username: name });
+    room.endGame({ outcome: GameOutcome.Draw });
+    [resumed, sockets[1], sockets[2]].forEach((socket) => room.readyForRematch(socket));
+    expect(room.userList.every((user) => namesByAccount.get(user.userId) !== user.username)).toBe(true);
+    room.endGame({ outcome: GameOutcome.Draw });
+  });
+  it("sends account avatars only while waiting, including in roster events", () => {
+    vi.useFakeTimers();
+    const calls = captureEmitter();
+    const room = new Room(2, "avatars");
+    const first = createTestSocket("avatar-a");
+    const second = createTestSocket("avatar-b");
+    room.addUser(first, { userId: "a", handle: "A", avatarPreset: "fox" });
+    room.sendSnapshot(first.id);
+    const waiting = calls.filter((call) => call.event === ServerEvent.GameSnapshot && call.target === first.id).at(-1)?.args[0] as GameSnapshot;
+    expect(waiting.players[0].avatarPreset).toBe("fox");
+    calls.length = 0;
+    room.addUser(second, { userId: "b", handle: "B", avatarPreset: "owl" });
+    const started = calls.filter((call) => call.event === ServerEvent.GameSnapshot && call.target === first.id).at(-1)?.args[0] as GameSnapshot;
+    expect(started.started).toBe(true);
+    expect(started.players.every((player) => player.avatarPreset === undefined)).toBe(true);
+    const roster = calls.filter((call) => call.event === ServerEvent.ReceivePlayerList && call.target === room.name).at(-1)?.args[0] as GameSnapshot["players"];
+    expect(roster.every((player) => player.avatarPreset === undefined)).toBe(true);
+    room.endGame({ outcome: GameOutcome.Draw });
+  });
   it("establishes a new match and phase before delivering initial private role clues", () => {
     const { room, sockets, calls, latest } = game(false, [
       "doctor",
@@ -113,7 +174,7 @@ describe("match feedback and privacy", () => {
     room.handleVote(sockets[0], null, DayTime.Day);
     room.handleVote(sockets[1], 2, DayTime.Day);
     expect(latest(sockets[0].id).action?.vote).toBeNull();
-    expect(latest(sockets[1].id).action?.vote).toBe("Nadia");
+    expect(latest(sockets[1].id).action?.vote).toBe(room.playerList[2].username);
     for (const player of latest(sockets[0].id).players) {
       expect(player.voteStatus).toBeUndefined();
       expect(player.voteTarget).toBeUndefined();
@@ -183,6 +244,7 @@ describe("match feedback and privacy", () => {
   });
   it("allows an ended seat to be replaced before the connected group replays", () => {
     const { room, sockets, latest } = game();
+    const departedName = room.playerList[0].username;
     room.endGame({ outcome: GameOutcome.Draw });
     room.readyForRematch(sockets[0]);
     room.removePlayer(sockets[0].id);
@@ -191,24 +253,20 @@ describe("match feedback and privacy", () => {
       room.addUser(replacement, { userId: "replacement", handle: "Leah" })
         .status,
     ).toBe("joined");
-    expect(room.readyPlayers.has("Mira")).toBe(false);
+    expect(room.readyPlayers.has(departedName)).toBe(false);
     room.readyForRematch(sockets[0]);
-    expect(room.readyPlayers.has("Theo")).toBe(false);
+    expect(room.readyPlayers.has(room.userList.find((user) => user.socketId === sockets[1].id)!.username)).toBe(false);
     expect(room.gameHasEnded).toBe(true);
     expect(
       latest(replacement.id).recap?.players.map((player) => player.name),
-    ).toContain("Mira");
+    ).toContain(departedName);
 
     room.readyForRematch(sockets[1]);
     room.readyForRematch(sockets[2]);
     room.readyForRematch(replacement);
 
     expect(room.gameHasEnded).toBe(false);
-    expect(room.playerList.map((player) => player.username)).toEqual([
-      "Theo",
-      "Nadia",
-      "Leah",
-    ]);
+    expect(room.playerList.map((player) => player.user.socketId).sort()).toEqual(["replacement", sockets[1].id, sockets[2].id].sort());
     expect(
       latest(replacement.id).players.filter((player) => player.role),
     ).toHaveLength(1);
@@ -216,18 +274,16 @@ describe("match feedback and privacy", () => {
   });
   it("releases permanently departed seats at game end while retaining their recap", () => {
     const { room, sockets, latest } = game();
+    const departedName = room.playerList[0].username;
     room.setConnected(sockets[0].id, false);
     room.removePlayer(sockets[0].id);
     expect(room.userList).toHaveLength(3);
     room.endGame({ outcome: GameOutcome.Draw });
 
-    expect(room.userList.map((user) => user.username)).toEqual([
-      "Theo",
-      "Nadia",
-    ]);
+    expect(room.userList.map((user) => user.socketId)).toEqual([sockets[1].id, sockets[2].id]);
     expect(
       latest(sockets[1].id).recap?.players.map((player) => player.name),
-    ).toContain("Mira");
+    ).toContain(departedName);
     expect(sockets[1].data.position).toBe(0);
     const replacement = createTestSocket("replacement");
     expect(

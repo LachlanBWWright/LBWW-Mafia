@@ -1,3 +1,4 @@
+import { createGenerationLimiter } from "./generationLimits.mjs";
 import profiles from "../game/botProfiles.json" with { type: "json" };
 import { runCharacterTurn } from "./characterDecisions.mjs";
 
@@ -7,14 +8,27 @@ export function createBotRunner({
   WebSocket,
   randomUUID,
   generate,
+  limits,
   runTurn = runCharacterTurn,
   report = () => {},
 }) {
+  const generationLimiter = createGenerationLimiter(generate, limits);
+  generate = generationLimiter.generate;
   let paused = false;
   let activityGeneration = 0;
   const schedulers = new Set();
+  const cancellers = new Set();
   class BotSeat {
-    constructor({ url, room, captcha, ticket, onSnapshot, onChatMessage }) {
+    constructor({
+      url,
+      room,
+      captcha,
+      ticket,
+      mode,
+      onSnapshot,
+      onChatMessage,
+    }) {
+      this.mode = mode;
       this.url = `${url.replace(/^http(s?)/, "ws$1").replace(/\/$/, "")}/parties/main/${encodeURIComponent(room)}?resume=${randomUUID()}${randomUUID()}`;
       this.captcha = captcha;
       this.ticket = ticket;
@@ -34,6 +48,7 @@ export function createBotRunner({
       );
       this.socket.on("close", () => {
         this.closed = true;
+        this.decisionController?.abort();
         this.onSnapshot?.();
         report("A bot seat disconnected.\n");
       });
@@ -118,6 +133,7 @@ export function createBotRunner({
           this.send("readyForRematch", []);
         }
         this.phaseVersion = payload.phaseVersion ?? this.phaseVersion;
+        this.cancelObsoleteDecision();
         this.onSnapshot?.();
       } else if (
         message.event === "update-day-time" &&
@@ -134,6 +150,7 @@ export function createBotRunner({
         this.phaseVersion = this.snapshot.phaseVersion;
         this.observations.push({ event: message.event, data: payload });
         this.observations = this.observations.slice(-80);
+        this.cancelObsoleteDecision();
         this.onSnapshot?.();
       } else if (
         message.event === "receive-player-list" &&
@@ -152,6 +169,8 @@ export function createBotRunner({
         };
         this.observations.push({ event: message.event, data: payload });
         this.observations = this.observations.slice(-80);
+        if (this.cancelObsoleteDecision() && this.mode === "shared")
+          this.onSnapshot?.();
       } else if (
         message.event === "update-player-role" &&
         payload &&
@@ -167,6 +186,8 @@ export function createBotRunner({
         };
         this.observations.push({ event: message.event, data: payload });
         this.observations = this.observations.slice(-80);
+        if (this.cancelObsoleteDecision() && this.mode === "shared")
+          this.onSnapshot?.();
       } else if (
         [
           "receiveMessage",
@@ -189,7 +210,28 @@ export function createBotRunner({
       }
     }
 
+    cancelObsoleteDecision() {
+      if (
+        this.decisionController &&
+        (this.closed ||
+          this.snapshot?.ended ||
+          this.snapshot?.phaseVersion !== this.decisionVersion ||
+          this.snapshot?.matchId !== this.decisionMatchId ||
+          this.snapshot?.time !== this.decisionTime ||
+          this.snapshot?.dayNumber !== this.decisionDay ||
+          this.snapshot?.players.find(
+            (player) => player.name === this.snapshot.playerName,
+          )?.isAlive === false)
+      ) {
+        this.decisionController.abort();
+        return true;
+      }
+      return false;
+    }
+
     close() {
+      this.closed = true;
+      this.decisionController?.abort();
       this.socket.close(1000, "Client disconnected");
     }
   }
@@ -231,7 +273,7 @@ export function createBotRunner({
         timer = setTimeout(() => void decide(), 1000);
         return;
       }
-      const characters = seats
+      let characters = seats
         .filter(
           (seat) =>
             seat.snapshot &&
@@ -274,13 +316,32 @@ export function createBotRunner({
         .join("|")}`;
       if (!chatReady && chatTimer && seats.lastPhaseKey === phaseKey) return;
       if (seats.lastDecisionKey === decisionKey) return;
+      if (options.mode === "per-character") {
+        characters = characters.filter(({ snapshot, socket }) => {
+          const key = `${snapshot.matchId}:${snapshot.phaseVersion}:${snapshot.time}:${snapshot.dayNumber}:chat:${socket.chatVersion ?? 0}:activity:${activityGeneration}`;
+          if (socket.lastDecisionKey === key) return false;
+          socket.lastDecisionKey = key;
+          return true;
+        });
+        if (!characters.length) return;
+      }
       seats.lastDecisionKey = decisionKey;
       seats.lastPhaseKey = phaseKey;
       for (const seat of seats) {
         seat.decisionActivityGeneration = activityGeneration;
         seat.decisionVersion = seat.snapshot?.phaseVersion;
         seat.decisionMatchId = seat.snapshot?.matchId;
+        seat.decisionTime = seat.snapshot?.time;
+        seat.decisionDay = seat.snapshot?.dayNumber;
       }
+      const decisionControllers = new Map(
+        characters.map((character) => {
+          const controller = new AbortController();
+          character.socket.decisionController = controller;
+          character.signal = controller.signal;
+          return [character.socket, controller];
+        }),
+      );
       // Retain the bounded player-scoped evidence history for later deductions.
       inFlight = true;
       const decisionGeneration = activityGeneration;
@@ -291,12 +352,26 @@ export function createBotRunner({
           model: options.model,
           characters,
           sharedConversation,
+          onError(error, playerName) {
+            report(
+              `Bot decision failed for ${playerName}: ${error instanceof Error ? error.message : String(error)}\n`,
+            );
+          },
         });
       } catch (error) {
-        report(
-          `Bot decision failed: ${error instanceof Error ? error.message : String(error)}\n`,
-        );
+        if (
+          ![...decisionControllers.values()].some(
+            (controller) => controller.signal.aborted,
+          )
+        )
+          report(
+            `Bot decision failed: ${error instanceof Error ? error.message : String(error)}\n`,
+          );
       } finally {
+        for (const [seat, controller] of decisionControllers) {
+          if (seat.decisionController === controller)
+            seat.decisionController = undefined;
+        }
         if (decisionGeneration !== activityGeneration)
           seats.lastDecisionKey = undefined;
         inFlight = false;
@@ -308,10 +383,12 @@ export function createBotRunner({
       }
     };
     const schedule = () => {
+      if (stopped || paused) return;
       clearTimeout(timer);
       timer = setTimeout(() => void decide(), 1000);
     };
     const scheduleChatReaction = () => {
+      if (stopped || paused) return;
       clearTimeout(chatTimer);
       chatTimer = setTimeout(() => {
         chatTimer = undefined;
@@ -333,9 +410,27 @@ export function createBotRunner({
           : options.personality;
       seats.at(-1).difficulty = options.difficulty ?? "standard";
     }
+    const cancel = () => {
+      clearTimeout(timer);
+      clearTimeout(chatTimer);
+      chatTimer = undefined;
+      pendingDecision = undefined;
+      seats.lastDecisionKey = undefined;
+      for (const seat of seats) {
+        seat.lastDecisionKey = undefined;
+        seat.decisionController?.abort();
+      }
+    };
+    cancellers.add(cancel);
     schedulers.add(schedule);
+    seats.retry = () => {
+      generationLimiter.retry();
+      cancel();
+      schedule();
+    };
     seats.stop = () => {
       schedulers.delete(schedule);
+      cancellers.delete(cancel);
       stopped = true;
       clearTimeout(timer);
       clearTimeout(chatTimer);
@@ -346,11 +441,17 @@ export function createBotRunner({
   }
 
   return {
+    retry() {
+      generationLimiter.retry();
+      for (const cancel of cancellers) cancel();
+      for (const schedule of schedulers) schedule();
+    },
     startBotSeats,
     setPaused(value) {
       if (paused === value) return;
       activityGeneration += 1;
       paused = value;
+      for (const cancel of cancellers) cancel();
       if (!paused) for (const schedule of schedulers) schedule();
     },
   };

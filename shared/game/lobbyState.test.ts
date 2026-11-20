@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { DayTime } from "../communication/events";
+import { MessageKey } from "../communication/messages";
 import { initialLobbyState, lobbyReducer } from "./lobbyState";
 describe("shared web/mobile lobby reducer", () => {
+  it("preserves a server event key alongside its translated message", () => {
+    const state = lobbyReducer(initialLobbyState, { type: "message", kind: "system", messageKey: MessageKey.PlayerDiedHidden, text: "Sam has died." });
+    expect(state.messages[0]).toMatchObject({ messageKey: MessageKey.PlayerDiedHidden, text: "Sam has died." });
+  });
+  it("clears waiting-room identities and chat when the first match starts", () => {
+    const waiting = { ...initialLobbyState, snapshotReceived: true, matchId: "same", started: false, playerName: "Account", players: [{ name: "Account", avatarPreset: "fox" }], messages: [{ id: 1, text: "Account: hello" }] };
+    const state = lobbyReducer(waiting, { type: "snapshot", value: { matchId: "same", started: true, playerName: "Alex", players: [{ name: "Alex" }], time: DayTime.Day, dayNumber: 1, timeLeft: 30, canTalk: true, canVote: true } });
+    expect(state.playerName).toBe("Alex");
+    expect(state.players).toEqual([{ name: "Alex" }]);
+    expect(state.messages).toEqual([]);
+    expect(lobbyReducer(state, { type: "joined", username: "Account" }).playerName).toBe("Alex");
+  });
   it("resynchronizes a returning player's permissions, roster, phase, and role without losing chat", () => {
     const prior = lobbyReducer(initialLobbyState, {
       type: "message",

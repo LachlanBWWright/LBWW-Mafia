@@ -11,6 +11,7 @@ export function LandingScreen({ navigation }: LandingScreenProps) {
     <Screen navigation={navigation} activeRoute="Home" scroll>
       <LandingContent
         onJoin={() => navigation.navigate("Lobby")}
+        onPublicLobbies={() => navigation.navigate("PublicLobbies")}
         onCreate={() => navigation.navigate("CreateLobby")}
       />
     </Screen>

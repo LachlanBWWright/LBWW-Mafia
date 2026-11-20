@@ -16,19 +16,8 @@ export class CombatSystem {
         key: MessageKey.YouHaveDied,
       });
       this.room.messenger.emitToPlayer(role.player, ServerEvent.BlockMessages);
-      this.room.messenger.emitToRoom(ServerEvent.ReceiveMessage, {
-        key: MessageKey.PlayerHasDied,
-        params: {
-          playerName: role.player.username,
-          roleName: role.name.toLowerCase(),
-        },
-      });
       role.player.isAlive = false;
-      this.room.recordTimeline(`${role.player.username} died (${role.name}).`);
-      this.room.messenger.emitToRoom(ServerEvent.UpdatePlayerRole, {
-        name: role.player.username,
-        role: role.name,
-      });
+      this.room.announceDeath(role.player);
     } else if (outcome.kind === "survived") {
       this.room.messenger.emitToPlayer(role.player, ServerEvent.ReceiveMessage, {
         key: MessageKey.AttackedButSurvived,

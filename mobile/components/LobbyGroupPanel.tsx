@@ -55,6 +55,7 @@ export function LobbyGroupView({
   onRefresh,
 }: LobbyGroupViewProps) {
   const [destination, setDestination] = useState("");
+  const [showDestination, setShowDestination] = useState(false);
   const leader = party?.leaderId === userId;
   const availableFriends = friends.filter(
     (friend) => !party?.members.some((member) => member.userId === friend.id),
@@ -193,9 +194,7 @@ export function LobbyGroupView({
             ))}
           </View>
           <Text className="text-sm text-foreground">
-            {party.roomId
-              ? `Party lobby: ${party.roomId}`
-              : "No party lobby selected."}
+            {party.roomId ? "Party lobby selected" : "No party lobby selected."}
           </Text>
           {party.roomId && party.roomId !== roomId ? (
             <Button size="sm" onPress={() => onFollowRoom(party.roomId!)}>
@@ -213,26 +212,38 @@ export function LobbyGroupView({
                   disabled={busy}
                   onPress={() => onAction({ type: "move", roomId })}
                 >
-                  Set this lobby as party destination
+                  Bring party here
                 </Button>
               ) : null}
-              <Input
-                accessibilityLabel="Party lobby ID"
-                placeholder="Lobby ID"
-                value={destination}
-                onChangeText={setDestination}
-                maxLength={64}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
               <Button
-                disabled={busy || !isLobbyRoomId(destination.trim())}
-                onPress={() =>
-                  onAction({ type: "move", roomId: destination.trim() })
-                }
+                size="sm"
+                variant="ghost"
+                accessibilityState={{ expanded: showDestination }}
+                onPress={() => setShowDestination(!showDestination)}
               >
-                Set party lobby
+                Choose a lobby by ID
               </Button>
+              {showDestination ? (
+                <View className="gap-2">
+                  <Input
+                    accessibilityLabel="Party lobby ID"
+                    placeholder="Lobby ID"
+                    value={destination}
+                    onChangeText={setDestination}
+                    maxLength={64}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                  <Button
+                    disabled={busy || !isLobbyRoomId(destination.trim())}
+                    onPress={() =>
+                      onAction({ type: "move", roomId: destination.trim() })
+                    }
+                  >
+                    Set party lobby
+                  </Button>
+                </View>
+              ) : null}
               {availableFriends.length ? (
                 <View className="gap-2">
                   <Text className="text-sm font-medium text-foreground">

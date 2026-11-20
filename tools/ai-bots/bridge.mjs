@@ -11,10 +11,11 @@ const host = process.env.MAFIA_AI_BOT_HOST ?? "127.0.0.1";
 const origins = (process.env.MAFIA_AI_ALLOWED_ORIGINS ?? `http://localhost:${process.env.WEB_PORT ?? 3000},http://127.0.0.1:${process.env.WEB_PORT ?? 3000}`).split(",").map((value) => new URL(value.trim()).origin);
 const socketOrigins = (process.env.MAFIA_AI_SOCKET_ORIGINS ?? process.env.NEXT_PUBLIC_SOCKET_URL ?? `http://localhost:${process.env.PARTYSERVER_PORT ?? 1999}`).split(",").map((value) => new URL(value.trim()).origin);
 const seats = new Set();
+const groups = new Set();
 const access = createAccess();
 const launches = new Map();
 const addresses = ["127.0.0.1", "localhost", ...Object.values(networkInterfaces()).flatMap((list) => (list ?? []).filter((item) => item.family === "IPv4").map((item) => item.address))];
-const stopSeats = () => { for (const seat of seats) seat.close(); seats.clear(); };
+const stopSeats = () => { for (const group of groups) group.stop(); groups.clear(); seats.clear(); };
 const json = (response, status, body) => response.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }).end(JSON.stringify(body));
 async function readBody(request) {
   let raw = "";
@@ -85,7 +86,7 @@ const server = createServer(async (request, response) => {
     }
     if (request.method === "POST" && path === "/cancel") { launches.clear(); chatGPTRuntime.cancelSignIn(); json(response, 200, {}); return; }
     if (request.method === "POST" && path === "/disconnect") { launches.clear(); stopSeats(); json(response, 200, await chatGPTRuntime.signOut()); return; }
-    if (request.method === "POST" && path === "/retry") { chatGPTRuntime.retryUsage(); json(response, 200, {}); return; }
+    if (request.method === "POST" && path === "/retry") { chatGPTRuntime.retryUsage(); for (const group of groups) group.retry(); json(response, 200, {}); return; }
     if (request.method === "GET" && path === "/models") { json(response, 200, { models: await chatGPTRuntime.models() }); return; }
     if (request.method !== "POST" || path !== "/join") { json(response, 404, { error: "Not found." }); return; }
     let socket;
@@ -103,6 +104,7 @@ const server = createServer(async (request, response) => {
     const models = await chatGPTRuntime.models();
     if (!models.some((model) => model.slug === body.model)) { json(response, 400, { error: "Choose a model available to your ChatGPT account." }); return; }
     const added = startBotSeats({ url: socket.origin, room: body.room, captcha: "", tickets: body.tickets, mode: body.mode, model: body.model, personality: body.personality, difficulty: body.difficulty });
+    groups.add(added);
     for (const seat of added) { seats.add(seat); seat.socket.on("close", () => seats.delete(seat)); }
     json(response, 202, { added: added.length });
   } catch (error) {

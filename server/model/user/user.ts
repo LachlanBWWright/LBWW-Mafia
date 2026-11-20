@@ -13,14 +13,16 @@ export class User {
   isBot = false;
   socket: GamePlayerSocket;
   socketId: string;
-  readonly username: string;
+  username: string;
   readonly userId?: string;
+  readonly avatarPreset?: string;
 
-  constructor(socket: GamePlayerSocket, username: string, userId?: string) {
+  constructor(socket: GamePlayerSocket, username: string, userId?: string, avatarPreset?: string) {
     this.socket = socket;
     this.socketId = socket.id;
     this.username = username;
     this.userId = userId;
+    this.avatarPreset = avatarPreset;
   }
 }
 

@@ -1,11 +1,11 @@
 import { LobbyGroupPanel } from "../components/LobbyGroupPanel";
-import { avatarOptions } from "../../shared/trpc/accountFeatures";
+import { PlayerAvatar } from "../components/PlayerAvatar";
 import React, { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { SocialUser } from "../../shared/trpc/appRouter";
 import { StackParamList } from "../App";
-import { Button, Card, EmptyState, Input, Screen } from "../components/ui";
+import { Button, Card, Input, Screen } from "../components/ui";
 import { PlayerReports } from "../components/PlayerReports";
 import { ReportPlayer } from "../components/ReportPlayer";
 import { trpcClient } from "../lib/trpc";
@@ -14,16 +14,25 @@ type Props = NativeStackScreenProps<StackParamList, "Community">;
 
 export function CommunityScreen({ navigation }: Props) {
   const [inviteUser, setInviteUser] = useState<SocialUser | null>(null);
-  const [hostedRooms, setHostedRooms] = useState<{ roomId: string }[]>([]);
+  const [hostedRooms, setHostedRooms] = useState<
+    { roomId: string; name?: string }[]
+  >([]);
   const [room, setRoom] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<SocialUser[]>([]);
+  const [connections, setConnections] = useState<SocialUser[]>([]);
+  const [moreUser, setMoreUser] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     try {
-      setUsers(await trpcClient.social.search.query({ query }));
+      const [found, friends] = await Promise.all([
+        trpcClient.social.search.query({ query }),
+        trpcClient.social.friends.query(),
+      ]);
+      setUsers(found);
+      setConnections(friends);
       setError("");
     } catch {
       setError("Unable to load players.");
@@ -109,66 +118,122 @@ export function CommunityScreen({ navigation }: Props) {
         {error ? (
           <Text className="text-sm text-destructive">{error}</Text>
         ) : null}
-        {!users.length && !error ? (
-          <EmptyState
-            title="No players found"
-            description="Try a different name or handle."
-          />
-        ) : null}
-        <View className="gap-2">
-          {users.map((user) => (
-            <View key={user.id} className="gap-2 border-b border-border py-3">
-              <Text className="font-semibold text-foreground">
+        {[
+          {
+            title: "Friend requests",
+            people: connections.filter(
+              (user) => user.relationship === "incoming",
+            ),
+            empty: "No pending friend requests.",
+          },
+          {
+            title: "Friends",
+            people: connections.filter(
+              (user) => user.relationship === "friend",
+            ),
+            empty: "No friends yet.",
+          },
+          ...(query.trim()
+            ? [
                 {
-                  avatarOptions.find(
-                    (avatar) => avatar.id === user.avatarPreset,
-                  )?.symbol
-                }{" "}
-                {user.name ?? "Player"} · {user.isOnline ? "Online" : "Offline"}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {user.handle ? `@${user.handle} · ` : ""}
-                {user.relationship}
-              </Text>
-              <View className="flex-row flex-wrap gap-1">
-                {user.relationship === "friend" ? (
-                  <Button size="sm" onPress={() => setInviteUser(user)}>
-                    Invite
-                  </Button>
-                ) : null}
-                <ReportPlayer userId={user.id} name={user.name ?? "Player"} />
-                {user.relationship === "none" ? (
-                  <Button size="sm" onPress={() => void act(user, "request")}>
-                    Add
-                  </Button>
-                ) : null}
-                {user.relationship === "incoming" ? (
-                  <Button size="sm" onPress={() => void act(user, "respond")}>
-                    Accept
-                  </Button>
-                ) : null}
-                {user.relationship === "friend" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onPress={() => void act(user, "remove")}
-                  >
-                    Remove
-                  </Button>
-                ) : null}
-                {user.relationship !== "blocked" ? (
+                  title: "Search results",
+                  people: users.filter(
+                    (user) =>
+                      user.relationship !== "friend" &&
+                      user.relationship !== "incoming",
+                  ),
+                  empty: "No players found.",
+                },
+              ]
+            : []),
+        ].map((group) => (
+          <View key={group.title} className="gap-2">
+            <Text className="font-semibold text-foreground">{group.title}</Text>
+            {group.people.length === 0 ? (
+              <Text className="text-muted-foreground">{group.empty}</Text>
+            ) : null}
+            {group.people.map((user) => (
+              <View key={user.id} className="gap-2 border-b border-border py-3">
+                <View className="flex-row items-center gap-2">
+                <PlayerAvatar name={user.name ?? "Player"} preset={user.avatarPreset} />
+                <Text className="font-semibold text-foreground">
+                  {user.name ?? "Player"} ·{" "}
+                  {user.isOnline ? "Online" : "Offline"}
+                </Text>
+                </View>
+                <Text className="text-xs text-muted-foreground">
+                  {user.handle ? `@${user.handle} · ` : ""}
+                  {user.relationship}
+                </Text>
+                <View className="flex-row flex-wrap gap-1">
+                  {user.relationship === "friend" ? (
+                    <Button size="sm" onPress={() => setInviteUser(user)}>
+                      Invite
+                    </Button>
+                  ) : null}
+
+                  {user.relationship === "none" ? (
+                    <Button size="sm" onPress={() => void act(user, "request")}>
+                      Add
+                    </Button>
+                  ) : null}
+                  {user.relationship === "incoming" ? (
+                    <Button size="sm" onPress={() => void act(user, "respond")}>
+                      Accept
+                    </Button>
+                  ) : null}
+                  {user.relationship === "friend" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onPress={() =>
+                        navigation.navigate("Messages", { userId: user.id })
+                      }
+                    >
+                      Message
+                    </Button>
+                  ) : null}
                   <Button
                     size="sm"
                     variant="ghost"
-                    onPress={() => void act(user, "block")}
+                    accessibilityState={{ expanded: moreUser === user.id }}
+                    onPress={() =>
+                      setMoreUser(moreUser === user.id ? "" : user.id)
+                    }
                   >
-                    Block
+                    More
                   </Button>
-                ) : null}
+                  {moreUser === user.id ? (
+                    <View className="flex-row flex-wrap gap-1">
+                      <ReportPlayer
+                        userId={user.id}
+                        name={user.name ?? "Player"}
+                      />
+                      {user.relationship === "friend" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onPress={() => void act(user, "remove")}
+                        >
+                          Remove friend
+                        </Button>
+                      ) : null}
+                      {user.relationship !== "blocked" ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => void act(user, "block")}
+                        >
+                          Block
+                        </Button>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
               </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        ))}
         {inviteUser ? (
           <View className="gap-2">
             <Text className="font-semibold text-foreground">
@@ -182,17 +247,15 @@ export function CommunityScreen({ navigation }: Props) {
                   variant={room === item.roomId ? "primary" : "outline"}
                   onPress={() => setRoom(item.roomId)}
                 >
-                  {item.roomId}
+                  {item.name ?? "Private lobby"}
                 </Button>
               ))}
             </View>
-            <Input
-              accessibilityLabel="Lobby ID"
-              value={room}
-              onChangeText={setRoom}
-              placeholder="Your lobby ID"
-              maxLength={128}
-            />
+            {!hostedRooms.length ? (
+              <Text className="text-muted-foreground">
+                Create a lobby before inviting friends.
+              </Text>
+            ) : null}
             <Button
               disabled={busy || !room.trim()}
               onPress={() => void invite()}

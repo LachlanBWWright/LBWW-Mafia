@@ -6,6 +6,7 @@ import type {
   LobbyInvitation,
 } from "../../shared/trpc/accountFeatures";
 import type { StackParamList } from "../App";
+import { LobbyInvitationCard } from "../components/LobbyInvitation";
 import { Button, Screen } from "../components/ui";
 import { trpcClient } from "../lib/trpc";
 import { useAppState } from "../context/AppStateContext";
@@ -43,29 +44,17 @@ export function NotificationsView({
         Mark all read
       </Button>
       {invitations
-        .filter((invite) => invite.status === "pending")
+        .filter(
+          (invite) =>
+            invite.status === "pending" || invite.status === "expired",
+        )
         .map((invite) => (
-          <View key={invite.id} className="border-b border-border py-3 gap-2">
-            <Text className="text-foreground">
-              {invite.senderName ?? "A friend"} invited you to lobby{" "}
-              {invite.roomId}.
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              <Button
-                disabled={busy}
-                onPress={() => onRespond(invite.id, true)}
-              >
-                Accept and join
-              </Button>
-              <Button
-                disabled={busy}
-                variant="outline"
-                onPress={() => onRespond(invite.id, false)}
-              >
-                Decline
-              </Button>
-            </View>
-          </View>
+          <LobbyInvitationCard
+            key={invite.id}
+            invite={invite}
+            busy={busy}
+            onRespond={onRespond}
+          />
         ))}
       {!items.length ? (
         <Text className="text-muted-foreground">No notifications yet.</Text>

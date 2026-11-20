@@ -1,14 +1,8 @@
 import { Header } from "~/components/header";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
 import { roleSections } from "@mernmafia/shared/game/rolesList";
 import { RoleFaction } from "@mernmafia/shared/game/rolesTypes";
 import type { RoleCatalogEntry } from "@mernmafia/shared/game/rolesTypes";
+import { RoleIcon } from "~/components/role-icon";
 
 function RoleSection({
   title,
@@ -20,21 +14,18 @@ function RoleSection({
   roles: readonly RoleCatalogEntry[];
 }) {
   return (
-    <section className="mb-12">
-      <h2 className="mb-6 text-3xl font-bold">
+    <section className="mb-8">
+      <h2 className="mb-2 text-xl font-semibold">
         <span className={accentClass}>{title}</span> Roles
       </h2>
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <ul className="border-t">
         {roles.map((role) => (
-          <Card key={role.name} className="border-primary/20">
-            <CardHeader>
-              <CardTitle>{role.name}</CardTitle>
-              <CardDescription>{role.category}</CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">{role.summary}</CardContent>
-          </Card>
+          <li key={role.name} className="grid gap-1 border-b py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
+            <div className="flex items-center gap-2"><RoleIcon role={role.name} /><span className="font-medium">{role.name}</span><span className="text-muted-foreground text-sm">{role.category}</span></div>
+            <p className="text-muted-foreground text-sm">{role.summary}</p>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }
@@ -43,15 +34,10 @@ export default function RolesPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
-      <div className="container mx-auto flex-1 px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-12 text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Game <span className="text-primary">Roles</span>
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Reference of active roles used by the server role handler.
-            </p>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+        <div>
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold tracking-tight">Game roles</h1>
           </div>
 
           {roleSections.map((section) => {
@@ -72,7 +58,7 @@ export default function RolesPage() {
             );
           })}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

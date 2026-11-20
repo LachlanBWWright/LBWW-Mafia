@@ -49,6 +49,31 @@ function assertRoleVisibility(snapshots) {
 
 const delay = (milliseconds) => new Promise((done) => setTimeout(done, milliseconds));
 
+test("Worker sandbox executes authored roles and rejects unbounded or executable scenarios", async () => {
+  const url = `${base}/sandbox`;
+  const headers = { "content-type": "application/json" };
+  const scenario = {
+    role: { id: "field-medic", name: "Field Medic", alignment: "town", effect: "protect", charges: 1, noRepeatTarget: false },
+    nights: 2,
+    incomingAttack: true,
+  };
+  const response = await fetch(url, { method: "POST", headers, body: JSON.stringify(scenario) });
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.nights.length, 2);
+  assert.deepEqual(result.nights.map(night => night.accepted), [true, false]);
+  assert.equal(result.nights[0].targetDefence, 1);
+  assert.equal(result.nights[1].targetDefence, 0);
+  assert.match(response.headers.get("cache-control"), /no-store/);
+  for (const invalid of [
+    { ...scenario, nights: 6 },
+    { ...scenario, role: { ...scenario.role, execute: "attackAll()" } },
+  ]) assert.equal((await fetch(url, { method: "POST", headers, body: JSON.stringify(invalid) })).status, 400);
+  assert.equal((await fetch(url, { method: "POST", headers, body: " ".repeat(16_385) })).status, 413);
+  assert.equal((await fetch(url, { method: "GET" })).status, 405);
+  assert.equal((await fetch(url, { method: "POST", headers: { ...headers, origin: "https://unrelated.example" }, body: JSON.stringify(scenario) })).status, 403);
+});
+
 async function unusedPort() {
   const server = createServer();
   server.listen(0, "127.0.0.1");

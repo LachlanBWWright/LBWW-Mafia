@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DayTime } from "../communication/events";
+import { MessageKey } from "../communication/messages";
 import { nightMatch } from "../testing/matchFixtures";
 import type { LobbyMessage } from "./matchExperience";
 import {
   resolveLobbyTab,
   chatMessagePresentation,
+  chatEventStyle,
   lobbyPhaseLabel,
   roleVisitLabel,
   type LobbyTab,
@@ -179,6 +181,22 @@ describe("shared chat message presentation", () => {
       text: "hello",
     });
     expect(message.text).toBe("Éva [1]: hello");
+  });
+});
+
+describe("chat event emphasis", () => {
+  it.each([
+    [MessageKey.DayNStarted, "phase-day"], [MessageKey.Night1Started, "phase-night"],
+    [MessageKey.PlayerDiedHidden, "death"], [MessageKey.PlayerDiedFaction, "death"],
+    [MessageKey.PlayerVotedOutByTown, "death"], [MessageKey.VoteCastSingleVote, "vote"],
+    [MessageKey.FactionWon, "outcome"], [MessageKey.GameEndedDraw, "outcome"],
+    [MessageKey.YouWereRoleblocked, "result"], [MessageKey.ActionStale, "result"],
+  ] as const)("classifies %s as %s", (messageKey, expected) => {
+    expect(chatEventStyle({ id: 1, kind: "system", text: "translated text", messageKey })).toBe(expected);
+  });
+  it("keeps private results distinct and does not treat player text as an event", () => {
+    expect(chatEventStyle({ id: 1, kind: "role", text: "A result" })).toBe("result");
+    expect(chatEventStyle({ id: 2, kind: "chat", text: "Mafia won!", messageKey: MessageKey.FactionWon })).toBe("ordinary");
   });
 });
 

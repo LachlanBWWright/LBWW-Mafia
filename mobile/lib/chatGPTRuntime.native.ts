@@ -147,6 +147,7 @@ function createClient() {
     }
     if (method === "retry") {
       runtime.retryUsage();
+      runner.retry?.();
       return {};
     }
     if (method === "disconnect") {

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, within, userEvent } from "storybook/test";
 
 import { HeaderView } from "./header-view";
 
@@ -23,6 +23,7 @@ export const AuthenticatedAdmin: Story = {
   args: { user: { name: "Lachlan", handle: "nightowl", isAdmin: true } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByText("Menu", { exact: true }));
     await expect(canvas.getByRole("link", { name: "@nightowl" })).toBeVisible();
     await expect(canvas.getByRole("link", { name: "Admin" })).toBeVisible();
   },

@@ -2,6 +2,8 @@
  * Shared event type definitions for client-server communication.
  * These types are backend-agnostic and used by both Socket.IO and PartyServer.
  */
+import type { ResolvedGameRules } from "../game/gameRules";
+import type { CustomRole } from "../game/customRoles";
 import { DayTime } from "../game/playerActionRules";
 import type { MatchExperience } from "../game/matchExperience";
 import type { GameMessage } from "./messages";
@@ -90,7 +92,9 @@ export enum ClientEvent {
 
 export type PlayerList = {
   name: string;
+  avatarPreset?: string;
   isAlive?: boolean;
+  faction?: string;
   role?: string;
   connected?: boolean;
   isBot?: boolean;
@@ -131,6 +135,7 @@ export type ClientToServerEvents = {
 };
 
 export type GameSnapshot = MatchExperience & {
+  setup?: { rules: ResolvedGameRules; voteVisibility: "public" | "hidden"; rolePool?: string[]; customRoles?: CustomRole[] };
   matchId?: string;
   phaseVersion?: number;
   playerName: string;

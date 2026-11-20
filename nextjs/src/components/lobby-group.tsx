@@ -197,7 +197,7 @@ export function LobbyGroupView({
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm">
               {party.roomId
-                ? `Party lobby: ${party.roomId}`
+                ? "Party lobby selected"
                 : "No party lobby selected."}
             </p>
             {party.roomId && party.roomId !== roomId ? (
@@ -219,30 +219,35 @@ export function LobbyGroupView({
                   disabled={busy}
                   onClick={() => onAction({ type: "move", roomId })}
                 >
-                  Set this lobby as party destination
+                  Bring party here
                 </Button>
               ) : null}
-              <form
-                className="flex flex-wrap gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const target = destination.trim();
-                  if (isLobbyRoomId(target))
-                    onAction({ type: "move", roomId: target });
-                }}
-              >
-                <Input
-                  aria-label="Party lobby ID"
-                  placeholder="Lobby ID"
-                  value={destination}
-                  onChange={(event) => setDestination(event.target.value)}
-                  maxLength={64}
-                  className="min-w-40 flex-1"
-                />
-                <Button disabled={busy || !isLobbyRoomId(destination.trim())}>
-                  Set party lobby
-                </Button>
-              </form>
+              <details>
+                <summary className="cursor-pointer text-sm">
+                  Choose a lobby by ID
+                </summary>
+                <form
+                  className="flex flex-wrap gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const target = destination.trim();
+                    if (isLobbyRoomId(target))
+                      onAction({ type: "move", roomId: target });
+                  }}
+                >
+                  <Input
+                    aria-label="Party lobby ID"
+                    placeholder="Lobby ID"
+                    value={destination}
+                    onChange={(event) => setDestination(event.target.value)}
+                    maxLength={64}
+                    className="min-w-40 flex-1"
+                  />
+                  <Button disabled={busy || !isLobbyRoomId(destination.trim())}>
+                    Set party lobby
+                  </Button>
+                </form>
+              </details>
               {availableFriends.length ? (
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium">Invite friends</h3>

@@ -102,6 +102,35 @@ describe("MafiaRoomSession", () => {
     expect(missing.status).toBe(404);
   });
 
+  it("reports live room state only to the backend", async () => {
+    const { room, addConnection } = createPartyRoom();
+    Object.assign(room.env, { BACKEND_SECRET: "test-secret" });
+    const server = new MafiaRoomSession(room as never);
+    const connection = addConnection("player");
+    server.onConnect(connection as never, {} as never);
+    await server.onMessage(
+      JSON.stringify({
+        type: PartyServerMessageType.Event,
+        event: ClientEvent.PlayerJoinRoom,
+        args: ["dev-bypass-token"],
+        callbackId: "join",
+      }),
+      connection as never,
+    );
+    const response = await server.onRequest(
+      new Request("https://example.test/parties/main/test-room", {
+        headers: { authorization: "Bearer test-secret" },
+      }) as never,
+    );
+    expect(await response.json()).toMatchObject({
+      players: 1,
+      capacity: 3,
+      started: false,
+      ended: false,
+      closed: false,
+    });
+  });
+
   it("routes a valid join through the Room and returns its callback", async () => {
     const { room, addConnection, sentByConnection } = createPartyRoom();
     const connection = addConnection("connection-1");
@@ -464,37 +493,61 @@ describe("room session boundary regressions", () => {
       BACKEND_SECRET: "secret",
     });
     let resolveConfig!: (response: Response) => void;
-    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => {
-      resolveConfig = resolve;
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveConfig = resolve;
+          }),
+      ),
+    );
     const server = new MafiaRoomSession(harness.room as never);
     const departed = harness.addConnection("departed");
     server.onConnect(departed, {});
-    const joining = server.onMessage(JSON.stringify({
-      type: "event",
-      event: "playerJoinRoom",
-      args: [""],
-      callbackId: "departed-join",
-    }), departed);
+    const joining = server.onMessage(
+      JSON.stringify({
+        type: "event",
+        event: "playerJoinRoom",
+        args: [""],
+        callbackId: "departed-join",
+      }),
+      departed,
+    );
     server.onClose(departed);
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
-    resolveConfig(Response.json({
-      size: 3,
-      roleSelection: { algorithm: "weighted-random", roles: [{ role: "doctor" }], explicitSlots: [] },
-    }));
+    resolveConfig(
+      Response.json({
+        size: 3,
+        roleSelection: {
+          algorithm: "weighted-random",
+          roles: [{ role: "doctor" }],
+          explicitSlots: [],
+        },
+      }),
+    );
     await joining;
     expect(harness.sentByConnection.get("departed")).toEqual([]);
 
     const present = harness.addConnection("present");
     server.onConnect(present, {});
-    await server.onMessage(JSON.stringify({
-      type: "event", event: "playerJoinRoom", args: [""], callbackId: "present-join",
-    }), present);
-    const snapshots = parseMessages(harness.sentByConnection.get("present")!)
-      .filter((message) => message.event === "game-snapshot");
-    expect(snapshots.at(-1)?.args[0]).toEqual(expect.objectContaining({
-      players: [expect.objectContaining({ name: expect.any(String) })],
-    }));
+    await server.onMessage(
+      JSON.stringify({
+        type: "event",
+        event: "playerJoinRoom",
+        args: [""],
+        callbackId: "present-join",
+      }),
+      present,
+    );
+    const snapshots = parseMessages(
+      harness.sentByConnection.get("present")!,
+    ).filter((message) => message.event === "game-snapshot");
+    expect(snapshots.at(-1)?.args[0]).toEqual(
+      expect.objectContaining({
+        players: [expect.objectContaining({ name: expect.any(String) })],
+      }),
+    );
   });
 
   it("does not allocate a seat after disconnect during signed identity verification", async () => {
@@ -503,15 +556,28 @@ describe("room session boundary regressions", () => {
     const server = new MafiaRoomSession(harness.room as never);
     const connection = harness.addConnection("identity-pending");
     server.onConnect(connection, {});
-    const payload = Buffer.from(JSON.stringify({ userId: "user-1", exp: Date.now() + 60_000 })).toString("base64url");
-    const signature = createHmac("sha256", "secret").update(payload).digest("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({ userId: "user-1", exp: Date.now() + 60_000 }),
+    ).toString("base64url");
+    const signature = createHmac("sha256", "secret")
+      .update(payload)
+      .digest("base64url");
     let resolveVerification!: (valid: boolean) => void;
-    const verify = vi.spyOn(crypto.subtle, "verify").mockImplementation(() => new Promise<boolean>((resolve) => {
-      resolveVerification = resolve;
-    }));
-    const joining = server.onMessage(JSON.stringify({
-      type: "event", event: "playerJoinRoom", args: ["", `${payload}.${signature}`], callbackId: "identity-join",
-    }), connection);
+    const verify = vi.spyOn(crypto.subtle, "verify").mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveVerification = resolve;
+        }),
+    );
+    const joining = server.onMessage(
+      JSON.stringify({
+        type: "event",
+        event: "playerJoinRoom",
+        args: ["", `${payload}.${signature}`],
+        callbackId: "identity-join",
+      }),
+      connection,
+    );
     await vi.waitFor(() => expect(verify).toHaveBeenCalledOnce());
     server.onClose(connection);
     resolveVerification(true);
@@ -521,28 +587,56 @@ describe("room session boundary regressions", () => {
 
   it("shares one initialization request across simultaneous joins", async () => {
     const harness = createPartyRoom();
-    Object.assign(harness.room.env, { NEXTJS_URL: "https://web.test", BACKEND_SECRET: "secret" });
+    Object.assign(harness.room.env, {
+      NEXTJS_URL: "https://web.test",
+      BACKEND_SECRET: "secret",
+    });
     let resolveConfig!: (response: Response) => void;
-    const fetchConfig = vi.fn(() => new Promise<Response>((resolve) => { resolveConfig = resolve; }));
+    const fetchConfig = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveConfig = resolve;
+        }),
+    );
     vi.stubGlobal("fetch", fetchConfig);
     const server = new MafiaRoomSession(harness.room as never);
-    const connections = [harness.addConnection("one"), harness.addConnection("two")];
+    const connections = [
+      harness.addConnection("one"),
+      harness.addConnection("two"),
+    ];
     const joins = connections.map((connection) => {
       server.onConnect(connection, {});
-      return server.onMessage(JSON.stringify({
-        type: "event", event: "playerJoinRoom", args: [""], callbackId: connection.id,
-      }), connection);
+      return server.onMessage(
+        JSON.stringify({
+          type: "event",
+          event: "playerJoinRoom",
+          args: [""],
+          callbackId: connection.id,
+        }),
+        connection,
+      );
     });
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
-    resolveConfig(Response.json({
-      size: 3,
-      roleSelection: { algorithm: "weighted-random", roles: [{ role: "doctor" }], explicitSlots: [] },
-    }));
+    resolveConfig(
+      Response.json({
+        size: 3,
+        roleSelection: {
+          algorithm: "weighted-random",
+          roles: [{ role: "doctor" }],
+          explicitSlots: [],
+        },
+      }),
+    );
     await Promise.all(joins);
     expect(fetchConfig).toHaveBeenCalledOnce();
     for (const connection of connections) {
-      expect(parseMessages(harness.sentByConnection.get(connection.id)!)).toContainEqual(
-        expect.objectContaining({ callbackId: connection.id, args: [{ status: "joined", username: expect.any(String) }] }),
+      expect(
+        parseMessages(harness.sentByConnection.get(connection.id)!),
+      ).toContainEqual(
+        expect.objectContaining({
+          callbackId: connection.id,
+          args: [{ status: "joined", username: expect.any(String) }],
+        }),
       );
     }
   });
@@ -552,18 +646,29 @@ describe("room session boundary regressions", () => {
     Object.assign(harness.room.env, { BACKEND_SECRET: "secret" });
     const server = new MafiaRoomSession(harness.room as never);
     for (const method of ["GET", "DELETE"]) {
-      for (const authorization of [undefined, "Bearer wrong", "Bearer undefined"]) {
-        const response = await server.onRequest(new Request("https://worker.test/parties/main/test-room", {
-          method, headers: authorization ? { authorization } : {},
-        }));
+      for (const authorization of [
+        undefined,
+        "Bearer wrong",
+        "Bearer undefined",
+      ]) {
+        const response = await server.onRequest(
+          new Request("https://worker.test/parties/main/test-room", {
+            method,
+            headers: authorization ? { authorization } : {},
+          }),
+        );
         expect(response.status).toBe(404);
       }
     }
-    const authorized = await server.onRequest(new Request("https://worker.test/parties/main/test-room", {
-      headers: { authorization: "Bearer secret" },
-    }));
+    const authorized = await server.onRequest(
+      new Request("https://worker.test/parties/main/test-room", {
+        headers: { authorization: "Bearer secret" },
+      }),
+    );
     expect(authorized.status).toBe(200);
-    expect(await authorized.json()).toEqual(expect.objectContaining({ roomId: "test-room", connections: 0 }));
+    expect(await authorized.json()).toEqual(
+      expect.objectContaining({ roomId: "test-room", connections: 0, phase: "idle", day: 0 }),
+    );
   });
 
   it("rejects unversioned production actions and never broadcasts their payload", async () => {
@@ -571,11 +676,32 @@ describe("room session boundary regressions", () => {
     const server = new MafiaRoomSession(harness.room as never);
     const connection = harness.addConnection("production");
     server.onConnect(connection, {});
-    await server.onMessage(JSON.stringify({ type: "event", event: "playerJoinRoom", args: [""], callbackId: "join" }), connection);
+    await server.onMessage(
+      JSON.stringify({
+        type: "event",
+        event: "playerJoinRoom",
+        args: [""],
+        callbackId: "join",
+      }),
+      connection,
+    );
     const offset = harness.sentByConnection.get(connection.id)!.length;
-    await server.onMessage(JSON.stringify({ type: "event", event: "messageSentByUser", args: ["not delivered", "Day"] }), connection);
-    expect(parseMessages(harness.sentByConnection.get(connection.id)!.slice(offset))).toEqual([
-      expect.objectContaining({ type: "command-ack", accepted: false, reason: "version-required" }),
+    await server.onMessage(
+      JSON.stringify({
+        type: "event",
+        event: "messageSentByUser",
+        args: ["not delivered", "Day"],
+      }),
+      connection,
+    );
+    expect(
+      parseMessages(harness.sentByConnection.get(connection.id)!.slice(offset)),
+    ).toEqual([
+      expect.objectContaining({
+        type: "command-ack",
+        accepted: false,
+        reason: "version-required",
+      }),
     ]);
   });
 
@@ -583,13 +709,25 @@ describe("room session boundary regressions", () => {
     const harness = createPartyRoom();
     const server = new MafiaRoomSession(harness.room as never);
     const connection = harness.addConnection("binary");
-    const message = new TextEncoder().encode(JSON.stringify({ type: "event", event: "playerJoinRoom", args: [""], callbackId: "binary-join" }));
+    const message = new TextEncoder().encode(
+      JSON.stringify({
+        type: "event",
+        event: "playerJoinRoom",
+        args: [""],
+        callbackId: "binary-join",
+      }),
+    );
     await server.onMessage(message, connection);
     expect(harness.sentByConnection.get(connection.id)).toEqual([]);
     server.onConnect(connection, {});
     await server.onMessage(message, connection);
-    expect(parseMessages(harness.sentByConnection.get(connection.id)!)).toContainEqual(
-      expect.objectContaining({ callbackId: "binary-join", args: [{ status: "joined", username: expect.any(String) }] }),
+    expect(
+      parseMessages(harness.sentByConnection.get(connection.id)!),
+    ).toContainEqual(
+      expect.objectContaining({
+        callbackId: "binary-join",
+        args: [{ status: "joined", username: expect.any(String) }],
+      }),
     );
   });
 });

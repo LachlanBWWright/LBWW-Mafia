@@ -1,3 +1,14 @@
+import { reconcileCustomRoleForms } from "../lib/customRoleForms";
+import { LobbyRulesEditor } from "../components/LobbyRulesEditor";
+import { MAX_PLAYERS } from "../../shared/game/gameNames";
+import { CustomRoleEditor } from "../components/CustomRoleEditor";
+import { GamePackEditor } from "../components/GamePackEditor";
+import {
+  resolveGameRules,
+  summarizeGameSetup,
+  getSetupWarnings,
+} from "../../shared/game/gameCustomization";
+import type { CustomRole } from "../../shared/game/customRoles";
 import type { LobbyPreset } from "../../shared/trpc/accountFeatures";
 import { LobbyPresets } from "../components/LobbyPresets";
 import { lobbyPresetForm } from "../../shared/game/lobbyPresetForm";
@@ -29,11 +40,19 @@ export function CreateLobbyForm({
     "public",
   );
   const [size, setSize] = useState("8");
-  const [algorithm, setAlgorithm] = useState<string>("weighted-random");
+  const [isPublic, setIsPublic] = useState(false);
+  const [lobbyName, setLobbyName] = useState("");
+  const [nameTouched, setNameTouched] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
+  const [algorithm, setAlgorithm] = useState<string>("normal");
   const [roles, setRoles] = useState(initialRoleForms);
   const [slots, setSlots] = useState("");
+  const [rules, setRules] = useState(() => resolveGameRules({}));
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const sizeInvalid =
+    !Number.isInteger(Number(size)) || Number(size) < 2 || Number(size) > MAX_PLAYERS;
   function updateRole(id: string, patch: Partial<RoleForm>) {
     setRoles((current) => ({
       ...current,
@@ -41,15 +60,31 @@ export function CreateLobbyForm({
     }));
   }
   async function create() {
-    const parsed = parseLobbyForm(size, algorithm, roles, slots);
+    setNameTouched(true);
+    const parsed = parseLobbyForm(size, algorithm, roles, slots, {
+      rules,
+      customRoles,
+      voteVisibility,
+    });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? "Invalid lobby rules.");
+      return;
+    }
+    if (isPublic && !lobbyName.trim()) {
+      setError("Enter a lobby name.");
       return;
     }
     setSubmitting(true);
     setError("");
     try {
-      await onCreate({ ...parsed.data, voteVisibility });
+      await onCreate({
+        ...parsed.data,
+        voteVisibility,
+        directory: {
+          public: isPublic,
+          name: lobbyName.trim() || "Private lobby",
+        },
+      });
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Unable to create lobby.",
@@ -58,28 +93,40 @@ export function CreateLobbyForm({
       setSubmitting(false);
     }
   }
+  function getConfig() {
+    const parsed = parseLobbyForm(size, algorithm, roles, slots, {
+      rules,
+      customRoles,
+      voteVisibility,
+    });
+    if (!parsed.success)
+      throw new Error(
+        parsed.error.issues[0]?.message ?? "Invalid lobby rules.",
+      );
+    return parsed.data;
+  }
+  function applyConfig(config: LobbyConfig) {
+    const form = lobbyPresetForm(config);
+    setVoteVisibility(config.voteVisibility ?? "public");
+    setSize(form.size);
+    setAlgorithm(form.algorithm);
+    setRoles(form.roles);
+    setSlots(form.slots);
+    setRules(resolveGameRules(config));
+    setCustomRoles(config.customRoles ?? []);
+    setError("");
+  }
+  function updateCustomRoles(next: CustomRole[]) {
+    setCustomRoles(next);
+    setRoles((current) => reconcileCustomRoleForms(current, next));
+  }
+  const preview = parseLobbyForm(size, algorithm, roles, slots, {
+    rules,
+    customRoles,
+    voteVisibility,
+  });
   return (
     <View className="gap-5">
-      <LobbyPresets
-        initialPresets={initialPresets}
-        getConfig={() => {
-          const parsed = parseLobbyForm(size, algorithm, roles, slots);
-          if (!parsed.success)
-            throw new Error(
-              parsed.error.issues[0]?.message ?? "Invalid lobby rules.",
-            );
-          return { ...parsed.data, voteVisibility };
-        }}
-        onApply={(config) => {
-          setVoteVisibility(config.voteVisibility ?? "public");
-          const form = lobbyPresetForm(config);
-          setSize(form.size);
-          setAlgorithm(form.algorithm);
-          setRoles(form.roles);
-          setSlots(form.slots);
-          setError("");
-        }}
-      />
       <SectionHeader title="Lobby rules" />
       <View className="gap-2">
         <Text className="text-sm font-bold text-foreground">Players</Text>
@@ -89,7 +136,36 @@ export function CreateLobbyForm({
           onChangeText={setSize}
           keyboardType="number-pad"
         />
+        {sizeInvalid ? (
+          <Text className="text-sm text-destructive">
+            Choose between 2 and {MAX_PLAYERS} players.
+          </Text>
+        ) : null}
       </View>
+      <Button
+        variant="outline"
+        accessibilityState={{ checked: isPublic }}
+        onPress={() => setIsPublic(!isPublic)}
+      >
+        {isPublic ? "List publicly: on" : "List publicly: off"}
+      </Button>
+      {isPublic ? (
+        <View className="gap-2">
+          <Input
+            accessibilityLabel="Lobby name"
+            placeholder="Lobby name"
+            onBlur={() => setNameTouched(true)}
+            maxLength={60}
+            value={lobbyName}
+            onChangeText={setLobbyName}
+          />
+          {nameTouched && !lobbyName.trim() ? (
+            <Text className="text-sm text-destructive">
+              Enter a lobby name.
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
       <View className="gap-2">
         <Text className="text-sm font-bold text-foreground">Votes</Text>
         <View className="flex-row gap-2">
@@ -105,9 +181,41 @@ export function CreateLobbyForm({
           ))}
         </View>
       </View>
+      {preview.success ? (
+        <View className="gap-2">
+          <SectionHeader title="Setup summary" />
+          {summarizeGameSetup(preview.data).map((line) => (
+            <Text key={line} className="text-foreground">
+              {line}
+            </Text>
+          ))}
+          {getSetupWarnings(preview.data).map((line) => (
+            <Text key={line} className="text-amber-600">
+              {line}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      {error ? (
+        <Text accessibilityRole="alert" className="text-sm text-destructive">
+          {error}
+        </Text>
+      ) : null}
+      <Button onPress={() => void create()} disabled={submitting}>
+        {submitting ? "Creating…" : "Create lobby"}
+      </Button>
+      <Button
+        variant="ghost"
+        accessibilityState={{ expanded: advanced }}
+        onPress={() => setAdvanced(!advanced)}
+      >
+        Advanced setup{advanced ? " −" : " +"}
+      </Button>
+      {advanced ? (
+        <View className="gap-4">
       <View className="gap-2">
         <Text className="text-sm font-bold text-foreground">
-          Selection algorithm
+          Role selection
         </Text>
         <View className="flex-row flex-wrap gap-2">
           {selectionAlgorithms.map(([value, label]) => (
@@ -115,6 +223,7 @@ export function CreateLobbyForm({
               key={value}
               size="sm"
               variant={algorithm === value ? "primary" : "outline"}
+              accessibilityState={{ selected: algorithm === value }}
               onPress={() => setAlgorithm(value)}
             >
               {label}
@@ -122,6 +231,7 @@ export function CreateLobbyForm({
           ))}
         </View>
       </View>
+
       {algorithm === "explicit-slots" ? (
         <View className="gap-2">
           <Text className="text-sm font-bold text-foreground">Role slots</Text>
@@ -136,10 +246,15 @@ export function CreateLobbyForm({
             count.
           </Text>
         </View>
-      ) : (
+      ) : algorithm !== "normal" ? (
         <>
           <SectionHeader title="Role pool" />
-          {lobbyRoles.map(([id, label]) => {
+          {[
+            ...lobbyRoles,
+            ...customRoles.map(
+              (role) => [`custom:${role.id}`, role.name] as const,
+            ),
+          ].map(([id, label]) => {
             const role = roles[id]!;
             return (
               <View key={id} className="gap-2 border-b border-border pb-3">
@@ -180,15 +295,19 @@ export function CreateLobbyForm({
             );
           })}
         </>
-      )}
-      {error ? (
-        <Text accessibilityRole="alert" className="text-sm text-destructive">
-          {error}
-        </Text>
       ) : null}
-      <Button onPress={() => void create()} disabled={submitting}>
-        {submitting ? "Creating…" : "Create lobby"}
-      </Button>
+
+          <LobbyPresets
+            initialPresets={initialPresets}
+            getConfig={getConfig}
+            onApply={applyConfig}
+          />
+          <GamePackEditor getConfig={getConfig} onApply={applyConfig} />
+          <CustomRoleEditor roles={customRoles} onChange={updateCustomRoles} />
+          <LobbyRulesEditor rules={rules} onChange={setRules} />
+        </View>
+      ) : null}
+
     </View>
   );
 }
@@ -222,8 +341,7 @@ export function CreateLobbyScreen({ navigation }: Props) {
     <Screen
       navigation={navigation}
       activeRoute="CreateLobby"
-      title="Create custom lobby"
-      subtitle="Tune role selection before inviting players."
+      title="Create lobby"
     >
       {authToken ? (
         <CreateLobbyForm onCreate={create} />

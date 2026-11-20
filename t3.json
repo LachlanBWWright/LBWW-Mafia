@@ -1,0 +1,54 @@
+{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "defaultThreadEnvMode": "local",
+  "scripts": [
+    {
+      "name": "Install Dependencies",
+      "command": "pnpm install --frozen-lockfile",
+      "icon": "configure",
+      "runOnWorktreeCreate": true,
+      "async": false
+    },
+    {
+      "name": "Start Local Game (Linux)",
+      "command": "pnpm run dev",
+      "icon": "play",
+      "previewUrl": "http://localhost:3000",
+      "autoOpenPreview": true
+    },
+    {
+      "name": "Start Web + PartyServer + Database",
+      "command": "pnpm run dev:local",
+      "icon": "play",
+      "previewUrl": "http://localhost:3000",
+      "autoOpenPreview": true
+    },
+    {
+      "name": "Stop Local Database",
+      "command": "pnpm run dev:down",
+      "icon": "debug"
+    },
+    {
+      "name": "Run All Checks",
+      "command": "pnpm run test:all",
+      "icon": "test"
+    },
+    {
+      "name": "Lint Web, Server, and Mobile",
+      "command": "pnpm run lint",
+      "icon": "lint"
+    },
+    {
+      "name": "Start Storybook (Web)",
+      "command": "pnpm run storybook",
+      "icon": "play",
+      "previewUrl": "http://localhost:6006",
+      "autoOpenPreview": true
+    },
+    {
+      "name": "Start Storybook (Mobile)",
+      "command": "pnpm run storybook:mobile",
+      "icon": "play"
+    }
+  ]
+}

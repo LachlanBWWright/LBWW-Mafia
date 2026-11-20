@@ -13,6 +13,7 @@ export default tseslint.config(
       "storybook-static/**",
       "storybook-screenshots/**",
       "test-results/**",
+      "playwright-report/**",
     ],
   },
   ...nextVitals,

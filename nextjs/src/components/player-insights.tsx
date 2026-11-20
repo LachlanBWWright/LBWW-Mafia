@@ -1,5 +1,5 @@
 "use client";
-import { avatarOptions } from "@mernmafia/shared/trpc/accountFeatures";
+import { PlayerAvatar } from "./player-avatar";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createTRPCProxyClient, httpBatchLink } from "@trpc/client";
@@ -10,9 +10,6 @@ import type {
   AccountProfile,
 } from "@mernmafia/shared/trpc/appRouter";
 import type { PlayerAchievement } from "@mernmafia/shared/trpc/accountFeatures";
-const emoji: Record<string, string> = Object.fromEntries(
-  avatarOptions.map((option) => [option.id, option.symbol]),
-);
 export function PlayerInsights({
   initialStats,
   initialAchievements,
@@ -63,13 +60,7 @@ export function PlayerInsights({
       {profile ? (
         <div className="flex items-center gap-4">
           {profile.avatarPreset ? (
-            <span
-              className="text-4xl"
-              role="img"
-              aria-label={`${profile.avatarPreset} avatar`}
-            >
-              {emoji[profile.avatarPreset]}
-            </span>
+            <PlayerAvatar name={profile.name ?? "Player"} preset={profile.avatarPreset} />
           ) : profile.image ? (
             <Image
               src={profile.image}

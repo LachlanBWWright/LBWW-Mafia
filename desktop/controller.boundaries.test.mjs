@@ -34,6 +34,7 @@ function fixture() {
     signOut: mock.fn(async () => ({ remoteRevocationConfirmed: false })),
   };
   const runner = {
+    retry: mock.fn(),
     startBotSeats: mock.fn((value) => {
       const group = value.tickets.map(() => ({}));
       group.stop = mock.fn();
@@ -101,6 +102,7 @@ test("status, model catalog, cancel and retry expose only their intended operati
   await f.controller.invoke("retry");
   assert.equal(f.runtime.cancelSignIn.mock.callCount(), 1);
   assert.equal(f.runtime.retryUsage.mock.callCount(), 1);
+  assert.equal(f.runner.retry.mock.callCount(), 1);
   assert.equal(f.runner.startBotSeats.mock.callCount(), 0);
 });
 

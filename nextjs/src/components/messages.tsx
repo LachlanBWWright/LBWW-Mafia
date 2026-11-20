@@ -23,13 +23,15 @@ const makeClient = () =>
     links: [httpBatchLink({ url: "/api/trpc", transformer: superjson })],
   });
 
-export function Messages() {
+export function Messages({ initialUserId }: { initialUserId?: string }) {
   const [client] = useState(makeClient);
   const [conversations, setConversations] = useState<
     DirectConversationSummary[]
   >([]);
   const [friends, setFriends] = useState<SocialUser[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(
+    initialUserId ?? null,
+  );
   const [selectedOther, setSelectedOther] = useState<SocialUser | null>(null);
   const [messages, setMessages] = useState<DirectMessage[]>([]);
   const pendingSend = useRef<{ key: string; id: string } | null>(null);
@@ -38,7 +40,7 @@ export function Messages() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [hasOlder, setHasOlder] = useState(false);
-  const selectedRef = useRef<string | null>(null);
+  const selectedRef = useRef<string | null>(initialUserId ?? null);
 
   const loadConversations = useCallback(async () => {
     const [nextConversations, nextFriends] = await Promise.all([

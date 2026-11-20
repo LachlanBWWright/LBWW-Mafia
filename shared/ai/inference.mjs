@@ -1,16 +1,22 @@
+import { abortable } from "./cancellation.mjs";
 import { failure, providerError } from "./protocol.mjs";
 
-export async function completedText(response) {
+export async function completedText(response, signal) {
   const reader = response.body?.getReader();
   if (!reader)
     throw failure("interrupted", "ChatGPT response ended before completion.");
+  const abort = () => {
+    void reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener("abort", abort, { once: true });
   const decoder = new TextDecoder();
   const items = new Map();
   let pending = "";
   let bytes = 0;
   try {
     for (;;) {
-      const part = await reader.read();
+      const part = await abortable(() => reader.read(), signal);
+      signal?.throwIfAborted();
       bytes += part.value?.byteLength ?? 0;
       if (bytes > 2_000_000)
         throw failure("too-large", "ChatGPT response was too large.");
@@ -86,6 +92,7 @@ export async function completedText(response) {
         );
     }
   } finally {
+    signal?.removeEventListener("abort", abort);
     await reader.cancel().catch(() => {});
     reader.releaseLock();
   }

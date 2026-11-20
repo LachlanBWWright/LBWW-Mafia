@@ -11,15 +11,36 @@ import { PracticeSocket } from "./practiceSocket";
 import {
   canConfigureAiCharacters,
   phaseActionHint,
+  matchActionLabel,
   roleActionRestrictions,
   roleReference,
   visibleMessages,
   voteSummary,
 } from "./matchExperience";
-import { defaultVisitCapability } from "./playerActionRules";
+import { canAbstain, defaultVisitCapability } from "./playerActionRules";
+import { createCustomRoleDraft } from "./customRoles";
 import { nightMatch, dayMatch, hiddenMatch } from "../testing/matchFixtures";
 
 describe("shared match experience", () => {
+  it("names the current decision and preserves selected-action review", () => {
+    expect(matchActionLabel({ ...dayMatch, action: {} })).toBe("Choose a vote");
+    expect(matchActionLabel({ ...dayMatch, action: { vote: null } })).toBe("View vote");
+    expect(matchActionLabel({ ...nightMatch, action: {}, currentUserRole: "Doctor" })).toBe("Choose who to protect");
+    expect(matchActionLabel({ ...nightMatch, action: { visit: "Theo" } })).toBe("View action");
+    expect(matchActionLabel({ ...nightMatch, action: {}, visitCapability: defaultVisitCapability })).toBe("View players");
+  });
+  it("offers abstention only when it changes an eligible player's day vote", () => {
+    const lobby = { ...dayMatch, participation: "player" as const, canVote: true, action: {} };
+    expect(canAbstain(lobby)).toBe(true);
+    expect(canAbstain({ ...lobby, participation: "spectator" })).toBe(false);
+    expect(canAbstain({ ...lobby, participation: "eliminated" })).toBe(false);
+    expect(canAbstain({ ...lobby, ended: true })).toBe(false);
+    expect(canAbstain({ ...lobby, time: DayTime.Night })).toBe(false);
+    expect(canAbstain({ ...lobby, canVote: false })).toBe(false);
+    expect(canAbstain({ ...lobby, action: { vote: null } })).toBe(false);
+    expect(canAbstain({ ...lobby, action: { vote: "Theo" } })).toBe(!!lobby.setup?.rules.voting.allowRevote);
+    expect(canAbstain({ ...lobby, players: lobby.players.map((player) => player.name === lobby.playerName ? { ...player, isAlive: false } : player) })).toBe(false);
+  });
   it("describes the player's private visit permissions and phase actions", () => {
     const doctor = {
       ...defaultVisitCapability,
@@ -67,6 +88,7 @@ describe("shared match experience", () => {
       leaders: ["Theo"],
       highest: 2,
     });
+    expect(voteSummary(dayMatch.players, "public", "plurality")).toMatchObject({ leaders: ["Theo"], required: undefined });
   });
   it("mutes only bot chatter, retaining announcements and human messages", () => {
     expect(
@@ -74,6 +96,7 @@ describe("shared match experience", () => {
     ).toEqual([1, 2, 3, 4]);
     expect(roleReference("Doctor")?.objective).toContain("Mafia");
     expect(roleReference("made-up role")).toBeUndefined();
+    expect(roleReference("Field Medic", [createCustomRoleDraft()])?.description).toContain("protect");
   });
   it("summarizes public events and restores current choices after reconnecting", () => {
     const state = lobbyReducer(

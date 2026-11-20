@@ -1,6 +1,7 @@
 import type { CombatLevel } from "../combatLevel.js";
 import type { RoleGroup } from "../roleGroup.js";
 import type { RoleTrait } from "./roleTraits.js";
+import type { RoleInstance } from "./roleInstance.js";
 import {
   createRoleHandlers,
   type RoleCommandCallback,
@@ -45,6 +46,7 @@ export type RoleDefinition = {
   capabilities: RoleCapabilities;
   traits: RoleTrait[];
   handlers: RoleHandlerBuckets;
+  canSubmitNightAction?: (role: RoleInstance) => boolean;
 };
 
 type RoleDefinitionCore = Omit<RoleDefinition, "capabilities" | "handlers">;

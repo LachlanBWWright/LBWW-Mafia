@@ -35,6 +35,7 @@ function setup() {
       handle: `Player ${index}`,
     }),
   );
+  sockets.sort((a, b) => room.userList.findIndex((user) => user.socketId === a.id) - room.userList.findIndex((user) => user.socketId === b.id));
   const snapshot = () =>
     calls
       .filter(
